@@ -3,6 +3,7 @@ import { searchPlaces } from "./places.js";
 import { createAnalysisService } from "./analysis-jobs.js";
 import { isISODate } from "../shared/dates.js";
 import { createNasaService } from "./nasa.js";
+import { createWeatherService } from "./weather.js";
 import {
   randomBytes,
   scryptSync,
@@ -16,6 +17,7 @@ export async function createApplication({ db, background = () => {} } = {}) {
   await initializeDatabase(db);
   const analysisService = await createAnalysisService(db);
   const nasaService = await createNasaService(db);
+  const weatherService = await createWeatherService(db);
   return {
     db,
     analysisService,
@@ -143,6 +145,26 @@ export async function createApplication({ db, background = () => {} } = {}) {
           });
         }
         if (!session) return reply(401, { error: "Oturum açmanız gerekiyor." });
+        if (req.url.startsWith("/api/weather") && req.method === "GET") {
+          const url = new URL(req.url, "http://localhost");
+          if (url.pathname === "/api/weather") {
+            try {
+              return reply(
+                200,
+                await weatherService.forecast(
+                  session.id,
+                  url.searchParams.get("fieldId") || "",
+                ),
+              );
+            } catch (error) {
+              return reply(error.status || 502, {
+                error: error.status
+                  ? error.message
+                  : "Meteoroloji verisi alınamadı.",
+              });
+            }
+          }
+        }
         if (req.url === "/api/nasa/status" && req.method === "GET")
           return reply(200, await nasaService.status());
         if (req.url === "/api/nasa/verify" && req.method === "POST")

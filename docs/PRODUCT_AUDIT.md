@@ -21,7 +21,8 @@ Kaynak: kullanıcının `pasted-text-1.txt` şartnamesi (35 bölüm). Bu kayıt 
 | Raporlama | Eksik | CSV/JSON analiz ihracı var; seçilebilir, sürümlü rapor kaydı/önizleme/dosya üretimi yok |
 | Bildirimler | Kısmen çalışıyor | Gerçek tamamlanma/hata/iptal olayları, sahiplik ve kalıcı okundu uçları ve ekran eklendi; gerçek tamamlanma bildirimi API'de doğrulandı, tarayıcı etkileşim testi bekliyor |
 | Filiz | Kısmen çalışıyor | Gerçek kayıtların kurallı özeti; bağlı LLM yok, otomatik teşhis yok |
-| Diğer uydu/meteoroloji servisleri | Yapılandırma gerekiyor | Sentinel-1/termal ayrı doğrulama; hava sağlayıcısı ve model girdileri henüz yok |
+| Meteoroloji | Uygulandı; canlı API doğrulandı | MET Norway model tahminleri, parsel sahipliği/konumu, 24 saatlik sıcaklık grafiği, tüm mevcut anlık değişkenler, ayrı 1/6/12 saatlik dönemler ve kaynak izi. Vercel kontrolünde 91 gerçek nokta/13 değişken döndü. Eksik veri sıfıra çevrilmez. İstasyon ölçümü ve resmî uyarılar yok; tarayıcı görsel kontrolü bekliyor. |
+| Diğer uydu ve agronomik servisler | Eksik | Sentinel-1/termal ayrı doğrulama; sulama ve besleme model girdileri henüz yok. |
 | Mobil ve görsel kalite | Doğrulanamadı | Responsive CSS ve klavye kontrolleri var; tarayıcı erişim hostu yok, ekran testi tamamlanmadı |
 | Güvenlik | Kısmen çalışıyor | Sahiplik/geometri/rate limit testleri var; CSRF, oturum yenileme, audit, sıfırlama ve hassas hesap değişiklikleri tamamlanmalı |
 | Kalite/performans | Kısmen çalışiyor | Lazy splitting, istek iptali, PNG/piksel/sayı sayımı doğrulama ve error boundary eklendi; typed API ve tam durum matrisi eksik |

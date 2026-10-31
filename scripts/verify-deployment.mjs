@@ -164,83 +164,123 @@ try {
   );
   assert.equal((await request("/api/records")).data[0].id, saved.data.id);
   evidence.parcel = "real geometry save/read and other-owner rejection passed";
-  const search = await request("/api/places/search", {
-    body: { query: "Konya", lat: 39, lng: 35 },
-  });
-  assert.equal(search.response.status, 200);
-  assert.ok(search.data.results.length);
-  evidence.placeResults = search.data.results.length;
-  const status = await request("/api/satellite/status");
-  assert.equal(status.data.configured, true);
-  const nasa = await request("/api/nasa/verify", { body: {} });
-  assert.equal(nasa.response.status, 200);
-  evidence.nasa = Object.fromEntries(
-    Object.entries(nasa.data).map(([k, v]) => [
-      k,
-      { state: v.state, checkedAt: v.checkedAt },
-    ]),
+  const weatherPath = `/api/weather?fieldId=${saved.data.id}`;
+  assert.equal(
+    (await request(weatherPath, { session: "" })).response.status,
+    401,
   );
-  const queued = await request(`/api/records/${saved.data.id}/analysis`, {
-    body: {},
-  });
-  assert.equal(queued.response.status, 202);
-  job = queued.data.job;
-  const deadline = Date.now() + 270000;
-  do {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const polled = await request(`/api/analyses/${job.id}`);
-    assert.equal(polled.response.status, 200);
-    job = polled.data.job;
-  } while (["queued", "running"].includes(job.state) && Date.now() < deadline);
-  assert.equal(job.state, "completed", "Real satellite job did not complete.");
-  assert.equal(job.analysis.historyId, job.id);
-  const notices = await request("/api/notifications");
+  assert.equal(
+    (await request(weatherPath, { session: otherCookie })).response.status,
+    404,
+  );
+  const weather = await request(weatherPath);
+  assert.equal(weather.response.status, 200);
+  assert.equal(weather.data.fieldId, saved.data.id);
+  assert.equal(weather.data.type, "forecast");
+  assert.equal(weather.data.method, "met-locationforecast-complete-v1");
+  assert.ok(weather.data.points.length);
   assert.ok(
-    notices.data.notifications.some(
-      (n) => n.jobId === job.id && n.type === "analysis.completed",
-    ),
+    weather.data.points.some((p) => Number.isFinite(p.values.air_temperature)),
   );
-  const cached = await request(`/api/records/${saved.data.id}/analysis`);
-  assert.equal(cached.data.analysis.historyId, job.id);
-  evidence.satellite = {
-    state: job.state,
-    method: job.analysis.method,
-    source: job.analysis.source,
-    observations: job.analysis.observations.length,
-    scenes: job.analysis.scenes.length,
-    historyAndNotificationMatched: true,
+  const weatherAgain = await request(weatherPath);
+  assert.equal(weatherAgain.data.fetchedAt, weather.data.fetchedAt);
+  evidence.weather = {
+    source: weather.data.source,
+    updatedAt: weather.data.updatedAt,
+    points: weather.data.points.length,
+    instantVariables: Object.keys(weather.data.points[0].values).length,
+    cachedResponseMatched: true,
+    ownershipAndAuthentication: true,
   };
-  const day = job.analysis.observations.find(
-    (o) =>
-      o.stats?.NDMI?.sampleCount > 0 || Number.isFinite(o.stats?.NDMI?.mean),
-  );
-  const scene =
-    day &&
-    job.analysis.scenes.find(
-      (s) =>
-        Date.parse(s.properties.datetime) >= Date.parse(day.from) &&
-        Date.parse(s.properties.datetime) < Date.parse(day.to),
-    );
-  if (scene) {
-    const image = await request(`/api/records/${saved.data.id}/image`, {
-      body: {
-        analysisId: job.id,
-        date: scene.properties.datetime.slice(0, 10),
-        layer: "NDMI",
-      },
-      binary: true,
+  if (process.env.AGROMAX_VERIFY_SCOPE !== "weather") {
+    const search = await request("/api/places/search", {
+      body: { query: "Konya", lat: 39, lng: 35 },
     });
-    assert.equal(image.response.status, 200);
-    assert.equal(image.data.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
-    assert.ok(Number(image.response.headers.get("x-valid-pixels")) > 0);
-    evidence.image = {
-      format: "PNG",
-      layer: "NDMI",
-      validPixels: Number(image.response.headers.get("x-valid-pixels")),
+    assert.equal(search.response.status, 200);
+    assert.ok(search.data.results.length);
+    evidence.placeResults = search.data.results.length;
+    const status = await request("/api/satellite/status");
+    assert.equal(status.data.configured, true);
+    const nasa = await request("/api/nasa/verify", { body: {} });
+    assert.equal(nasa.response.status, 200);
+    evidence.nasa = Object.fromEntries(
+      Object.entries(nasa.data).map(([k, v]) => [
+        k,
+        { state: v.state, checkedAt: v.checkedAt },
+      ]),
+    );
+    const queued = await request(`/api/records/${saved.data.id}/analysis`, {
+      body: {},
+    });
+    assert.equal(queued.response.status, 202);
+    job = queued.data.job;
+    const deadline = Date.now() + 270000;
+    do {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const polled = await request(`/api/analyses/${job.id}`);
+      assert.equal(polled.response.status, 200);
+      job = polled.data.job;
+    } while (
+      ["queued", "running"].includes(job.state) &&
+      Date.now() < deadline
+    );
+    assert.equal(
+      job.state,
+      "completed",
+      "Real satellite job did not complete.",
+    );
+    assert.equal(job.analysis.historyId, job.id);
+    const notices = await request("/api/notifications");
+    assert.ok(
+      notices.data.notifications.some(
+        (n) => n.jobId === job.id && n.type === "analysis.completed",
+      ),
+    );
+    const cached = await request(`/api/records/${saved.data.id}/analysis`);
+    assert.equal(cached.data.analysis.historyId, job.id);
+    evidence.satellite = {
+      state: job.state,
+      method: job.analysis.method,
+      source: job.analysis.source,
+      observations: job.analysis.observations.length,
+      scenes: job.analysis.scenes.length,
+      historyAndNotificationMatched: true,
     };
-  } else
-    evidence.image =
-      "No eligible unmasked NDMI scene in this parcel/date range; not invented.";
+    const day = job.analysis.observations.find(
+      (o) =>
+        o.stats?.NDMI?.sampleCount > 0 || Number.isFinite(o.stats?.NDMI?.mean),
+    );
+    const scene =
+      day &&
+      job.analysis.scenes.find(
+        (s) =>
+          Date.parse(s.properties.datetime) >= Date.parse(day.from) &&
+          Date.parse(s.properties.datetime) < Date.parse(day.to),
+      );
+    if (scene) {
+      const image = await request(`/api/records/${saved.data.id}/image`, {
+        body: {
+          analysisId: job.id,
+          date: scene.properties.datetime.slice(0, 10),
+          layer: "NDMI",
+        },
+        binary: true,
+      });
+      assert.equal(image.response.status, 200);
+      assert.equal(
+        image.data.subarray(0, 8).toString("hex"),
+        "89504e470d0a1a0a",
+      );
+      assert.ok(Number(image.response.headers.get("x-valid-pixels")) > 0);
+      evidence.image = {
+        format: "PNG",
+        layer: "NDMI",
+        validPixels: Number(image.response.headers.get("x-valid-pixels")),
+      };
+    } else
+      evidence.image =
+        "No eligible unmasked NDMI scene in this parcel/date range; not invented.";
+  }
   await request(`/api/records/${saved.data.id}`, { method: "DELETE" });
   assert.deepEqual((await request("/api/records")).data, []);
   assert.equal(

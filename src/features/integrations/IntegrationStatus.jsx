@@ -85,8 +85,8 @@ export default function IntegrationStatus() {
           [
             CloudSun,
             "Meteoroloji",
-            "Bağlı değil",
-            "Ticari kullanıma uygun hava servisi anahtarı gerekli. Tahmin ve gözlem ayrı gösterilecek.",
+            "MET Norway · Anahtar gerektirmez",
+            "Parsel konumuna göre model tahminleri: sıcaklık, yağış, nem, rüzgâr ve sağlayıcının diğer değişkenleri. Canlı sorgu Hava durumu ekranından yapılır; her yanıtta kaynak ve güncelleme zamanı gösterilir. İstasyon gözlemi değildir.",
           ],
           [
             ScanLine,

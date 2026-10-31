@@ -27,7 +27,7 @@ http://127.0.0.1:5173 adresini açın. İlk hesabınızı arayüzden oluşturun.
 
 Copernicus sorguları sunucuda çalışır; kimlik bilgileri yapılandırıldığında gerçek katalog, bant/indeks istatistikleri ve raster görüntüleri alınır. Hesaplama boyutu sınırında istekler aynı günlük ızgarayı koruyarak bölünür. Eksik veriler sıfırla veya uydurma sonuçla doldurulmaz. Başlatılan analizler kalıcı işlem durumları ve sonuç sürümleriyle saklanır.
 
-NASA Open APIs ve Earthdata kimlikleri ayrı doğrulanır. Korumalı HLS bant erişim kontrolü vardır; HLS parsel analizi henüz uygulanmadı. Meteoroloji, SAR/termal ve ileri agronomik modeller bağlı değil. Filiz mevcut tarla/görev kayıtlarını kurallarla özetler; dil modeli veya otomatik hastalık teşhisi kullanmaz.
+NASA Open APIs ve Earthdata kimlikleri ayrı doğrulanır. Korumalı HLS bant erişim kontrolü vardır; HLS parsel analizi henüz uygulanmadı. Meteoroloji ekranı anahtarsız MET Norway model tahminlerine bağlıdır: parsel konumu, 24 saatlik sıcaklık grafiği, mevcut tüm anlık değişkenler ve ayrı 1/6/12 saatlik dönemler gösterilir. Veri kaynağı, zaman ve CC BY 4.0 atfı ekrandadır. SAR/termal ve ileri agronomik modeller bağlı değil. Filiz mevcut tarla/görev kayıtlarını kurallarla özetler; dil modeli veya otomatik hastalık teşhisi kullanmaz.
 
 Canlı yayın: **https://agromax-rust.vercel.app**. Vercel projesi `next-3011/agromax`; arayüz Vite, backend Node.js Function, kalıcı kayıtlar Frankfurt bölgesindeki Neon PostgreSQL üzerindedir. Yerel hesap ve mevcut gerçek kayıtlar taşındı; yerel oturum çerezleri taşınmadığı için canlı adreste yeniden giriş gerekir. API anahtarları Vercel'in sunucu ortamında tutulur.
 

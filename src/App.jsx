@@ -15,6 +15,9 @@ const IntegrationStatus = lazy(
   () => import("./features/integrations/IntegrationStatus"),
 );
 const TaskBoard = lazy(() => import("./features/tasks/TaskBoard"));
+const WeatherDashboard = lazy(
+  () => import("./features/weather/WeatherDashboard"),
+);
 const AnalysisHistory = lazy(
   () => import("./features/history/AnalysisHistory"),
 );
@@ -236,6 +239,8 @@ export default function App() {
     );
   else if (page === "tasks")
     content = <TaskBoard tasks={tasks} onToggle={toggle} onCreate={openTask} />;
+  else if (page === "weather")
+    content = <WeatherDashboard fields={fields} onNavigate={navigate} />;
   else if (page === "assistant")
     content = <Filiz fields={fields} tasks={tasks} onNavigate={navigate} />;
   else if (page === "integrations")
