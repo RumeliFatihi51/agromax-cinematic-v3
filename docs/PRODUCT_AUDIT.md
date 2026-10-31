@@ -4,7 +4,7 @@ Kaynak: kullanıcının `pasted-text-1.txt` şartnamesi (35 bölüm). Bu kayıt 
 
 | Ana özellik | Durum | İncelenen kanıt / kalan iş |
 | --- | --- | --- |
-| React/Vite uygulama, Node/SQLite backend | Çalışıyor | `src/App.jsx`, `server/index.js`; üretim sunucusu/hardening ayrıca gerekli |
+| React/Vite uygulama, Node API, kalıcı kayıtlar | Çalışıyor | Yerelde SQLite; Vercel Node Function + Neon PostgreSQL yayını doğrulandı. Ticari hardening ve eksik kapsam ayrıca izlenir. |
 | Kayıt, giriş, oturum, parola hash | Kısmen çalışıyor | Gerçek scrypt ve HttpOnly cookie; ad/soyad/tekrar parola, sıfırlama, e-posta doğrulama, oturum yönetimi eksik |
 | Hesap ayarları ve onboarding | Eksik | Kalıcı profil/tercih/onboarding uçları ve ekranları henüz yok |
 | Gerçek kayıtlara bağlı ana ekran | Kısmen çalışıyor | Alan/tarla/görev ve harita var; gözlem/geçmiş/rapor/bildirim özeti eksik |
@@ -16,7 +16,7 @@ Kaynak: kullanıcının `pasted-text-1.txt` şartnamesi (35 bölüm). Bu kayıt 
 | Uydu gözlemi keşfi | Kısmen çalışıyor | Analiz içindeki gerçek katalog var; bağımsız parsel/tarih/kaynak sorgu ekranı eksik |
 | Spektral çalışma alanı | Kısmen çalışıyor | 23 indeks, bant/açı tabloları, sağlayıcı uygunluğu, gerçek min–maksimum lejantı ve raster katmanları var; kullanıcıya kalıcı favoriler, arama ve özel analiz ayarları eksik |
 | Zamansal analiz | Kısmen çalışıyor | Gerçek günlük tablolar/ay farkı var; grafik, tarih seçimi, önce/sonra karşılaştırma eksik |
-| Analiz geçmişi ve gerçek işlem durumları | Çalışıyor | SQLite kalıcı kuyruk, gerçek durumlar, iptal/abort, snapshot sonuçlar, restart recovery, sahiplik; gerçek kullanıcı analizi ve 7 izole durum testi ile doğrulandı |
+| Analiz geçmişi ve gerçek işlem durumları | Çalışıyor | PostgreSQL/SQLite kalıcı kuyruk, atomik sahiplenme, süre sınırı, iptal, snapshot sonuçlar, lease recovery ve sahiplik; Vercel'de gerçek analiz/geçmiş/bildirim/NDMI PNG doğrulandı. Sınırsız dayanıklı haricî worker henüz yok. |
 | Manuel değerlendirmeler | Eksik | Analizle bağlantılı kullanıcı notları ve dört gerçek durum gerekli |
 | Raporlama | Eksik | CSV/JSON analiz ihracı var; seçilebilir, sürümlü rapor kaydı/önizleme/dosya üretimi yok |
 | Bildirimler | Kısmen çalışıyor | Gerçek tamamlanma/hata/iptal olayları, sahiplik ve kalıcı okundu uçları ve ekran eklendi; gerçek tamamlanma bildirimi API'de doğrulandı, tarayıcı etkileşim testi bekliyor |

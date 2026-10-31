@@ -29,4 +29,10 @@ Copernicus sorguları sunucuda çalışır; kimlik bilgileri yapılandırıldı�
 
 NASA Open APIs ve Earthdata kimlikleri ayrı doğrulanır. Korumalı HLS bant erişim kontrolü vardır; HLS parsel analizi henüz uygulanmadı. Meteoroloji, SAR/termal ve ileri agronomik modeller bağlı değil. Filiz mevcut tarla/görev kayıtlarını kurallarla özetler; dil modeli veya otomatik hastalık teşhisi kullanmaz.
 
-Vercel gibi bir ortamda kalıcı veritabanı ve uygun worker yaşam döngüsü kurulmalıdır. Mevcut sunucu loopback üzerinde Vite geliştirme middleware'i ve yerel SQLite kullanır; yalnızca `dist` klasörünü yayımlamak backend'i çalıştırmaz. Üretim dağıtımı henüz tamamlanmadı.
+Canlı yayın: **https://agromax-rust.vercel.app**. Vercel projesi `next-3011/agromax`; arayüz Vite, backend Node.js Function, kalıcı kayıtlar Frankfurt bölgesindeki Neon PostgreSQL üzerindedir. Yerel hesap ve mevcut gerçek kayıtlar taşındı; yerel oturum çerezleri taşınmadığı için canlı adreste yeniden giriş gerekir. API anahtarları Vercel'in sunucu ortamında tutulur.
+
+Yeni kurulumda `vercel link` ile doğru projeyi seçin, Neon entegrasyonunu bağlayın ve `.env.example` içindeki sunucu değişkenlerini Vercel Production ortamına ekleyin. `DATABASE_URL` Vercel'de zorunludur. `vercel deploy --prod --skip-domain` ile hazırlayıp doğruladıktan sonra `vercel promote <deployment-url>` ile yayımlayın. Yerel SQLite kullanımı `npm.cmd run dev` ile devam eder; bilerek bulut veritabanıyla geliştirmek için `node --env-file=.env.local --env-file=.env server/index.js` kullanılabilir.
+
+`scripts/migrate-to-postgres.mjs`, boş hedef veritabanına gerçek yerel kayıtları tek transaction'da taşır ve bütün satırları karşılaştırır; dolu hedefi değiştirmez. `scripts/verify-deployment.mjs` canlı API'yi geçici özel kontrol hesaplarıyla sınar ve finally bloğunda bunları siler. Ayrıntılar ve worker süre sınırları mimari belgesindedir.
+
+GitHub kodu `erdoganenestr/Agromax` deposundadır. Vercel'in GitHub uygulaması bu depoya erişemediğinden Git üzerinden otomatik yayın bağlantısı henüz kurulamadı; mevcut yayın CLI ile yapıldı. Otomatik yayın için Vercel Project → Settings → Git bölümünden uygulamaya depo erişimi verilmelidir.

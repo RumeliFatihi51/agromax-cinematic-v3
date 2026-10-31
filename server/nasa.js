@@ -24,43 +24,45 @@ const readJson = async (response) => {
   }
 };
 
-export function createNasaService(
+export async function createNasaService(
   db,
   { fetcher = fetch, now = () => new Date() } = {},
 ) {
-  db.exec(
+  await db.exec(
     "CREATE TABLE IF NOT EXISTS integration_checks(provider TEXT PRIMARY KEY,credential_hash TEXT NOT NULL,checked_at TEXT NOT NULL,body TEXT NOT NULL)",
   );
   let pending;
-  function status() {
+  async function status() {
     return Object.fromEntries(
-      Object.entries(definitions).map(([id, d]) => {
-        const value = process.env[d.key];
-        const record =
-          value &&
-          db
-            .prepare(
-              "SELECT credential_hash,checked_at,body FROM integration_checks WHERE provider=?",
-            )
-            .get(id);
-        const check =
-          record?.credential_hash === fingerprint(value)
-            ? JSON.parse(record.body)
-            : null;
-        return [
-          id,
-          {
-            label: d.label,
-            configured: !!value,
-            state: !value
-              ? "missing_configuration"
-              : check?.state || "not_verified",
-            checkedAt: check ? record.checked_at : null,
-            detail: check?.detail || null,
-            evidence: check?.evidence || null,
-          },
-        ];
-      }),
+      await Promise.all(
+        Object.entries(definitions).map(async ([id, d]) => {
+          const value = process.env[d.key];
+          const record =
+            value &&
+            (await db
+              .prepare(
+                "SELECT credential_hash,checked_at,body FROM integration_checks WHERE provider=?",
+              )
+              .get(id));
+          const check =
+            record?.credential_hash === fingerprint(value)
+              ? JSON.parse(record.body)
+              : null;
+          return [
+            id,
+            {
+              label: d.label,
+              configured: !!value,
+              state: !value
+                ? "missing_configuration"
+                : check?.state || "not_verified",
+              checkedAt: check ? record.checked_at : null,
+              detail: check?.detail || null,
+              evidence: check?.evidence || null,
+            },
+          ];
+        }),
+      ),
     );
   }
   async function send(url, options = {}) {
@@ -219,22 +221,24 @@ export function createNasaService(
             evidence: null,
           };
         }
-        db.prepare(
-          "INSERT INTO integration_checks VALUES(?,?,?,?) ON CONFLICT(provider) DO UPDATE SET credential_hash=excluded.credential_hash,checked_at=excluded.checked_at,body=excluded.body",
-        ).run(
-          id,
-          fingerprint(value),
-          now().toISOString(),
-          JSON.stringify(check),
-        );
+        await db
+          .prepare(
+            "INSERT INTO integration_checks VALUES(?,?,?,?) ON CONFLICT(provider) DO UPDATE SET credential_hash=excluded.credential_hash,checked_at=excluded.checked_at,body=excluded.body",
+          )
+          .run(
+            id,
+            fingerprint(value),
+            now().toISOString(),
+            JSON.stringify(check),
+          );
       }),
     );
     return status();
   }
   return {
     status,
-    verify() {
-      const current = status();
+    async verify() {
+      const current = await status();
       const configured = Object.values(current).filter((s) => s.configured);
       if (
         configured.length &&

@@ -8,7 +8,7 @@ const json = (body, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
-function setup(t, mode = "success") {
+async function setup(t, mode = "success") {
   const keys = ["NASA_API_KEY", "EARTHDATA_TOKEN"],
     previous = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   Object.assign(process.env, {
@@ -77,7 +77,7 @@ function setup(t, mode = "success") {
   };
   return {
     db,
-    service: createNasaService(db, {
+    service: await createNasaService(db, {
       fetcher,
       now: () => new Date("2026-10-31T18:00:00Z"),
     }),
@@ -85,7 +85,7 @@ function setup(t, mode = "success") {
   };
 }
 test("NASA and Earthdata verification stores only real response evidence and never credentials", async (t) => {
-  const h = setup(t);
+  const h = await setup(t);
   const result = await h.service.verify();
   assert.equal(result.nasa.state, "verified");
   assert.equal(result.earthdata.state, "verified");
@@ -100,7 +100,7 @@ test("NASA and Earthdata verification stores only real response evidence and nev
   assert.equal(h.calls(), 4);
 });
 test("missing NASA credentials cause no request and no invented verification", async (t) => {
-  const h = setup(t);
+  const h = await setup(t);
   delete process.env.NASA_API_KEY;
   delete process.env.EARTHDATA_TOKEN;
   const s = await h.service.verify();
@@ -109,14 +109,14 @@ test("missing NASA credentials cause no request and no invented verification", a
   assert.equal(h.calls(), 0);
 });
 test("credential rotation invalidates previously verified state", async (t) => {
-  const h = setup(t);
+  const h = await setup(t);
   await h.service.verify();
   process.env.EARTHDATA_TOKEN = "rotated-fixture-token";
-  assert.equal(h.service.status().earthdata.state, "not_verified");
-  assert.equal(h.service.status().earthdata.checkedAt, null);
+  assert.equal((await h.service.status()).earthdata.state, "not_verified");
+  assert.equal((await h.service.status()).earthdata.checkedAt, null);
 });
 test("Earthdata login redirects and NASA gateway rejection are reported as unauthorized", async (t) => {
-  const h = setup(t, "unauthorized");
+  const h = await setup(t, "unauthorized");
   const s = await h.service.verify();
   assert.equal(s.nasa.state, "unauthorized");
   assert.equal(s.earthdata.state, "unauthorized");
@@ -124,7 +124,7 @@ test("Earthdata login redirects and NASA gateway rejection are reported as unaut
 });
 for (const mode of ["bad-asset", "bad-redirect", "html", "timeout"])
   test(`unverifiable NASA data cannot become successful access: ${mode}`, async (t) => {
-    const h = setup(t, mode);
+    const h = await setup(t, mode);
     const s = await h.service.verify();
     assert.equal(s.earthdata.state, "unavailable");
     assert.equal(s.earthdata.evidence, null);

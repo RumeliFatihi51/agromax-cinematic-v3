@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import { sqliteDatabase } from "./database.js";
 import { createAnalysisService } from "./analysis-jobs.js";
 
 const geometry = {
@@ -41,18 +42,18 @@ function database() {
 test("analysis queue persists actual transitions, immutable result and one terminal notification", async () => {
   const db = database();
   let requests = 0;
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async () => {
       requests++;
       return fixtureResult();
     },
   });
-  const first = service.enqueue("owner-a", "field-a");
+  const first = await service.enqueue("owner-a", "field-a");
   assert.equal(first.state, "queued");
-  assert.equal(service.enqueue("owner-a", "field-a").id, first.id);
+  assert.equal((await service.enqueue("owner-a", "field-a")).id, first.id);
   await service.waitForIdle();
-  const done = service.get("owner-a", first.id);
+  const done = await service.get("owner-a", first.id);
   assert.equal(done.state, "completed");
   assert.ok(done.startedAt);
   assert.ok(done.finishedAt);
@@ -66,51 +67,54 @@ test("analysis queue persists actual transitions, immutable result and one termi
     JSON.parse(db.prepare("SELECT body FROM analyses").get().body).historyId,
     first.id,
   );
-  const second = service.enqueue("owner-a", "field-a");
+  const second = await service.enqueue("owner-a", "field-a");
   await service.waitForIdle();
   assert.notEqual(second.id, first.id);
-  assert.equal(service.list("owner-a").length, 2);
-  assert.equal(service.get("owner-a", first.id).analysis.historyId, first.id);
+  assert.equal((await service.list("owner-a")).length, 2);
+  assert.equal(
+    (await service.get("owner-a", first.id)).analysis.historyId,
+    first.id,
+  );
   db.close();
 });
 test("jobs, enqueue and result access enforce ownership on the server", async () => {
   const db = database();
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async () => fixtureResult(),
   });
-  assert.throws(
-    () => service.enqueue("owner-b", "field-a"),
+  await assert.rejects(
+    async () => await service.enqueue("owner-b", "field-a"),
     (e) => e.status === 404,
   );
-  const job = service.enqueue("owner-a", "field-a");
-  assert.throws(
-    () => service.get("owner-b", job.id),
+  const job = await service.enqueue("owner-a", "field-a");
+  await assert.rejects(
+    async () => await service.get("owner-b", job.id),
     (e) => e.status === 404,
   );
-  assert.throws(
-    () => service.cancel("owner-b", job.id),
+  await assert.rejects(
+    async () => await service.cancel("owner-b", job.id),
     (e) => e.status === 404,
   );
-  assert.deepEqual(service.list("owner-b"), []);
+  assert.deepEqual(await service.list("owner-b"), []);
   await service.waitForIdle();
   db.close();
 });
 test("canceling queued work never performs a provider request or creates a result", async () => {
   const db = database();
   let requests = 0;
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async () => {
       requests++;
       return fixtureResult();
     },
   });
-  const job = service.enqueue("owner-a", "field-a");
-  service.cancel("owner-a", job.id);
+  const job = await service.enqueue("owner-a", "field-a");
+  await service.cancel("owner-a", job.id);
   await service.waitForIdle();
   assert.equal(requests, 0);
-  assert.equal(service.get("owner-a", job.id).state, "canceled");
+  assert.equal((await service.get("owner-a", job.id)).state, "canceled");
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM analyses").get().n, 0);
   db.close();
 });
@@ -120,7 +124,7 @@ test("canceling running work aborts the request and cannot later publish its res
   const ready = new Promise((resolve) => {
     started = resolve;
   });
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async (_geometry, { signal }) => {
       started();
@@ -132,12 +136,13 @@ test("canceling running work aborts the request and cannot later publish its res
       return fixtureResult();
     },
   });
-  const job = service.enqueue("owner-a", "field-a");
+  const job = await service.enqueue("owner-a", "field-a");
+  service.start();
   await ready;
-  assert.equal(service.get("owner-a", job.id).state, "running");
-  service.cancel("owner-a", job.id);
+  assert.equal((await service.get("owner-a", job.id)).state, "running");
+  await service.cancel("owner-a", job.id);
   await service.waitForIdle();
-  assert.equal(service.get("owner-a", job.id).state, "canceled");
+  assert.equal((await service.get("owner-a", job.id)).state, "canceled");
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM analyses").get().n, 0);
   db.close();
 });
@@ -148,7 +153,7 @@ test("provider failure keeps previous cache and records a real failed event", as
     "old",
     '{"previous":true}',
   );
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async () => {
       throw Object.assign(new Error("Isolated provider timeout fixture"), {
@@ -156,9 +161,9 @@ test("provider failure keeps previous cache and records a real failed event", as
       });
     },
   });
-  const job = service.enqueue("owner-a", "field-a");
+  const job = await service.enqueue("owner-a", "field-a");
   await service.waitForIdle();
-  assert.equal(service.get("owner-a", job.id).state, "failed");
+  assert.equal((await service.get("owner-a", job.id)).state, "failed");
   assert.deepEqual(
     JSON.parse(db.prepare("SELECT body FROM analyses").get().body),
     { previous: true },
@@ -172,14 +177,15 @@ test("provider failure keeps previous cache and records a real failed event", as
 test("a changed or deleted parcel cannot receive a stale in-flight analysis", async () => {
   const db = database();
   let finish;
-  const service = createAnalysisService(db, {
+  const service = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: () =>
       new Promise((resolve) => {
         finish = resolve;
       }),
   });
-  const job = service.enqueue("owner-a", "field-a");
+  const job = await service.enqueue("owner-a", "field-a");
+  service.start();
   await new Promise((resolve) => setImmediate(resolve));
   db.prepare("UPDATE records SET body=? WHERE id=?").run(
     JSON.stringify({
@@ -191,13 +197,15 @@ test("a changed or deleted parcel cannot receive a stale in-flight analysis", as
   );
   finish(fixtureResult());
   await service.waitForIdle();
-  assert.equal(service.get("owner-a", job.id).state, "failed");
+  assert.equal((await service.get("owner-a", job.id)).state, "failed");
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM analyses").get().n, 0);
   db.close();
 });
 test("restart recovery marks only truly running jobs interrupted without fabricated success", async () => {
   const db = database();
-  const initial = createAnalysisService(db, { configured: () => false });
+  const initial = await createAnalysisService(sqliteDatabase(db), {
+    configured: () => false,
+  });
   await initial.waitForIdle();
   db.prepare(
     "INSERT INTO analysis_jobs(id,user_id,field_id,geometry_hash,snapshot,state,created_at) VALUES(?,?,?,?,?,?,?)",
@@ -210,15 +218,68 @@ test("restart recovery marks only truly running jobs interrupted without fabrica
     "running",
     new Date().toISOString(),
   );
-  const restarted = createAnalysisService(db, {
+  const restarted = await createAnalysisService(sqliteDatabase(db), {
     configured: () => true,
     execute: async () => fixtureResult(),
   });
   await restarted.waitForIdle();
-  assert.equal(restarted.get("owner-a", "interrupted").state, "failed");
+  assert.equal((await restarted.get("owner-a", "interrupted")).state, "failed");
   assert.equal(
     db.prepare("SELECT type FROM notifications").get().type,
     "analysis.failed",
   );
   db.close();
+});
+
+test("a second instance preserves a live lease and cross-instance cancellation prevents publishing", async () => {
+  const raw = database();
+  const db = sqliteDatabase(raw);
+  let ready, finish;
+  const started = new Promise((resolve) => {
+    ready = resolve;
+  });
+  const first = await createAnalysisService(db, {
+    configured: () => true,
+    execute: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+        ready();
+      }),
+  });
+  const job = await first.enqueue("owner-a", "field-a");
+  first.start();
+  await started;
+  const second = await createAnalysisService(db, { configured: () => true });
+  await second.start();
+  assert.equal((await second.get("owner-a", job.id)).state, "running");
+  assert.equal((await second.enqueue("owner-a", "field-a")).id, job.id);
+  await second.cancel("owner-a", job.id);
+  finish(fixtureResult());
+  await first.waitForIdle();
+  assert.equal((await second.get("owner-a", job.id)).state, "canceled");
+  assert.equal(raw.prepare("SELECT COUNT(*) AS n FROM analyses").get().n, 0);
+  assert.equal(
+    raw.prepare("SELECT COUNT(*) AS n FROM notifications").get().n,
+    1,
+  );
+  raw.close();
+});
+
+test("bounded worker timeout records failure without manufacturing results", async () => {
+  const raw = database();
+  const service = await createAnalysisService(sqliteDatabase(raw), {
+    configured: () => true,
+    maxWorkMs: 1200,
+    execute: async (_geometry, { signal }) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      }),
+  });
+  const job = await service.enqueue("owner-a", "field-a");
+  await service.waitForIdle();
+  assert.equal((await service.get("owner-a", job.id)).state, "failed");
+  assert.equal(raw.prepare("SELECT COUNT(*) AS n FROM analyses").get().n, 0);
+  raw.close();
 });

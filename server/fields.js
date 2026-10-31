@@ -42,7 +42,7 @@ export async function fieldRoutes({
   );
   if (!match) return false;
   const [, id, operation] = match;
-  const row = db
+  const row = await db
     .prepare("SELECT * FROM records WHERE id=? AND user_id=?")
     .get(id, session.id);
   if (!row) {
@@ -53,10 +53,9 @@ export async function fieldRoutes({
   const field = JSON.parse(row.body);
   if (operation === "restore" && req.method === "POST") {
     delete field.deletedAt;
-    db.prepare("UPDATE records SET body=? WHERE id=?").run(
-      JSON.stringify(field),
-      id,
-    );
+    await db
+      .prepare("UPDATE records SET body=? WHERE id=?")
+      .run(JSON.stringify(field), id);
     reply(200, { ...field, id, kind: "field" });
     return true;
   }
@@ -70,12 +69,11 @@ export async function fieldRoutes({
   if (!operation && req.method === "PATCH") {
     try {
       const next = prepareField(body, field);
-      db.prepare("UPDATE records SET body=? WHERE id=?").run(
-        JSON.stringify(next),
-        id,
-      );
+      await db
+        .prepare("UPDATE records SET body=? WHERE id=?")
+        .run(JSON.stringify(next), id);
       if (JSON.stringify(next.geometry) !== JSON.stringify(field.geometry))
-        db.prepare("DELETE FROM analyses WHERE field_id=?").run(id);
+        await db.prepare("DELETE FROM analyses WHERE field_id=?").run(id);
       reply(200, { ...next, id, kind: "field" });
     } catch (e) {
       reply(400, { error: e.message });
@@ -83,15 +81,17 @@ export async function fieldRoutes({
     return true;
   }
   if (!operation && req.method === "DELETE") {
-    db.prepare("UPDATE records SET body=? WHERE id=?").run(
-      JSON.stringify({ ...field, deletedAt: new Date().toISOString() }),
-      id,
-    );
+    await db
+      .prepare("UPDATE records SET body=? WHERE id=?")
+      .run(
+        JSON.stringify({ ...field, deletedAt: new Date().toISOString() }),
+        id,
+      );
     reply(200, { ok: true });
     return true;
   }
   if (operation === "analysis") {
-    const cached = db
+    const cached = await db
       .prepare("SELECT body,geometry_hash FROM analyses WHERE field_id=?")
       .get(id);
     const hash = createHash("sha256")
@@ -135,7 +135,7 @@ export async function fieldRoutes({
         return true;
       }
       try {
-        const job = analysisService.enqueue(session.id, id);
+        const job = await analysisService.enqueue(session.id, id);
         reply(202, { job, status: satelliteStatus() });
       } catch (e) {
         reply(e.status || 502, { error: e.message });
@@ -149,7 +149,7 @@ export async function fieldRoutes({
       return true;
     }
     try {
-      const { analysis, geometry } = imageAnalysis(
+      const { analysis, geometry } = await imageAnalysis(
         db,
         session.id,
         id,
@@ -200,18 +200,18 @@ export async function fieldRoutes({
   }
   return false;
 }
-export function imageAnalysis(db, userId, fieldId, analysisId, field) {
+export async function imageAnalysis(db, userId, fieldId, analysisId, field) {
   if (
-    !db
+    !(await db
       .prepare(
         "SELECT id FROM records WHERE id=? AND user_id=? AND kind='field'",
       )
-      .get(fieldId, userId)
+      .get(fieldId, userId))
   )
     throw Object.assign(new Error("Parsel bulunamadı."), { status: 404 });
   let analysis, geometry;
   if (analysisId) {
-    const row = db
+    const row = await db
       .prepare(
         "SELECT result,snapshot FROM analysis_jobs WHERE id=? AND user_id=? AND field_id=? AND state='completed'",
       )
@@ -223,7 +223,7 @@ export function imageAnalysis(db, userId, fieldId, analysisId, field) {
     analysis = JSON.parse(row.result);
     geometry = JSON.parse(row.snapshot).field.geometry;
   } else {
-    const row = db
+    const row = await db
       .prepare("SELECT body,geometry_hash FROM analyses WHERE field_id=?")
       .get(fieldId);
     const hash = createHash("sha256")

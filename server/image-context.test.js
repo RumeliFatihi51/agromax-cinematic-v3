@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { imageAnalysis } from "./fields.js";
 import { geometryHash } from "./analysis-jobs.js";
 
-test("historical imagery uses its immutable analysis geometry and rejects other owners", () => {
+test("historical imagery uses its immutable analysis geometry and rejects other owners", async () => {
   const previousProvider = process.env.SENTINEL_PROVIDER;
   process.env.SENTINEL_PROVIDER = "cdse";
   const db = new DatabaseSync(":memory:");
@@ -55,20 +55,28 @@ test("historical imagery uses its immutable analysis geometry and rejects other 
       JSON.stringify({ field: { geometry: oldGeometry } }),
     );
     assert.deepEqual(
-      imageAnalysis(db, "fixture-owner", "fixture-field", "fixture-job", {
-        geometry: newGeometry,
-      }).geometry,
+      (
+        await imageAnalysis(
+          db,
+          "fixture-owner",
+          "fixture-field",
+          "fixture-job",
+          {
+            geometry: newGeometry,
+          },
+        )
+      ).geometry,
       oldGeometry,
     );
-    assert.throws(
-      () =>
+    await assert.rejects(
+      async () =>
         imageAnalysis(db, "other-owner", "fixture-field", "fixture-job", {
           geometry: newGeometry,
         }),
       (e) => e.status === 404,
     );
-    assert.throws(
-      () =>
+    await assert.rejects(
+      async () =>
         imageAnalysis(db, "fixture-owner", "fixture-field", "missing", {
           geometry: newGeometry,
         }),
@@ -79,17 +87,19 @@ test("historical imagery uses its immutable analysis geometry and rejects other 
       geometryHash(oldGeometry),
       JSON.stringify(historical),
     );
-    assert.throws(
-      () =>
+    await assert.rejects(
+      async () =>
         imageAnalysis(db, "fixture-owner", "fixture-field", null, {
           geometry: newGeometry,
         }),
       (e) => e.status === 422,
     );
     assert.deepEqual(
-      imageAnalysis(db, "fixture-owner", "fixture-field", null, {
-        geometry: oldGeometry,
-      }).geometry,
+      (
+        await imageAnalysis(db, "fixture-owner", "fixture-field", null, {
+          geometry: oldGeometry,
+        })
+      ).geometry,
       oldGeometry,
     );
   } finally {

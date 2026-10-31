@@ -7,11 +7,11 @@ Node.js 24 gereklidir. `app` klasöründe `npm.cmd install`, ardından `npm.cmd 
 ## Mevcut kapsam
 
 - React arayüzü, Vite geliştirme sunucusu.
-- Node HTTP API, SQLite kalıcı kayıtlar, scrypt parola özetleri ve HttpOnly oturum çerezleri.
+- Ortak Node HTTP API; yerelde SQLite, Vercel'de Neon PostgreSQL; scrypt parola özetleri ve HttpOnly oturum çerezleri.
 - Hesap açma, giriş, çıkış; kullanıcıya özel tarla ve görev kayıtları; görev tamamlama.
 - Örnek tarla, hava ölçümü, indeks veya analiz sonucu eklenmez.
 - Sentinel-2 L2A gerçek sağlayıcı erişimi, doğrulanan 40 sayısal çıktı ve kaynak/kalite izi.
-- SQLite kalıcı analiz kuyruğu, iptal, geçmiş sonuç snapshot'ları, gerçek olay bildirimleri ve analiz denetim kayıtları (`server/analysis-jobs.js`).
+- Veritabanında kalıcı analiz kuyruğu, atomik iş sahipliği, iptal, geçmiş sonuç snapshot'ları, gerçek olay bildirimleri ve analiz denetim kayıtları (`server/analysis-jobs.js`).
 - Eski kullanıcı alan beyanları korunur. Yeni harita çizimleri geometriden yaklaşık hesaplanır; alanın kaynağı kaydedilir.
 - Analiz geçmişi ve bildirim ekranları gerçek kayıtlarla çalışır. Tamamlanmamış diğer modüller açıkça etiketlenir; tam kapsam durumu `PRODUCT_AUDIT.md` içinde izlenir.
 
@@ -19,11 +19,13 @@ Node.js 24 gereklidir. `app` klasöründe `npm.cmd install`, ardından `npm.cmd 
 
 `src/components/Auth.jsx`: kimlik ekranları. `src/components/icons.js`: ikonlar. `src/features/modules.js`: modül kataloğu. `src/api.js`: HTTP istemcisi. `src/main.jsx`: uygulama kabuğu ve ilk ekranlar. `src/style.css`: temel görünüm. `src/features/fields/`: harita, düzenleyici, liste ve analiz bileşenleri. `src/features/assistant/`: Filiz. `server/index.js`: API kabuğu. `server/fields.js`: parsel işlemleri. `server/satellite.js`: uydu adaptörü. `shared/`: geometri doğrulama ve gösterge sözlüğü. `data/`: yerel veritabanı; sürüm kontrolüne alınmaz.
 
-Ekranlar `features/<modül>/` altında, ortak UI `components/ui/` altında tutulur. API giriş/oturum bölümü hâlâ `server/index.js` içindedir ve ayrı authentication servisine ayrılmalıdır. Mevcut SQLite kuyruğu aynı Node sürecinde tek worker çalıştırır; üretimde çoklu instance için tekil worker sahipliği/lease veya haricî kuyruk gereklidir. Ticari mimari için modüler monolit API, PostgreSQL/PostGIS, coğrafi dosyalar için nesne depolama ve ayrı raster worker önerilir.
+Ekranlar `features/<modül>/` altında, ortak UI `components/ui/` altında tutulur. `server/application.js` ortak API ve oturum girişidir; `server/index.js` yalnızca yerel HTTP/Vite başlangıcıdır. `api/index.js` Vercel Function girişidir. `server/database.js` parametreli sorgu ve transaction adaptörlerini içerir. Üretimde `DATABASE_URL` zorunludur; geçici dosya sistemine SQLite yazılmaz. Yerel async transaction'lar diğer isteklerden ayrılarak seri çalışır; PostgreSQL transaction'ları tek bağlantı kullanır.
+
+Analizler veritabanında atomik olarak sahiplenilir. Sonuç, geometri kontrolü, bildirim ve geçmiş tek transaction'da kaydedilir. Yeni instance çalışan işleri kesmez; yalnızca altı dakikayı aşmış işler kesilmiş olarak işaretlenir. Vercel `waitUntil` API yanıtından sonra çalışmayı sürdürür; worker bütçesi 230 saniye, Function sınırı 300 saniyedir. Aktif başka instance'daki iptal, sağlayıcı isteğini anında durdurmayabilir; iptal edilmiş sonuç yayımlanamaz. Bu, sınırsız ve kesintisiz bir haricî kuyruk değildir: bekleyen işler sonraki API isteğinde sürdürülür, kesilen işler yeniden denenmek üzere hata olarak gösterilir. Uzun raster işleri için ayrı dayanıklı worker/Workflow gerekir.
 
 ## Ticari yayından önce
 
-Bu sürüm yalnızca loopback üzerinde çalışan yerel geliştirme sürümüdür; üretim servisi değildir. HTTPS, Secure cookie, e-posta doğrulama, şifre sıfırlama, kurumsal üyelik/yetki modeli, yedekleme, denetim kayıtları, erişim testleri ve KVKK süreçleri tamamlanmalıdır. `npm run build` arayüz çıktısı üretir; mevcut sunucu geliştirme middleware'i kullanır. Sadece dist klasörünü yayımlamak API'yi çalıştırmaz.
+Vercel arayüzü ve Node Function API aynı projede yayımlanır; HTTPS oturumlarında Secure cookie kullanılır. Kimlikler yalnızca sunucu ortam değişkenleridir. E-posta doğrulama, şifre sıfırlama, kurumsal üyelik/yetki modeli, yedek geri yükleme denemeleri, geniş denetim kapsamı ve KVKK süreçleri hâlâ tamamlanmalıdır. Mevcut yayının çalışması bütün ticari ürün kapsamının tamamlandığı anlamına gelmez.
 
 ## Veri sözleşmesi
 
