@@ -1,0 +1,36 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server/index.js",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test server/*.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "^2.20.4",
+    "@turf/area": "^7.4.0",
+    "@turf/boolean-valid": "^7.4.0",
+    "@turf/kinks": "^7.4.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.65.0",
+    "pngjs": "^7.0.0",
+    "proj4": "^2.22.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "vite": "^8.3.5"
+  },
+  "private": true
+}

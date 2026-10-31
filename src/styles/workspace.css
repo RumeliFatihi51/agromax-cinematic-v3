@@ -1,0 +1,851 @@
+/* Shared Agromax visual system. Feature-specific layouts live beside their components. */
+:root {
+  --workspace-bg: #f7f8f5;
+  --workspace-ink: #1f3629;
+  --workspace-muted: #68766d;
+  --workspace-line: #e1e7dd;
+  --workspace-primary: #315c43;
+  --workspace-lime: #d6eea4;
+  --studio-bg: var(--workspace-bg);
+  --studio-ink: var(--workspace-ink);
+  --studio-green: var(--workspace-primary);
+  --studio-line: var(--workspace-line);
+  font-family: Manrope, sans-serif;
+}
+body,
+.studio-shell,
+button,
+input,
+select,
+textarea {
+  font-family: Manrope, sans-serif;
+}
+.studio-shell {
+  --sidebar-width: 242px;
+}
+.studio-sidebar {
+  background: #183d2d;
+  border-right: 1px solid #153527;
+  padding: 27px 16px 15px;
+  color: #f3f7eb;
+}
+.studio-brand-row {
+  margin: 0 4px 28px;
+  gap: 5px;
+}
+.studio-brand .agromax-wordmark {
+  color: #f3f7eb;
+  font-size: 26px;
+}
+.studio-sidebar-collapse,
+.studio-mobile-close {
+  color: #aac1ad;
+}
+.studio-sidebar-collapse:hover,
+.studio-mobile-close:hover {
+  color: #e1f3bb;
+}
+.studio-workspace {
+  background: #ffffff08;
+  border-color: #ffffff1c;
+  padding: 11px;
+  margin-bottom: 25px;
+  min-height: 62px;
+}
+.studio-workspace > span {
+  color: #e3efcf;
+  background: #ffffff13;
+  border: 1px solid #ffffff12;
+  border-radius: 8px;
+}
+.studio-workspace strong {
+  color: #edf3e8;
+  font-size: 12px;
+}
+.studio-workspace small {
+  color: #a3b7a6;
+  font-size: 9px;
+}
+.studio-nav-heading {
+  color: #91ad97;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  padding: 0 12px;
+}
+.studio-nav-heading:not(:first-child) {
+  margin-top: 23px;
+}
+.studio-sidebar .studio-nav-link {
+  min-height: 42px;
+  color: #b9ccbb;
+  font-size: 11px;
+  padding: 10px 12px;
+  gap: 11px;
+  border-radius: 8px;
+}
+.studio-sidebar .studio-nav-link > svg {
+  color: #a8bfae;
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.6;
+}
+.studio-sidebar .studio-nav-link:hover {
+  color: #f1f8e8;
+  background: #ffffff0b;
+}
+.studio-sidebar .studio-nav-link.is-active {
+  background: #d6eea4;
+  color: #23452e;
+  box-shadow: 0 2px 8px #00000008;
+  font-weight: 750;
+}
+.studio-sidebar .studio-nav-link.is-active > svg {
+  color: #365a30;
+}
+.studio-nav-link.is-active > i {
+  background: #416535;
+}
+.studio-nav-link > b {
+  background: #ffffff15;
+  color: #dae6cf;
+}
+.studio-nav-link.is-active > b {
+  background: #183d2d15;
+  color: #315430;
+}
+.studio-filiz {
+  background: linear-gradient(120deg, #304e3c, #2a4839);
+  border: 1px solid #75936d50;
+  border-radius: 11px;
+  padding: 12px 10px;
+  margin-top: 25px;
+}
+.studio-filiz > span {
+  background: #d5e8aa12;
+}
+.studio-filiz strong {
+  color: #edf4dc;
+  font-size: 13px;
+}
+.studio-filiz small {
+  color: #aec49d;
+  font-size: 8px;
+}
+.studio-filiz > svg {
+  color: #b5ce8d;
+}
+.studio-filiz:hover,
+.studio-filiz.is-active {
+  background: #3c5b40;
+  border-color: #a9c28680;
+}
+.studio-sidebar-footer {
+  margin-top: auto;
+  padding-top: 22px;
+}
+.studio-sidebar-footer > .studio-nav-link {
+  border: 0;
+}
+.studio-user {
+  border-top: 1px solid #ffffff1c;
+  margin-top: 14px;
+  padding-top: 17px;
+}
+.studio-user-avatar {
+  background: #ffffff12;
+  color: #dfebd5;
+  border: 1px solid #ffffff15;
+}
+.studio-user strong {
+  color: #edf3e6;
+  font-size: 11px;
+}
+.studio-user small {
+  color: #99b29c;
+  font-size: 9px;
+}
+.studio-user > button {
+  color: #b6cbb4;
+}
+.studio-user > button:hover {
+  color: #f0f6d8;
+}
+.studio-topbar {
+  height: 70px;
+  padding: 0 32px;
+  background: #fdfefa;
+  border-color: var(--workspace-line);
+}
+.studio-breadcrumb {
+  color: #879086;
+  font-size: 11px;
+  gap: 10px;
+}
+.studio-breadcrumb > span {
+  color: #7a867b;
+}
+.studio-breadcrumb strong {
+  color: #344f3c;
+  font-size: 11px;
+}
+.studio-global-search {
+  background: #f5f7f1;
+  border-color: #e5e9df;
+  min-width: 230px;
+  color: #74816d;
+}
+.studio-global-search kbd {
+  color: #74816d;
+  font-family: Manrope, sans-serif;
+}
+.studio-top-avatar {
+  background: #e8efdb;
+  border: 1px solid #dce6cd;
+  color: #49663d;
+  width: 34px;
+  height: 34px;
+}
+.studio-content {
+  max-width: 1760px;
+  padding: 32px;
+}
+.studio-page-footer {
+  border-color: #e3e8dc;
+  color: #8a9584;
+  margin-top: 30px;
+}
+.workspace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+.workspace-heading > div:first-child {
+  min-width: 0;
+}
+.workspace-eyebrow {
+  display: block;
+  color: #647458;
+  font-size: 9px;
+  letter-spacing: 1.6px;
+  font-weight: 750;
+  line-height: 1.7;
+}
+.workspace-heading h1 {
+  color: var(--workspace-ink);
+  font-size: clamp(26px, 2.6vw, 35px);
+  font-weight: 750;
+  letter-spacing: -1.4px;
+  line-height: 1.35;
+  margin: 7px 0 9px;
+}
+.workspace-title-dot {
+  color: #91af50;
+}
+.workspace-heading p {
+  font-size: 12px;
+  color: var(--workspace-muted);
+  line-height: 1.8;
+}
+.workspace-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.primary {
+  background: var(--workspace-primary);
+  color: #fff;
+  border: 1px solid #2d553d;
+  border-radius: 9px;
+  font-size: 12px;
+  min-height: 43px;
+  font-weight: 650;
+}
+.primary:hover {
+  background: #254b34;
+}
+.secondary {
+  border: 1px solid #dce4d5;
+  color: #4f6745;
+  background: #fff;
+  border-radius: 9px;
+  font-size: 12px;
+  min-height: 43px;
+}
+.secondary:hover {
+  background: #f2f6e9;
+}
+.workspace-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workspace-section-heading .workspace-eyebrow {
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+.workspace-section-heading h2 {
+  font-size: 18px;
+  letter-spacing: -0.6px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #294532;
+  margin-top: 5px;
+}
+.workspace-section-heading > button {
+  flex-shrink: 0;
+}
+.nasa-connection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0;
+}
+.nasa-connection-grid > article {
+  border: 1px solid var(--workspace-line);
+  border-radius: 12px;
+  padding: 22px;
+  background: #fbfcf8;
+}
+.nasa-connection-grid > article > svg {
+  color: #5b8050;
+}
+.nasa-connection-grid h3 {
+  margin: 12px 0 10px;
+}
+.nasa-connection-grid p {
+  margin: 15px 0;
+}
+.nasa-connection-grid small {
+  display: block;
+  margin-top: 8px;
+  color: #73826a;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .nasa-connection-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nasa-connections .workspace-section-heading {
+    flex-wrap: wrap;
+  }
+}
+.workspace-empty {
+  padding: 35px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.workspace-empty-icon {
+  display: grid;
+  place-items: center;
+  background: #f0f5e7;
+  color: #79945d;
+  width: 60px;
+  height: 60px;
+  border-radius: 19px;
+  margin-bottom: 21px;
+  border: 1px solid #e9eddf;
+}
+.workspace-empty h3 {
+  font-size: 16px;
+  letter-spacing: -0.4px;
+  color: #3b573e;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.workspace-empty p {
+  color: #68775e;
+  font-size: 11px;
+  line-height: 1.9;
+  max-width: 310px;
+  margin: 0 0 21px;
+}
+.workspace-empty > button {
+  font-size: 11px;
+}
+.workspace-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translate(-50%, -160%);
+  background: #d6eea4;
+  color: #183d2d;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 10000;
+}
+.workspace-skip-link:focus {
+  transform: translate(-50%, 0);
+}
+.studio-shell .fields-page-title {
+  margin-bottom: 23px;
+  align-items: center;
+}
+.studio-shell .fields-page-title h1 {
+  font-size: 30px;
+  color: #24432e;
+  font-weight: 750;
+  letter-spacing: -1.1px;
+}
+.studio-shell .fields-page-title .eyebrow {
+  color: #7c8e6d;
+  font-size: 9px;
+}
+.studio-shell .field-count-pill {
+  background: #edf3e4;
+  color: #5b7546;
+  border-color: #e0e9d3;
+  font-size: 10px;
+}
+.studio-shell .fields-toolbar {
+  background: #fff;
+  border: 1px solid var(--workspace-line);
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 17px;
+}
+.studio-shell .fields-toolbar > span {
+  color: #718269;
+  font-size: 10px;
+}
+.studio-shell .view-switch {
+  background: #f0f4e9;
+  border-radius: 8px;
+  padding: 3px;
+}
+.studio-shell .view-switch button {
+  font-size: 11px;
+  padding: 9px 15px;
+}
+.studio-shell .view-switch button.active {
+  color: #315c43;
+  box-shadow: 0 1px 5px #28462012;
+}
+.studio-shell .map-stage-title h2 {
+  font-size: 21px;
+  font-weight: 650;
+}
+.studio-shell .map-stage-title .map-kicker {
+  font-size: 8px;
+}
+.studio-shell .map-field-browser {
+  border-radius: 12px;
+  border-color: #ffffffbc;
+  background: #fffffff5;
+  backdrop-filter: blur(16px);
+}
+.studio-shell .map-field-result > button {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.studio-shell .map-field-result strong {
+  color: #31563a;
+}
+.studio-shell .map-field-result small {
+  color: #708064;
+}
+.studio-shell .map-place-search > form {
+  background: #fffffff5;
+  border-color: #ffffffad;
+  color: #627b4d;
+}
+.studio-shell .map-place-search input:not([type="checkbox"]) {
+  color: #365d3c;
+  font-size: 12px;
+}
+.studio-shell .map-place-search input::placeholder {
+  color: #7c8c70;
+  font-size: 11px;
+}
+.studio-shell .place-search-submit {
+  background: #d9edb8;
+  color: #3c6031;
+  font-weight: 650;
+}
+.studio-shell .inline-parcel-editor .editor-heading h2 {
+  color: #365e3c;
+}
+.studio-shell .inline-parcel-editor .parcel-inputs label {
+  color: #5f7653;
+}
+.studio-shell .inline-parcel-editor input:not([type="checkbox"]) {
+  color: #365939;
+  border-color: #d9e4cf;
+}
+.studio-shell .inline-parcel-editor .editor-form-intro {
+  color: #718463;
+}
+.studio-shell .inline-parcel-editor textarea {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 11px;
+  border: 1px solid #d9e4cf;
+  border-radius: 8px;
+  color: #365939;
+  background: #fcfef8;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 75px;
+  max-height: 210px;
+}
+.studio-shell .inline-parcel-editor .parcel-inputs label > small {
+  font-size: 9px;
+  margin-left: 5px;
+  color: #73866a;
+}
+.studio-shell .inline-parcel-editor .parcel-area strong {
+  color: #54783d;
+}
+.studio-shell .inline-parcel-editor .parcel-area small {
+  color: #6f875d;
+}
+.sidebar-slim {
+  --sidebar-width: 86px;
+}
+.sidebar-slim .studio-sidebar {
+  padding-left: 13px;
+  padding-right: 13px;
+}
+.sidebar-slim .studio-sidebar .studio-nav-link {
+  justify-content: center;
+  padding: 11px;
+}
+.sidebar-slim .studio-brand-row {
+  margin-bottom: 24px;
+}
+/* Login keeps its existing lightweight brand illustration; it never represents parcel data. */
+.auth {
+  background: #f7f8f3;
+  padding: 16px;
+  gap: 16px;
+}
+.auth-story {
+  min-height: calc(100svh - 32px);
+  border-radius: 20px;
+  margin: 0;
+}
+.auth-form {
+  background: #fff;
+  border: 1px solid #e8ecdf;
+  border-radius: 20px;
+  min-width: 0;
+  padding: 54px 40px;
+}
+.auth-form .form-wrap {
+  width: 100%;
+  max-width: 390px;
+}
+.auth-form .form-wrap h2 {
+  color: #294c35;
+  font-size: 34px;
+  font-weight: 750;
+}
+.auth-form .form-wrap > p {
+  color: #74816e;
+  font-size: 12px;
+}
+.auth-form form label {
+  color: #52694b;
+  font-weight: 600;
+}
+.auth-form input::placeholder {
+  color: #87947e;
+}
+.auth-form input:not([type="checkbox"]) {
+  color: #31533a;
+  border-color: #dce5d2;
+  background: #fbfcf8;
+}
+.auth-form .auth-tabs button {
+  color: #6b7c5b;
+}
+.auth-form .auth-tabs .selected {
+  color: #315c43;
+  font-weight: 700;
+}
+.auth-form .auth-trust {
+  color: #617b4e;
+}
+.auth-form .auth-trust small {
+  color: #7f8e71;
+}
+.auth-form .local-note {
+  color: #7f8d74;
+  font-size: 9px;
+}
+.auth-brand-art figcaption {
+  font-size: 9px;
+  color: #e4efdb;
+}
+.auth-capabilities {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+.auth-capabilities > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dcecc035;
+  background: #133a2775;
+  color: #edf5dd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 10px;
+  backdrop-filter: blur(8px);
+}
+.studio-shell .parcel-map:fullscreen,
+:root .studio-shell .overview-map-card .parcel-map:fullscreen {
+  height: 100dvh !important;
+  width: 100vw;
+  max-height: none;
+  border-radius: 0;
+}
+.studio-sidebar.is-open .agromax-lockup .agromax-wordmark {
+  display: inline-block;
+}
+.studio-sidebar.is-open .studio-mobile-close {
+  color: #b9ccbb;
+}
+@media (max-width: 1200px) {
+  .studio-shell {
+    --sidebar-width: 220px;
+  }
+  .sidebar-slim {
+    --sidebar-width: 86px;
+  }
+  .studio-content {
+    padding: 27px 24px;
+  }
+  .studio-topbar {
+    padding: 0 24px;
+  }
+  .studio-brand .agromax-wordmark {
+    font-size: 23px;
+  }
+  .studio-brand .agromax-lockup {
+    gap: 7px;
+  }
+  .studio-brand .agromax-logo-mark {
+    width: 32px;
+    height: 32px;
+  }
+  .workspace-heading {
+    gap: 16px;
+  }
+  .workspace-heading-actions {
+    gap: 8px;
+  }
+  .workspace-heading-actions > button {
+    font-size: 11px;
+    padding: 11px 13px;
+  }
+}
+@media (max-width: 900px) {
+  .studio-global-search {
+    min-width: 160px;
+  }
+  .workspace-heading {
+    align-items: flex-start;
+  }
+  .workspace-heading-actions > .secondary {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .studio-shell {
+    --sidebar-width: 190px;
+  }
+  .sidebar-slim {
+    --sidebar-width: 78px;
+  }
+  .studio-sidebar {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .studio-brand .agromax-wordmark {
+    font-size: 21px;
+  }
+  .studio-brand .agromax-logo-mark {
+    width: 29px;
+    height: 29px;
+  }
+  .studio-sidebar .studio-nav-link {
+    font-size: 10px;
+    gap: 9px;
+    padding: 10px;
+  }
+  .studio-sidebar-collapse {
+    display: none;
+  }
+  .studio-content {
+    padding: 25px 20px;
+  }
+  .studio-topbar {
+    padding: 0 20px;
+  }
+  .studio-global-search {
+    min-width: 0;
+  }
+  .workspace-heading h1 {
+    font-size: 28px;
+  }
+  .workspace-heading p {
+    font-size: 11px;
+  }
+}
+@media (max-width: 640px) {
+  .studio-shell,
+  .sidebar-slim {
+    --sidebar-width: 0px;
+  }
+  .studio-main {
+    width: 100%;
+    margin-left: 0;
+  }
+  .studio-sidebar,
+  .sidebar-slim .studio-sidebar {
+    width: 264px;
+    padding: 25px 18px 20px;
+  }
+  .studio-sidebar .studio-brand .agromax-wordmark {
+    font-size: 27px;
+  }
+  .studio-sidebar .studio-brand .agromax-logo-mark {
+    width: 35px;
+    height: 35px;
+  }
+  .studio-sidebar .studio-nav-link {
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .studio-topbar {
+    height: 61px;
+    padding: 0 17px;
+    gap: 12px;
+  }
+  .studio-breadcrumb {
+    gap: 8px;
+  }
+  .studio-topbar-actions {
+    gap: 12px;
+  }
+  .studio-content {
+    padding: 24px 16px 16px;
+  }
+  .workspace-heading {
+    margin-bottom: 23px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .workspace-heading h1 {
+    font-size: 29px;
+    margin-top: 6px;
+  }
+  .workspace-heading p {
+    font-size: 11px;
+    max-width: 300px;
+  }
+  .workspace-heading-actions {
+    width: 100%;
+  }
+  .workspace-heading-actions > .secondary {
+    display: inline-flex;
+  }
+  .workspace-heading-actions > button {
+    flex: 1;
+    padding: 11px 12px;
+    font-size: 11px;
+  }
+  .workspace-eyebrow {
+    font-size: 8px;
+  }
+  .studio-shell .fields-page-title h1 {
+    font-size: 26px;
+  }
+  .studio-shell .fields-toolbar {
+    gap: 10px;
+    padding: 10px;
+  }
+  .studio-shell .fields-toolbar > span {
+    font-size: 9px;
+  }
+  .studio-shell .fields-toolbar > button {
+    font-size: 10px;
+    flex: 1;
+    padding: 10px;
+  }
+  .auth {
+    display: block;
+    padding: 12px;
+  }
+  .auth-story {
+    min-height: 310px;
+    border-radius: 16px;
+    padding: 25px;
+  }
+  .auth-story .auth-copy {
+    padding-top: 33px;
+    margin: 0;
+  }
+  .auth-copy h1 {
+    font-size: 37px;
+    margin-top: 17px;
+    letter-spacing: -1.5px;
+  }
+  .auth-capabilities {
+    gap: 6px;
+    margin-top: 16px;
+  }
+  .auth-capabilities > span {
+    padding: 7px 8px;
+    font-size: 8px;
+    gap: 5px;
+  }
+  .auth-capabilities svg {
+    width: 13px;
+    height: 13px;
+  }
+  .auth-brand-art img {
+    object-position: center 45%;
+  }
+  .auth-brand-art::after {
+    background: linear-gradient(90deg, #102d24cc, #102d2430);
+  }
+  .auth-brand-art figcaption {
+    left: 25px;
+    right: 20px;
+    bottom: 10px;
+    font-size: 8px;
+  }
+  .auth-form {
+    margin-top: 12px;
+    border-radius: 16px;
+    padding: 33px 23px 70px;
+  }
+  .auth-form .form-wrap h2 {
+    font-size: 30px;
+  }
+  .auth-form input:not([type="checkbox"]) {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

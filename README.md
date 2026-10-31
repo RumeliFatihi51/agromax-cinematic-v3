@@ -1,0 +1,32 @@
+# Agromax
+
+Uydu haritasında parsel yönetimi, gerçek Copernicus Sentinel-2 L2A analizi ve sezon görevleri için modüler tarım platformu. Geliştirme aşamasındadır; tamamlanmış ve eksik özellikler [ürün kapsam raporunda](docs/PRODUCT_AUDIT.md) izlenir.
+
+Node.js 24 gereklidir. Proje klasöründe:
+
+```powershell
+npm.cmd ci
+Copy-Item .env.example .env
+# .env dosyasına kendi sunucu kimlik bilgilerinizi ekleyin.
+npm.cmd run dev
+```
+
+http://127.0.0.1:5173 adresini açın. İlk hesabınızı arayüzden oluşturun. Hazır kullanıcı veya örnek tarla bulunmaz.
+
+`npm.cmd test` otomatik testleri, `npm.cmd run build` arayüz derlemesini çalıştırır. Test fixture'ları üretim deneyimine eklenmez. Sunucu açıkken `node server/smoke-test.js` HTTP kontrollerini kendi geçici hesaplarıyla çalıştırır ve bu kayıtları temizler.
+
+`.env`, `data/`, `node_modules/`, `dist/` ve `.vercel/` Git dışında tutulur. Yerel SQLite dosyası kullanıcı hesapları, parseller, analiz geçmişi ve bildirimler içerir; depoya gönderilmez. Bu kodu klonlamak mevcut kullanıcının hesabını veya arazilerini kopyalamaz.
+
+- [Mimari, mevcut kapsam ve üretime geçiş](docs/ARCHITECTURE.md)
+- [Gerekli veri erişimleri](docs/INTEGRATIONS.md)
+- [Parsel araçları, uydu kapsamı ve kalite sözleşmesi](docs/SATELLITE.md)
+- [Arayüz bileşenleri ve düzenleme rehberi](docs/INTERFACE.md)
+- [Logo, görseller, boyutlar ve üretim istemleri](docs/BRAND.md)
+- [NASA ve Earthdata erişimi](docs/NASA_ACCESS.md)
+- [Doğrulama sonuçları ve sınırları](docs/VERIFICATION.md)
+
+Copernicus sorguları sunucuda çalışır; kimlik bilgileri yapılandırıldığında gerçek katalog, bant/indeks istatistikleri ve raster görüntüleri alınır. Hesaplama boyutu sınırında istekler aynı günlük ızgarayı koruyarak bölünür. Eksik veriler sıfırla veya uydurma sonuçla doldurulmaz. Başlatılan analizler kalıcı işlem durumları ve sonuç sürümleriyle saklanır.
+
+NASA Open APIs ve Earthdata kimlikleri ayrı doğrulanır. Korumalı HLS bant erişim kontrolü vardır; HLS parsel analizi henüz uygulanmadı. Meteoroloji, SAR/termal ve ileri agronomik modeller bağlı değil. Filiz mevcut tarla/görev kayıtlarını kurallarla özetler; dil modeli veya otomatik hastalık teşhisi kullanmaz.
+
+Vercel gibi bir ortamda kalıcı veritabanı ve uygun worker yaşam döngüsü kurulmalıdır. Mevcut sunucu loopback üzerinde Vite geliştirme middleware'i ve yerel SQLite kullanır; yalnızca `dist` klasörünü yayımlamak backend'i çalıştırmaz. Üretim dağıtımı henüz tamamlanmadı.

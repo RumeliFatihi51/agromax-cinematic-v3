@@ -1,0 +1,231 @@
+.map-place-search {
+  position: absolute;
+  z-index: 900;
+  right: 19px;
+  top: 78px;
+  width: 310px;
+  max-width: calc(100% - 38px);
+  font-family: "DM Sans", sans-serif;
+}
+.parcel-map {
+  container-type: inline-size;
+}
+@container (max-width:560px) {
+  .is-editable .map-place-search {
+    left: 15px;
+    right: 15px;
+    top: 15px;
+    width: auto;
+    max-width: none;
+  }
+  .is-editable .drawing-palette {
+    top: 79px;
+  }
+  .is-editable .basemap-switch {
+    top: auto;
+    bottom: 42px;
+    right: 13px;
+  }
+  .field-map-stage .map-place-search {
+    top: 89px;
+    left: 18px;
+    right: 18px;
+    width: auto;
+    max-width: none;
+  }
+  .field-map-stage .map-field-browser {
+    top: 151px;
+    max-height: calc(100% - 252px);
+  }
+  .field-image .map-place-search {
+    left: 15px;
+    right: 15px;
+    top: 15px;
+    width: auto;
+    max-width: none;
+  }
+  .field-image .basemap-switch {
+    top: auto;
+    bottom: 45px;
+    right: 15px;
+  }
+}
+.map-place-search > form {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px 7px 13px;
+  background: #fcfff6f5;
+  border: 1px solid #ffffff99;
+  box-shadow: 0 5px 25px #0c261b40;
+  backdrop-filter: blur(16px);
+  border-radius: 11px;
+  color: #83966c;
+}
+.map-place-search input:not([type="checkbox"]) {
+  margin: 0;
+  padding: 7px 0;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: #465e34;
+  font-size: 11px;
+  border-radius: 0;
+  width: auto;
+}
+.map-place-search input::placeholder {
+  color: #a3ae91;
+  font-size: 10px;
+}
+.place-search-submit {
+  background: #e1efb4;
+  color: #587333;
+  padding: 9px 10px;
+  border-radius: 7px;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.place-search-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.place-search-clear {
+  background: transparent;
+  color: #9eaa8c;
+  padding: 3px;
+}
+.place-search-dropdown {
+  overflow: hidden;
+  margin-top: 7px;
+  background: #fbfff5fa;
+  border: 1px solid #eff5e2;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px #0c261b40;
+  max-height: 360px;
+  overflow-y: auto;
+  backdrop-filter: blur(16px);
+}
+.place-search-status {
+  font-size: 9px;
+  color: #a1af8a;
+  padding: 12px 14px 6px;
+}
+.place-search-status:empty {
+  display: none;
+}
+.place-search-dropdown > button {
+  display: flex;
+  width: 100%;
+  background: transparent;
+  text-align: left;
+  gap: 10px;
+  padding: 12px 13px;
+  border-bottom: 1px solid #e9efdd;
+  color: #7f9462;
+  justify-content: flex-start;
+}
+.place-search-dropdown > button:hover,
+.place-search-dropdown > button.active {
+  background: #eaf2d6;
+}
+.place-search-dropdown > button > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  background: #edf4de;
+  border-radius: 9px;
+  color: #a1b77c;
+}
+.place-search-dropdown > button > div {
+  flex: 1;
+  min-width: 0;
+}
+.place-search-dropdown strong {
+  display: block;
+  font-size: 11px;
+  color: #60774a;
+  font-weight: 600;
+}
+.place-search-dropdown small {
+  display: block;
+  font-size: 9px;
+  color: #a1b08b;
+  margin-top: 4px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.place-search-dropdown > button > svg {
+  flex-shrink: 0;
+  width: 13px;
+}
+.place-search-dropdown > a {
+  display: block;
+  text-align: right;
+  font-size: 8px;
+  padding: 9px 13px;
+  color: #9caf81;
+  text-decoration: none;
+}
+.place-search-error,
+.place-search-empty {
+  padding: 15px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.place-search-error {
+  color: #b17858;
+}
+.place-search-empty {
+  color: #9cab85;
+}
+.auth-earth .map-place-search {
+  display: none;
+}
+@media (max-width: 1050px) {
+  .map-place-search {
+    width: 270px;
+  }
+  .is-editable .map-place-search {
+    width: 270px;
+  }
+}
+@media (max-width: 640px) {
+  .map-place-search,
+  .is-editable .map-place-search {
+    left: 15px;
+    right: 15px;
+    top: 15px;
+    width: auto;
+    max-width: none;
+  }
+  .field-map-stage .map-place-search {
+    top: 89px;
+    left: 18px;
+    right: 18px;
+  }
+  .field-map-stage .map-field-browser {
+    top: 151px;
+    max-height: calc(100% - 252px);
+  }
+  .is-editable .drawing-palette {
+    top: 79px;
+  }
+  .is-editable .basemap-switch {
+    top: auto;
+    bottom: 42px;
+    right: 13px;
+  }
+  .map-place-search input:not([type="checkbox"]) {
+    font-size: 12px;
+  }
+  .map-place-search input::placeholder {
+    font-size: 10px;
+  }
+  .place-search-dropdown {
+    max-height: 300px;
+  }
+}

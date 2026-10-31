@@ -1,0 +1,12 @@
+﻿import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import "./style.css";
+import "./features/fields/fields.css";
+import "./design-v2.css";
+import "./features/fields/place-search.css";
+import "./styles/studio.css";
+import "./features/fields/inline-editor.css";
+import "./styles/brand.css";
+import "./styles/workspace.css";
+createRoot(document.getElementById("root")).render(<App />);

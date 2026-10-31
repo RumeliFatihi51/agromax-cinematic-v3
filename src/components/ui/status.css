@@ -1,0 +1,27 @@
+.workspace-status {
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 650;
+  padding: 5px 9px;
+  border-radius: 6px;
+  white-space: normal;
+  color: #6c7464;
+  background: #f0f3eb;
+  line-height: 1.6;
+}
+.status-success {
+  color: #467237;
+  background: #edf4e4;
+}
+.status-info {
+  color: #356e86;
+  background: #e9f3f8;
+}
+.status-warning {
+  color: #8c6b30;
+  background: #faf2df;
+}
+.status-error {
+  color: #9b4947;
+  background: #fbebea;
+}

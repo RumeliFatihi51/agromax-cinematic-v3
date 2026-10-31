@@ -1,0 +1,16 @@
+export const modules = [
+  ["overview", "Genel bakış", "LayoutDashboard", "green"],
+  ["fields", "Tarlalarım", "Sprout", "green"],
+  ["satellite", "Uydu analizleri", "Satellite", "purple"],
+  ["history", "Analiz geçmişi", "History", "green"],
+  ["weather", "Hava durumu", "CloudSun", "blue"],
+  ["tasks", "Takvim & görevler", "CalendarDays", "orange"],
+  ["irrigation", "Sulama yönetimi", "Droplets", "blue"],
+  ["nutrition", "Bitki besleme", "Leaf", "green"],
+  ["protection", "Bitki koruma", "ShieldCheck", "orange"],
+  ["finance", "Maliyet yönetimi", "Wallet", "purple"],
+  ["reports", "Raporlar", "ChartNoAxesCombined", "blue"],
+  ["notifications", "Bildirimler", "Bell", "green"],
+  ["assistant", "Filiz", "Sprout", "green"],
+  ["integrations", "Veri bağlantıları", "Cable", "purple"],
+];

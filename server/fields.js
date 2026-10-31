@@ -1,0 +1,251 @@
+import { createHash } from "node:crypto";
+import { validateGeometry } from "../shared/geometry.js";
+import { satelliteStatus, fetchImage, comparisonRange } from "./satellite.js";
+export function prepareField(body, existing = {}) {
+  const name = String(body.name ?? existing.name ?? "").trim();
+  if (!name || name.length > 150)
+    throw new Error("Tarla adı 1–150 karakter olmalı.");
+  const next = {
+    ...existing,
+    name,
+    crop: String(body.crop ?? existing.crop ?? "").slice(0, 100),
+    location: String(body.location ?? existing.location ?? "").slice(0, 150),
+    notes: String(body.notes ?? existing.notes ?? "").slice(0, 4000),
+    updatedAt: new Date().toISOString(),
+  };
+  if (body.geometry) Object.assign(next, validateGeometry(body.geometry));
+  else if (existing.geometry)
+    Object.assign(next, validateGeometry(existing.geometry));
+  else {
+    const area = Number(body.area ?? existing.area);
+    if (!Number.isFinite(area) || area <= 0)
+      throw new Error("Çizilmiş sınır veya geçerli alan bilgisi gerekli.");
+    Object.assign(next, { area, areaSource: "user" });
+  }
+  return next;
+}
+export async function fieldRoutes({
+  req,
+  body,
+  session,
+  db,
+  reply,
+  res,
+  analysisService,
+}) {
+  if (req.url === "/api/satellite/status") {
+    reply(200, satelliteStatus());
+    return true;
+  }
+  const match = req.url.match(
+    /^\/api\/records\/([a-f0-9]+)(?:\/(analysis|image|restore))?$/,
+  );
+  if (!match) return false;
+  const [, id, operation] = match;
+  const row = db
+    .prepare("SELECT * FROM records WHERE id=? AND user_id=?")
+    .get(id, session.id);
+  if (!row) {
+    reply(404, { error: "Tarla bulunamadı." });
+    return true;
+  }
+  if (row.kind !== "field") return false;
+  const field = JSON.parse(row.body);
+  if (operation === "restore" && req.method === "POST") {
+    delete field.deletedAt;
+    db.prepare("UPDATE records SET body=? WHERE id=?").run(
+      JSON.stringify(field),
+      id,
+    );
+    reply(200, { ...field, id, kind: "field" });
+    return true;
+  }
+  if (
+    field.deletedAt &&
+    !(operation === "image" && req.method === "POST" && body.analysisId)
+  ) {
+    reply(404, { error: "Tarla silinmiş." });
+    return true;
+  }
+  if (!operation && req.method === "PATCH") {
+    try {
+      const next = prepareField(body, field);
+      db.prepare("UPDATE records SET body=? WHERE id=?").run(
+        JSON.stringify(next),
+        id,
+      );
+      if (JSON.stringify(next.geometry) !== JSON.stringify(field.geometry))
+        db.prepare("DELETE FROM analyses WHERE field_id=?").run(id);
+      reply(200, { ...next, id, kind: "field" });
+    } catch (e) {
+      reply(400, { error: e.message });
+    }
+    return true;
+  }
+  if (!operation && req.method === "DELETE") {
+    db.prepare("UPDATE records SET body=? WHERE id=?").run(
+      JSON.stringify({ ...field, deletedAt: new Date().toISOString() }),
+      id,
+    );
+    reply(200, { ok: true });
+    return true;
+  }
+  if (operation === "analysis") {
+    const cached = db
+      .prepare("SELECT body,geometry_hash FROM analyses WHERE field_id=?")
+      .get(id);
+    const hash = createHash("sha256")
+      .update(JSON.stringify(field.geometry || null))
+      .digest("hex");
+    const currentCache =
+      cached?.geometry_hash === hash &&
+      JSON.parse(cached.body).range?.split === comparisonRange().split &&
+      JSON.parse(cached.body).provider === process.env.SENTINEL_PROVIDER &&
+      JSON.parse(cached.body).method === "s2-l2a-v3";
+    if (req.method === "GET") {
+      reply(200, {
+        analysis: currentCache ? JSON.parse(cached.body) : null,
+        status: satelliteStatus(),
+      });
+      return true;
+    }
+    if (req.method === "POST") {
+      if (!field.geometry) {
+        reply(400, {
+          error: "Uydu analizi için önce haritadan parsel sınırı çizin.",
+        });
+        return true;
+      }
+      if (!satelliteStatus().configured) {
+        reply(503, {
+          error:
+            "Copernicus client secret eksik. app/.env dosyasını tamamlayın; canlı veri henüz çekilemiyor.",
+        });
+        return true;
+      }
+      // A short cache avoids accidental double spending of provider quota.
+      if (
+        currentCache &&
+        Date.now() - Date.parse(JSON.parse(cached.body).fetchedAt) < 300000
+      ) {
+        reply(200, {
+          analysis: JSON.parse(cached.body),
+          status: satelliteStatus(),
+        });
+        return true;
+      }
+      try {
+        const job = analysisService.enqueue(session.id, id);
+        reply(202, { job, status: satelliteStatus() });
+      } catch (e) {
+        reply(e.status || 502, { error: e.message });
+      }
+      return true;
+    }
+  }
+  if (operation === "image" && req.method === "POST") {
+    if (!field.geometry) {
+      reply(400, { error: "Parsel sınırı eksik." });
+      return true;
+    }
+    try {
+      const { analysis, geometry } = imageAnalysis(
+        db,
+        session.id,
+        id,
+        body.analysisId,
+        field,
+      );
+      const scene = analysis.scenes
+        ?.filter((s) => s.properties?.datetime?.slice(0, 10) === body.date)
+        .sort((a, b) =>
+          b.properties.datetime.localeCompare(a.properties.datetime),
+        )[0];
+      if (!scene)
+        throw Object.assign(
+          new Error(
+            "Görüntü için bu analizin katalogdaki çekim tarihlerinden birini seçin.",
+          ),
+          { status: 400 },
+        );
+      const day = analysis.observations.find(
+        (o) =>
+          Date.parse(scene.properties.datetime) >= Date.parse(o.from) &&
+          Date.parse(scene.properties.datetime) < Date.parse(o.to),
+      );
+      const scale = day?.stats?.[body.layer];
+      const { image, bounds, legend, validPixels, totalPixels } =
+        await fetchImage(geometry, body.date, body.layer || "RGB", {
+          scale,
+          timeRange: day ? { from: day.from, to: day.to } : undefined,
+        });
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("X-Image-Bounds", JSON.stringify(bounds));
+      res.setHeader(
+        "X-Image-Legend",
+        encodeURIComponent(JSON.stringify(legend)),
+      );
+      res.setHeader(
+        "X-Image-Interval",
+        JSON.stringify(day ? { from: day.from, to: day.to } : null),
+      );
+      res.setHeader("X-Valid-Pixels", validPixels);
+      res.setHeader("X-Total-Pixels", totalPixels);
+      res.statusCode = 200;
+      res.end(image);
+    } catch (e) {
+      reply(e.status || 502, { error: e.message });
+    }
+    return true;
+  }
+  return false;
+}
+export function imageAnalysis(db, userId, fieldId, analysisId, field) {
+  if (
+    !db
+      .prepare(
+        "SELECT id FROM records WHERE id=? AND user_id=? AND kind='field'",
+      )
+      .get(fieldId, userId)
+  )
+    throw Object.assign(new Error("Parsel bulunamadı."), { status: 404 });
+  let analysis, geometry;
+  if (analysisId) {
+    const row = db
+      .prepare(
+        "SELECT result,snapshot FROM analysis_jobs WHERE id=? AND user_id=? AND field_id=? AND state='completed'",
+      )
+      .get(String(analysisId), userId, fieldId);
+    if (!row?.result)
+      throw Object.assign(new Error("Analiz kaydı bulunamadı."), {
+        status: 404,
+      });
+    analysis = JSON.parse(row.result);
+    geometry = JSON.parse(row.snapshot).field.geometry;
+  } else {
+    const row = db
+      .prepare("SELECT body,geometry_hash FROM analyses WHERE field_id=?")
+      .get(fieldId);
+    const hash = createHash("sha256")
+      .update(JSON.stringify(field.geometry || null))
+      .digest("hex");
+    if (!row || row.geometry_hash !== hash)
+      throw Object.assign(
+        new Error("Bu parsel sınırı için doğrulanmış analiz yok."),
+        { status: 422 },
+      );
+    analysis = JSON.parse(row.body);
+    geometry = field.geometry;
+  }
+  if (
+    analysis.method !== "s2-l2a-v3" ||
+    analysis.provider !== process.env.SENTINEL_PROVIDER
+  )
+    throw Object.assign(
+      new Error(
+        "Bu analiz sürümü veya veri kaynağı mevcut görüntü işleme yöntemiyle eşleşmiyor.",
+      ),
+      { status: 422 },
+    );
+  return { analysis, geometry };
+}

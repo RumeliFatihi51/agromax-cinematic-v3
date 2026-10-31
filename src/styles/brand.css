@@ -1,0 +1,611 @@
+/* Agromax brand assets: vectors for identity, decorative imagery for storytelling. */
+.studio-module-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 420px;
+  font-size: 13px;
+  color: #7e986b;
+}
+@font-face {
+  font-family: Manrope;
+  src: url("/fonts/Manrope-Latin-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+.agromax-logo-mark {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 0;
+  max-width: none;
+}
+.agromax-lockup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  white-space: nowrap;
+  line-height: 1;
+}
+.agromax-lockup .agromax-wordmark {
+  display: inline-block;
+  font-family: Manrope, "DM Sans", sans-serif;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  font-weight: 500;
+  color: #254d36;
+}
+.agromax-lockup .agromax-wordmark strong {
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: inherit;
+  color: inherit;
+  display: inline;
+}
+.agromax-lockup .agromax-wordmark i {
+  font-style: normal;
+  color: #a1bd61;
+  margin-left: 1px;
+  font-weight: 800;
+}
+.agromax-lockup-light .agromax-wordmark {
+  color: #f2f8e9;
+}
+.agromax-lockup-light .agromax-wordmark i {
+  color: #d3ee96;
+}
+.studio-brand > .agromax-lockup {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: flex-start;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+.studio-brand .agromax-wordmark {
+  font-size: 27px;
+  letter-spacing: -1.5px;
+}
+.studio-brand .agromax-wordmark strong {
+  font-size: inherit;
+  letter-spacing: inherit;
+  font-weight: 800;
+}
+.sidebar-slim .studio-brand .agromax-wordmark {
+  display: none;
+}
+.sidebar-slim .studio-brand .agromax-lockup {
+  justify-content: center;
+}
+.studio-loading > span {
+  background: none;
+  width: 68px;
+  height: 68px;
+  border-radius: 0;
+}
+.filiz-brand-avatar {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  max-width: none;
+  filter: drop-shadow(0 3px 4px #293c210d);
+}
+.studio-filiz > span {
+  width: 39px;
+  height: 39px;
+  background: #ffffff65;
+  overflow: visible;
+  border-radius: 12px;
+}
+.studio-filiz .filiz-brand-avatar {
+  width: 37px;
+  height: 37px;
+}
+.sidebar-slim .studio-filiz > span {
+  width: 36px;
+  height: 36px;
+  background: none;
+}
+.studio-shell .filiz-avatar {
+  width: 116px;
+  height: 116px;
+  border-radius: 36px;
+  background: radial-gradient(ellipse at 40% 30%, #fff, #f0eaf7);
+  border: 1px solid #e7dff0;
+  box-shadow: 0 10px 28px #89749a14;
+  overflow: visible;
+  margin: 0 auto 25px;
+}
+.studio-shell .filiz-avatar .filiz-brand-avatar {
+  width: 94px;
+  height: 94px;
+}
+.studio-shell .answer-bubble .filiz-brand-avatar {
+  width: 30px;
+  height: 30px;
+  align-self: flex-start;
+}
+.studio-filiz-banner {
+  padding: 16px 18px;
+  background: linear-gradient(110deg, #f0eaf7, #faf7fd);
+  border-color: #e6dcef;
+}
+.studio-filiz-banner > span {
+  width: 53px;
+  height: 53px;
+  background: #ffffff70;
+  border: 1px solid #ffffffb0;
+  border-radius: 16px;
+  overflow: visible;
+}
+.studio-filiz-banner .filiz-brand-avatar {
+  width: 46px;
+  height: 46px;
+}
+.auth {
+  background: #f5f7f0;
+}
+.auth-story {
+  background: #193d2d;
+  min-height: calc(100vh - 36px);
+  padding: 37px 42px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.auth-brand-art {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: #193d2d;
+}
+.auth-brand-art picture,
+.auth-brand-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.auth-brand-art img {
+  object-fit: cover;
+  object-position: center top;
+}
+.auth-brand-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #0c25191a 0%,
+    #12342300 42%,
+    #102c1d00 70%,
+    #0e271b73 100%
+  );
+  pointer-events: none;
+}
+.auth-brand-art figcaption {
+  position: absolute;
+  bottom: 15px;
+  left: 27px;
+  right: 27px;
+  z-index: 1;
+  color: #d6e3c0c9;
+  font-size: 8px;
+  line-height: 1.7;
+  letter-spacing: 0.1px;
+  text-shadow: 0 1px 6px #10261990;
+  text-align: left;
+}
+.auth-story > .brand {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  align-self: flex-start;
+  cursor: default;
+}
+.auth-story > .brand .agromax-lockup {
+  gap: 11px;
+}
+.auth-story > .brand .agromax-wordmark {
+  font-size: 31px;
+  letter-spacing: -1.6px;
+  color: #f3f9e8;
+}
+.auth-story > .brand .agromax-wordmark strong {
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+.auth-story .auth-copy {
+  position: relative;
+  z-index: 2;
+  margin: 85px 0 auto;
+  padding: 0;
+  max-width: 550px;
+}
+.auth-copy .eyebrow {
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  color: #c1d69f;
+  font-weight: 600;
+}
+.auth-copy h1 {
+  font-family: Manrope, "DM Sans", sans-serif;
+  font-size: clamp(43px, 4.3vw, 65px);
+  line-height: 1.18;
+  letter-spacing: -2.3px;
+  font-weight: 500;
+  color: #f3f8e9;
+  margin: 23px 0 20px;
+}
+.auth-copy h1 em {
+  display: inline-block;
+  color: #d5ed99;
+  font-style: normal;
+}
+.auth-copy p {
+  font-size: 13px;
+  line-height: 1.95;
+  color: #c0d3a7;
+  max-width: 420px;
+  text-shadow: 0 1px 10px #0c2c2520;
+}
+.auth-story > footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e0edc6;
+  font-size: 10px;
+  margin: 22px 0 28px;
+  text-shadow: 0 1px 5px #18341a66;
+}
+.auth-form {
+  padding: 65px 50px;
+}
+.auth-form .form-wrap {
+  width: 390px;
+}
+.auth-form .form-wrap h2 {
+  font-size: 35px;
+  color: #3f6236;
+  letter-spacing: -1.2px;
+  margin-top: 24px;
+}
+.auth-form .form-wrap > p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #7b8f6a;
+}
+.auth-form .pill {
+  color: #7c9556;
+  background: #edf3dd;
+  border-color: #e2eacb;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  padding: 8px 11px;
+}
+.auth-form .auth-tabs {
+  background: #edf2e4;
+  border: 1px solid #e1e8d4;
+  border-radius: 11px;
+  padding: 4px;
+  margin: 28px 0;
+}
+.auth-form .auth-tabs button {
+  font-size: 12px;
+  padding: 12px;
+  color: #899a76;
+}
+.auth-form .auth-tabs .selected {
+  color: #608046;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #3451280a;
+}
+.auth-form form label {
+  font-size: 12px;
+  color: #728962;
+  margin-top: 21px;
+  font-weight: 500;
+}
+.auth-form input:not([type="checkbox"]) {
+  background: #fff;
+  border: 1px solid #dde6ce;
+  border-radius: 10px;
+  padding: 15px;
+  color: #506c42;
+  font-size: 13px;
+  margin-top: 9px;
+  min-height: 49px;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+.auth-form input:not([type="checkbox"]):focus {
+  border-color: #aac479;
+  box-shadow: 0 0 0 3px #dcebbc55;
+  outline: none;
+}
+.auth-form input::placeholder {
+  color: #a6b592;
+  font-size: 12px;
+}
+.auth-form .auth-password-field input:not([type="checkbox"]) {
+  padding-right: 47px;
+}
+.auth-form .auth-password-toggle {
+  color: #91a77d;
+}
+.auth-form .primary {
+  background: #2e573b;
+  color: #f6faed;
+  border-radius: 10px;
+  min-height: 49px;
+  font-size: 13px;
+  margin-top: 26px;
+  box-shadow: 0 4px 9px #2342260f;
+}
+.auth-form .primary:hover {
+  background: #406d48;
+  box-shadow: 0 5px 14px #23422618;
+}
+.auth-form .auth-trust {
+  border-color: #dfe7d1;
+  color: #7c9568;
+  padding-top: 25px;
+  margin-top: 29px;
+  font-size: 12px;
+}
+.auth-form .auth-trust small {
+  font-size: 10px;
+  color: #96aa81;
+  line-height: 1.8;
+}
+.auth-form .local-note {
+  font-size: 9px;
+  color: #9cad8b;
+  line-height: 1.7;
+}
+@media (min-width: 1650px) {
+  .auth-story {
+    padding: 46px 57px;
+  }
+  .auth-story .auth-copy {
+    margin-top: 110px;
+  }
+  .auth-copy h1 {
+    font-size: 70px;
+  }
+  .auth-copy p {
+    font-size: 15px;
+  }
+  .auth-copy .eyebrow {
+    font-size: 10px;
+  }
+  .auth-story > .brand .agromax-wordmark {
+    font-size: 34px;
+  }
+  .auth-brand-art figcaption {
+    left: 40px;
+    bottom: 21px;
+    font-size: 9px;
+  }
+}
+@media (max-width: 1200px) {
+  .studio-brand .agromax-wordmark {
+    font-size: 25px;
+  }
+  .studio-brand > .agromax-lockup {
+    gap: 8px;
+  }
+  .studio-brand .agromax-logo-mark {
+    width: 36px;
+    height: 36px;
+  }
+  .auth-story {
+    padding: 33px;
+  }
+  .auth-story .auth-copy {
+    margin-top: 74px;
+  }
+  .auth-copy h1 {
+    font-size: clamp(42px, 4.2vw, 55px);
+    letter-spacing: -1.9px;
+  }
+  .auth-copy p {
+    font-size: 12px;
+  }
+  .auth-form {
+    padding: 60px 35px;
+  }
+  .auth-form .form-wrap h2 {
+    font-size: 32px;
+  }
+  .auth-brand-art figcaption {
+    left: 24px;
+    right: 24px;
+    font-size: 7px;
+  }
+}
+@media (max-width: 760px) {
+  .studio-brand .agromax-wordmark {
+    font-size: 22px;
+  }
+  .studio-brand .agromax-logo-mark {
+    width: 31px;
+    height: 31px;
+  }
+  .studio-brand > .agromax-lockup {
+    gap: 7px;
+  }
+  .auth-story {
+    padding: 29px;
+  }
+  .auth-story .auth-copy {
+    margin-top: 68px;
+  }
+  .auth-copy h1 {
+    font-size: 39px;
+    letter-spacing: -1.6px;
+  }
+  .auth-copy p {
+    font-size: 11px;
+  }
+  .auth-copy .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1.3px;
+  }
+  .auth-story > .brand .agromax-wordmark {
+    font-size: 27px;
+  }
+  .auth-story > .brand .agromax-logo-mark {
+    width: 37px;
+    height: 37px;
+  }
+}
+@media (max-width: 640px) {
+  .studio-sidebar.is-open .studio-brand .agromax-wordmark {
+    display: inline;
+    font-size: 28px;
+  }
+  .studio-sidebar.is-open .studio-brand .agromax-wordmark strong {
+    display: inline;
+    font-size: inherit;
+  }
+  .studio-sidebar.is-open .studio-brand .agromax-logo-mark {
+    width: 38px;
+    height: 38px;
+  }
+  .studio-sidebar.is-open .studio-brand > .agromax-lockup {
+    gap: 9px;
+  }
+  .studio-shell .filiz-avatar {
+    width: 106px;
+    height: 106px;
+    border-radius: 33px;
+  }
+  .studio-shell .filiz-avatar .filiz-brand-avatar {
+    width: 87px;
+    height: 87px;
+  }
+  .studio-filiz-banner > span {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+  .studio-filiz-banner .filiz-brand-avatar {
+    width: 42px;
+    height: 42px;
+  }
+  .auth-story {
+    margin: 12px;
+    min-height: 405px;
+    padding: 26px;
+    border-radius: 19px;
+    max-height: none;
+  }
+  .auth-brand-art img {
+    object-position: center 30%;
+  }
+  .auth-brand-art::after {
+    background: linear-gradient(
+      180deg,
+      #10291b33,
+      #13302035 50%,
+      #0f291a00 75%,
+      #0f291a80
+    );
+  }
+  .auth-story > .brand .agromax-wordmark {
+    font-size: 27px;
+  }
+  .auth-story > .brand .agromax-logo-mark {
+    width: 36px;
+    height: 36px;
+  }
+  .auth-story > .brand .agromax-lockup {
+    gap: 10px;
+  }
+  .auth-story .auth-copy {
+    padding: 0;
+    margin: 49px 0 auto;
+    max-width: 330px;
+  }
+  .auth-copy .eyebrow {
+    font-size: 7px;
+    letter-spacing: 1.3px;
+    color: #cfe5ad;
+  }
+  .auth-copy h1 {
+    font-size: 39px;
+    line-height: 1.15;
+    letter-spacing: -1.4px;
+    margin: 18px 0 0;
+    color: #f6f9ef;
+  }
+  .auth-copy p {
+    display: none;
+  }
+  .auth-story > footer {
+    display: none;
+  }
+  .auth-brand-art figcaption {
+    left: 21px;
+    right: 21px;
+    bottom: 12px;
+    font-size: 6px;
+    color: #e1edcf;
+    max-width: 280px;
+    line-height: 1.7;
+  }
+  .auth-form {
+    padding: 32px 27px 70px;
+    min-height: auto;
+  }
+  .auth-form .form-wrap {
+    width: 100%;
+    max-width: 390px;
+  }
+  .auth-form .form-wrap h2 {
+    font-size: 32px;
+    margin-top: 21px;
+  }
+  .auth-form .form-wrap > p {
+    font-size: 12px;
+  }
+  .auth-form input:not([type="checkbox"]) {
+    font-size: 14px;
+    padding: 15px;
+  }
+  .auth-form input::placeholder {
+    font-size: 12px;
+  }
+  .auth-form form label {
+    font-size: 12px;
+  }
+  .auth-form .primary {
+    font-size: 14px;
+  }
+  .auth-form .local-note {
+    font-size: 8px;
+  }
+  .auth-form .auth-trust small {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-form input:not([type="checkbox"]) {
+    transition: none;
+  }
+}
