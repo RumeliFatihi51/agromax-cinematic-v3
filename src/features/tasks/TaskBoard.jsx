@@ -1,133 +1,17 @@
-import { useState } from "react";
-import {
-  Plus,
-  CalendarDays,
-  ArrowRight,
-  CheckCheck,
-  Clock3,
-} from "lucide-react";
+﻿import { useState } from "react";
+import { Plus, CalendarDays, CheckCheck, Clock3, ArrowUpRight, List, Columns3 } from "lucide-react";
+
 export default function TaskBoard({ tasks, onToggle, onCreate }) {
-  const [filter, setFilter] = useState("pending");
-  const completed = tasks.filter((t) => t.done).length,
-    pending = tasks.length - completed;
-  const displayed = tasks
-    .filter(
-      (t) => filter === "all" || (filter === "completed" ? t.done : !t.done),
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
-  return (
-    <div className="studio-task-page">
-      <div className="studio-page-title">
-        <div>
-          <span className="studio-kicker">BİR SONRAKİ ADIMIN BELLİ OLSUN</span>
-          <h1>Sezonun, planlı ilerlesin.</h1>
-          <p>Günlük işlerini kaydet, sıraya koy ve tamamladıkça işaretle.</p>
-        </div>
-        <button className="primary" onClick={onCreate}>
-          <Plus size={18} />
-          Yeni görev
-        </button>
-      </div>
-      <div className="task-summary-row">
-        <article>
-          <span className="task-summary-icon citrus">
-            <Clock3 size={22} />
-          </span>
-          <div>
-            <small>Bekleyen işler</small>
-            <strong>
-              {pending}
-              <em>görev</em>
-            </strong>
-          </div>
-        </article>
-        <article>
-          <span className="task-summary-icon lilac">
-            <CheckCheck size={22} />
-          </span>
-          <div>
-            <small>Tamamlananlar</small>
-            <strong>
-              {completed}
-              <em>görev</em>
-            </strong>
-          </div>
-        </article>
-        <div className="task-summary-note">
-          <CalendarDays size={22} />
-          <p>
-            Her küçük adım,
-            <br />
-            <strong>daha düzenli bir sezon.</strong>
-          </p>
-        </div>
-      </div>
-      <section className="studio-task-board">
-        <div className="task-board-toolbar">
-          <div className="studio-segmented">
-            {[
-              ["pending", "Bekleyen", pending],
-              ["completed", "Tamamlanan", completed],
-              ["all", "Tümü", tasks.length],
-            ].map(([id, label, count]) => (
-              <button
-                key={id}
-                className={id === filter ? "active" : ""}
-                onClick={() => setFilter(id)}
-              >
-                {label}
-                <span>{count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        {displayed.length ? (
-          <div className="studio-task-rows">
-            {displayed.map((task) => (
-              <label className={task.done ? "is-completed" : ""} key={task.id}>
-                <input
-                  type="checkbox"
-                  checked={task.done}
-                  onChange={() => onToggle(task)}
-                />
-                <div>
-                  <strong>{task.name}</strong>
-                  <small>
-                    <CalendarDays size={13} />
-                    {new Date(task.date + "T12:00:00").toLocaleDateString(
-                      "tr-TR",
-                      { day: "numeric", month: "long", year: "numeric" },
-                    )}
-                  </small>
-                </div>
-                <span>{task.done ? "Tamamlandı" : "Planlandı"}</span>
-              </label>
-            ))}
-          </div>
-        ) : (
-          <div className="studio-task-empty">
-            <span>
-              <CalendarDays size={35} />
-            </span>
-            <h2>
-              {filter === "completed"
-                ? "Tamamladığın işler burada görünecek."
-                : "Yeni bir plana yer aç."}
-            </h2>
-            <p>
-              {filter === "completed"
-                ? "Bir görevi tamamladığında buradan tekrar inceleyebilirsin."
-                : "Saha kontrolü, ekim veya sulama. Sıradaki işini ekleyerek başla."}
-            </p>
-            {filter !== "completed" && (
-              <button className="primary" onClick={onCreate}>
-                Görev oluştur
-                <ArrowRight size={17} />
-              </button>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
-  );
+  const [view,setView] = useState("board");
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const pending=tasks.filter(t=>!t.done), completed=tasks.filter(t=>t.done);
+  const columns=[{id:"today",title:"Bugün ve öncesi",icon:Clock3,items:pending.filter(t=>t.date<=today),note:"Öncelik vermen gereken işler"},{id:"upcoming",title:"Sıradaki planlar",icon:CalendarDays,items:pending.filter(t=>t.date>today),note:"Sezonun bir sonraki adımları"},{id:"done",title:"Tamamlananlar",icon:CheckCheck,items:completed,note:"Sahada attığın adımlar"}];
+  const ordered=[...tasks].sort((a,b)=>a.date.localeCompare(b.date));
+  function card(task) { return <article className={`operation-card ${task.done ? "is-done" : ""}`} key={task.id}><div><span className="operation-date"><CalendarDays size={13} />{new Date(task.date+"T12:00:00").toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"})}</span><span className="operation-dot" /></div><h3>{task.name}</h3>{task.fieldName && <p>{task.fieldName}</p>}<label><input type="checkbox" checked={!!task.done} onChange={()=>onToggle(task)} /><span>{task.done ? "Tamamlandı · Geri al" : "Görevi tamamla"}</span></label></article>; }
+  return <div className="operations-page">
+    <header className="mission-heading"><div><span className="workspace-eyebrow">AGROMAX / OPERASYONLAR</span><h1>Sahanın ritmi.<br /><span>Senin planın.</span></h1></div><button className="primary" onClick={onCreate}><Plus size={18} /> Yeni görev</button></header>
+    <div className="operations-overview"><div><span>AÇIK GÖREV</span><strong>{pending.length}</strong></div><div><span>TAMAMLANAN</span><strong>{completed.length}</strong></div><div className="operations-completion"><span>SEZON AKIŞI</span><progress value={completed.length} max={tasks.length || 1} aria-label="Tamamlanan görev oranı" /><small>{tasks.length ? Math.round(completed.length/tasks.length*100) : 0}% tamamlandı</small></div></div>
+    <div className="operations-toolbar"><span>İŞ PLANI <span>/ {tasks.length} kayıt</span></span><div className="view-switch" aria-label="Görev görünümü"><button className={view==="board" ? "active" : ""} aria-pressed={view==="board"} onClick={()=>setView("board")}><Columns3 size={16} /> Pano</button><button className={view==="list" ? "active" : ""} aria-pressed={view==="list"} onClick={()=>setView("list")}><List size={16} /> Liste</button></div></div>
+    {view==="board" ? <div className="operations-columns">{columns.map(({id,title,icon:Icon,items,note})=><section className={`operation-column column-${id}`} key={id}><header><Icon size={17} /><h2>{title}</h2><span>{items.length}</span></header><p>{note}</p><div className="operation-cards">{[...items].sort((a,b)=>a.date.localeCompare(b.date)).map(card)}{!items.length && <div className="operation-empty"><Icon size={27} strokeWidth={1} /><span>{id==="done" ? "Tamamladığın işler burada birikir." : "Bu bölümde henüz görev yok."}</span></div>}</div>{id!=="done" && <button className="operation-add" onClick={onCreate}><Plus size={16} /> Görev ekle</button>}</section>)}</div> : <div className="operations-list">{ordered.length ? ordered.map(card) : <button className="atlas-create" onClick={onCreate}><Plus size={30} /><strong>İlk görevini oluştur.</strong><small>PLANI BAŞLAT <ArrowUpRight size={16} /></small></button>}</div>}
+  </div>;
 }

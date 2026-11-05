@@ -1,0 +1,20 @@
+{
+  "version": "commercial-cost-v1",
+  "recordedAt": "2026-11-01",
+  "currency": "USD",
+  "monthlyTargetMaximum": 100,
+  "targetActiveCustomers": { "minimum": 50, "maximum": 200 },
+  "initialConcurrentSessionTarget": 20,
+  "verifiedMonthlyWorkload": null,
+  "observedMonthlyCost": null,
+  "verifiedCustomerCapacity": null,
+  "referenceFixedPrices": [
+    { "provider": "Vercel Pro", "monthlyListUSD": 20, "source": "https://vercel.com/pricing", "includesTaxesAndUsage": false, "purchased": false },
+    { "provider": "MapTiler Flex", "monthlyListUSD": 30, "source": "https://www.maptiler.com/cloud/pricing/", "includesTaxesAndUsage": false, "purchased": false }
+  ],
+  "configuredModelBudget": { "provider": "Vercel AI Gateway", "scope": "agromax project", "maximumMonthlyUSD": 1, "modelEnabled": false, "reason": "User deferred model connection after provider required a payment card." },
+  "measurementsRequired": ["area and parcel count per customer", "monthly analyses and date windows", "retry and failed request counts", "CDSE processing units", "NASA POWER requests", "model token counts and billed amounts", "private storage size and egress", "database compute/storage and restore", "Vercel execution and workflow steps"],
+  "unknownValuePolicy": "null means unmeasured; it is never interpreted as zero or free",
+  "launchDecision": "not_verified",
+  "excludedCosts": ["company formation", "legal and accounting", "agronomist and field validation", "development"]
+}

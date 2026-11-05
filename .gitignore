@@ -5,3 +5,11 @@ data/
 !.env.example
 .vercel/
 *.log
+.nitro/
+.output/
+.workflow-data/
+*.tsbuildinfo
+/.swc
+/test-results/
+/playwright-report/
+/.agromax-build/

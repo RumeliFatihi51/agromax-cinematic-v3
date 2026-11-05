@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Save, X, MapPinned, Info } from "lucide-react";
 import { validateGeometry } from "../../../shared/geometry";
 import { api } from "../../api";
+import { useAreaFormat } from "../../components/PreferenceProvider";
 export default function FieldEditor({
   field,
   geometry,
@@ -9,6 +10,7 @@ export default function FieldEditor({
   onSaved,
   onCancel,
 }) {
+  const areaFormat = useAreaFormat();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   let measured = null,
@@ -32,6 +34,7 @@ export default function FieldEditor({
         {
           ...Object.fromEntries(new FormData(e.target)),
           kind: "field",
+          ...(field ? { version: field.version || 1 } : {}),
           geometry,
         },
         field ? "PATCH" : "POST",
@@ -72,11 +75,7 @@ export default function FieldEditor({
           <MapPinned />
           <div>
             <strong>
-              {measured
-                ? measured.area.toLocaleString("tr-TR", {
-                    maximumFractionDigits: 3,
-                  }) + " da"
-                : "Sınır bekleniyor"}
+              {measured ? areaFormat.format(measured.area) : "Sınır bekleniyor"}
             </strong>
             <small>Çizimden hesaplanan yaklaşık alan</small>
           </div>

@@ -381,8 +381,10 @@ textarea {
   border-radius: 8px;
   font-size: 13px;
   z-index: 10000;
+  clip-path: inset(50%);
 }
 .workspace-skip-link:focus {
+  clip-path: none;
   transform: translate(-50%, 0);
 }
 .studio-shell .fields-page-title {

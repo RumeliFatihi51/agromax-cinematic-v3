@@ -12,12 +12,26 @@ import {
 } from "node:crypto";
 import { openDatabase, initializeDatabase } from "./database.js";
 
-export async function createApplication({ db, background = () => {} } = {}) {
+/** @param {{db?:any, background?:(work:Promise<unknown>)=>void,workspace?:any}} [options] */
+export async function createApplication({
+  db,
+  background = () => {},
+  workspace: suppliedWorkspace,
+} = {}) {
   db ??= await openDatabase();
   await initializeDatabase(db);
   const analysisService = await createAnalysisService(db);
   const nasaService = await createNasaService(db);
   const weatherService = await createWeatherService(db);
+  const workspace =
+    suppliedWorkspace ||
+    (process.env.AGROMAX_WORKSPACE_ENABLED === "true"
+      ? await (
+          await import("../commercial/production/workspace.ts")
+        ).createProductionWorkspace({
+          secret: process.env.AGROMAX_AUTH_SECRET || "",
+        })
+      : null);
   return {
     db,
     analysisService,
@@ -53,6 +67,13 @@ export async function createApplication({ db, background = () => {} } = {}) {
           return reply(400, { error: "İstek bilgileri geçersiz." });
         if (Buffer.byteLength(JSON.stringify(body)) > 250000)
           return reply(413, { error: "İstek çok büyük." });
+        if (req.url === "/api/runtime" && req.method === "GET")
+          return reply(200, {
+            runtime: workspace ? "workspace" : "prototype",
+            workspaceEnabled: !!workspace,
+            emailConfigured: false,
+            salesEnabled: false,
+          });
         const token = (req.headers.cookie || "")
           .split("; ")
           .find((x) => x.startsWith("session="))
@@ -142,9 +163,36 @@ export async function createApplication({ db, background = () => {} } = {}) {
             id: user.id,
             name: user.name,
             email: user.email,
+            ...(workspace ? { commercial: true } : {}),
           });
         }
         if (!session) return reply(401, { error: "Oturum açmanız gerekiyor." });
+        if (
+          workspace &&
+          (req.url.startsWith("/api/v1/") || req.url.startsWith("/api/auth/"))
+        ) {
+          const headers = new Headers();
+          for (const [key, value] of Object.entries(req.headers))
+            if (typeof value === "string") headers.set(key, value);
+          const response = await workspace.handle(
+            new Request(
+              `${process.env.VERCEL ? "https" : "http"}://${req.headers.host}${req.url}`,
+              {
+                method: req.method,
+                headers,
+                ...(["GET", "HEAD"].includes(req.method)
+                  ? {}
+                  : { body: JSON.stringify(body) }),
+              },
+            ),
+            session,
+          );
+          res.statusCode = response.status;
+          response.headers.forEach((value, key) => res.setHeader(key, value));
+          res.setHeader("Cache-Control", "private, no-store");
+          res.end(Buffer.from(await response.arrayBuffer()));
+          return;
+        }
         if (req.url.startsWith("/api/weather") && req.method === "GET") {
           const url = new URL(req.url, "http://localhost");
           if (url.pathname === "/api/weather") {
@@ -200,7 +248,11 @@ export async function createApplication({ db, background = () => {} } = {}) {
           })
         )
           return;
-        if (req.url === "/api/me") return reply(200, session);
+        if (req.url === "/api/me")
+          return reply(200, {
+            ...session,
+            ...(workspace ? { commercial: true } : {}),
+          });
         if (req.url === "/api/logout" && req.method === "POST") {
           await db.prepare("DELETE FROM sessions WHERE token=?").run(token);
           res.setHeader(

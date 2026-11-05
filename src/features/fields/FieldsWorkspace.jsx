@@ -1,5 +1,6 @@
 import FieldMapPanel from "./FieldMapPanel";
 import FieldTable from "./FieldTable";
+import FieldAtlas from "./FieldAtlas";
 import { useEffect, useState } from "react";
 import {
   Map,
@@ -8,10 +9,13 @@ import {
   Satellite,
   RefreshCw,
   Undo2,
+  LayoutGrid,
 } from "lucide-react";
 import { api, requestAnalysis } from "../../api";
 import FieldAnalysis from "./FieldAnalysis";
 import { PageHeading } from "../../components/ui/WorkspaceUI";
+import { lazy, Suspense } from "react";
+const FieldResearch = lazy(() => import("../commercial/FieldResearch"));
 export default function FieldsWorkspace({
   fields,
   onSaved,
@@ -21,8 +25,14 @@ export default function FieldsWorkspace({
   onCreateHandled,
   focusField = null,
   analysisMode = false,
+  commercial = false,
+  locale = "tr",
+  favorites = [],
+  onFavorites,
+  canAnalyze = true,
+  customAnalysis = true,
 }) {
-  const [view, setView] = useState("map"),
+  const [view, setView] = useState("atlas"),
     [editing, setEditing] = useState(null),
     [editSession, setEditSession] = useState(0),
     [draftGeometry, setDraftGeometry] = useState(null),
@@ -81,8 +91,12 @@ export default function FieldsWorkspace({
   }
   async function remove(f) {
     try {
-      await api("records/" + f.id, null, "DELETE");
-      setDeleted(f);
+      const removed = await api(
+        "records/" + f.id,
+        { version: f.version || 1 },
+        "DELETE",
+      );
+      setDeleted({ ...f, version: removed.version || f.version || 1 });
       onDeleted(f.id);
       setConfirming(null);
     } catch (e) {
@@ -91,7 +105,9 @@ export default function FieldsWorkspace({
   }
   async function restore() {
     try {
-      const f = await api("records/" + deleted.id + "/restore", {});
+      const f = await api("records/" + deleted.id + "/restore", {
+        version: deleted.version || 1,
+      });
       onRestored(f);
       setDeleted(null);
     } catch (e) {
@@ -126,23 +142,39 @@ export default function FieldsWorkspace({
   return (
     <div className="fields-workspace">
       {field && (
-        <FieldAnalysis
-          key={field.id}
-          field={field}
-          onBack={() => setSelected(null)}
-          onEdit={() => startEditing(field)}
-          onAnalysis={(id, a) => setCache((c) => ({ ...c, [id]: a }))}
-        />
+        <>
+          <FieldAnalysis
+            key={field.id}
+            field={field}
+            onBack={() => setSelected(null)}
+            onEdit={() => startEditing(field)}
+            onAnalysis={(id, a) => setCache((c) => ({ ...c, [id]: a }))}
+          />
+          {commercial && (
+            <Suspense fallback={null}>
+              <FieldResearch
+                key={field.id}
+                fieldId={field.id}
+                analysis={cache[field.id] || null}
+                locale={locale}
+                favorites={favorites}
+                onFavorites={onFavorites}
+                canAnalyze={canAnalyze}
+                customAnalysisEnabled={customAnalysis}
+              />
+            </Suspense>
+          )}
+        </>
       )}
       <div hidden={!!field}>
         <PageHeading
-          eyebrow={analysisMode ? "UYDU ANALİZLERİ" : "HARİTA & PARSELLER"}
+          eyebrow={analysisMode ? "UYDU ANALİZLERİ" : "AGROMAX / ARAZİ ATLASI"}
           title={
             analysisMode
               ? "Tarlanın verisine yakından bak."
-              : "Toprağını haritaya taşı."
+              : "Her parselin bir dünyası var."
           }
-          description="Konum ara, parsel sınırlarını çiz ve tarla kayıtlarını tek bir haritadan yönet."
+          description="Parsel dosyalarını keşfet. Atlas, harita ve tablo arasında geçiş yaparak arazini kendi perspektifinden yönet."
         >
           <span className="field-count-pill">
             <Satellite size={15} />
@@ -151,6 +183,9 @@ export default function FieldsWorkspace({
         </PageHeading>
         <div className="fields-toolbar">
           <div className="view-switch" aria-label="Tarla görünümü">
+            <button disabled={!!editing} className={view === "atlas" ? "active" : ""} aria-pressed={view === "atlas"} onClick={() => setView("atlas")}>
+              <LayoutGrid size={17} /> Atlas
+            </button>
             <button
               className={view === "map" ? "active" : ""}
               onClick={() => setView("map")}
@@ -207,6 +242,7 @@ export default function FieldsWorkspace({
             {savedNotice}
           </div>
         )}
+        {view === "atlas" && <FieldAtlas fields={fields} onSelect={setSelected} onCreate={() => startEditing()} />}
         <div hidden={view !== "map"}>
           <FieldMapPanel
             fields={fields}

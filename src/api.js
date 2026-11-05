@@ -5,10 +5,19 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
-export async function api(path, body, method, { signal } = {}) {
+let organizationId = "";
+export function setOrganizationId(value) {
+  organizationId = value || "";
+}
+/** @param {string} path @param {any} [body] @param {string} [method] @param {{ signal?: AbortSignal, headers?: Record<string,string> }} [options] */
+export async function api(path, body, method, { signal, headers = {} } = {}) {
   const r = await fetch("/api/" + path, {
     method: method || (body ? "POST" : "GET"),
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+      ...(organizationId ? { "X-Organization-ID": organizationId } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
     signal,
   });
@@ -17,7 +26,11 @@ export async function api(path, body, method, { signal } = {}) {
   });
   if (!r.ok)
     throw new ApiError(
-      typeof data.error === "string" ? data.error : "İstek tamamlanamadı.",
+      typeof data.error === "string"
+        ? data.error
+        : typeof data.message === "string"
+          ? data.message
+          : "İstek tamamlanamadı.",
       r.status,
     );
   return data;
@@ -40,10 +53,16 @@ function pause(signal) {
     else signal?.addEventListener("abort", abort, { once: true });
   });
 }
-export async function requestAnalysis(fieldId, { signal, onJob } = {}) {
-  const result = await api(`records/${fieldId}/analysis`, {}, "POST", {
-    signal,
-  });
+/** @param {string} fieldId @param {{signal?:AbortSignal,onJob?:(job:any)=>void,range?:{start:string,split:string,end:string}}} [options] */
+export async function requestAnalysis(fieldId, { signal, onJob, range } = {}) {
+  const result = await api(
+    `records/${fieldId}/analysis`,
+    range ? { range } : {},
+    "POST",
+    {
+      signal,
+    },
+  );
   if (result.analysis) return result;
   let job = result.job;
   if (!job?.id) throw new ApiError("Analiz işlem kaydı alınamadı.", 502);

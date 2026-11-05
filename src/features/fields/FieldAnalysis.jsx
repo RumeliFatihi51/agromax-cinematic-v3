@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { api, requestAnalysis } from "../../api";
+import { useAreaFormat } from "../../components/PreferenceProvider";
 import {
   indices,
   metrics,
@@ -49,6 +50,7 @@ export default function FieldAnalysis({
   onAnalysis,
   initialAnalysis = null,
 }) {
+  const areaFormat = useAreaFormat();
   const request = useRef(null);
   const imageRequest = useRef(null);
   const [analysis, setAnalysis] = useState(initialAnalysis),
@@ -219,8 +221,8 @@ export default function FieldAnalysis({
           <h2>{field.name}</h2>
           <p>
             {field.crop || "Ürün belirtilmedi"} ·{" "}
-            {field.area.toLocaleString("tr-TR", { maximumFractionDigits: 3 })}{" "}
-            da · {field.location || "Konum belirtilmedi"}
+            {areaFormat.format(field.area)} ·{" "}
+            {field.location || "Konum belirtilmedi"}
           </p>
         </div>
         <div>

@@ -1,5 +1,7 @@
+import HologramTerrain from "./HologramTerrain";
 import Brand from "./Brand";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import AccountRecovery from "./AccountRecovery";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -16,6 +18,19 @@ export default function Auth({ onLogin }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [runtime, setRuntime] = useState(null),
+    [recovery, setRecovery] = useState(() =>
+      new URLSearchParams(window.location.search).get("flow") === "reset"
+        ? "reset"
+        : "",
+    );
+  useEffect(() => {
+    const controller = new AbortController();
+    api("runtime", undefined, "GET", { signal: controller.signal })
+      .then(setRuntime)
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -36,6 +51,7 @@ export default function Auth({ onLogin }) {
   return (
     <main className="auth">
       <section className="auth-story">
+        <HologramTerrain />
         <figure className="auth-brand-art">
           <picture>
             <source
@@ -62,9 +78,9 @@ export default function Auth({ onLogin }) {
         <div className="auth-copy">
           <span className="eyebrow">TOPRAĞI ANLA. GELECEĞİ YETİŞTİR.</span>
           <h1>
-            İyi bir sezon,
+            Tarımın geleceği,
             <br />
-            <em>birlikte büyür.</em>
+            <em>senin kontrolünde.</em>
           </h1>
           <p>
             Tarlalarını tanı. Her adımını planla.
@@ -92,12 +108,20 @@ export default function Auth({ onLogin }) {
       </section>
       <section className="auth-form">
         <div className="form-wrap">
-          <span className="pill">BİRLİKTE DAHA VERİMLİ</span>
-          <h2>{register ? "Yeni bir başlangıç." : "Yeniden merhaba."}</h2>
+          <span className="pill">
+            <span className="canopy-status-dot" /> TARLANA AÇILAN PENCERE
+          </span>
+          <h2>
+            {recovery
+              ? "Hesabına geri dön."
+              : register
+                ? "Birlikte büyüyelim."
+                : "Kaldığımız yerden."}
+          </h2>
           <p>
             {register
               ? "İşletmenizin dijital yolculuğunu başlatın."
-              : "Tarlanızın yeni gününe birlikte bakalım."}
+              : "İşletmene giriş yap. Sezonun tamamını bir arada gör."}
           </p>
           <div className="auth-tabs">
             <button
@@ -106,6 +130,7 @@ export default function Auth({ onLogin }) {
               disabled={busy}
               onClick={() => {
                 setRegister(false);
+                setRecovery("");
                 setError("");
               }}
             >
@@ -117,72 +142,113 @@ export default function Auth({ onLogin }) {
               disabled={busy}
               onClick={() => {
                 setRegister(true);
+                setRecovery("");
                 setError("");
               }}
             >
               Hesap oluştur
             </button>
           </div>
-          <form onSubmit={submit}>
-            {register && (
+          {recovery ? (
+            <AccountRecovery
+              mode={recovery}
+              available={!!runtime?.emailConfigured}
+              onBack={() => {
+                setRecovery("");
+                setRegister(false);
+                window.history.replaceState({}, "", window.location.pathname);
+              }}
+            />
+          ) : (
+            <form onSubmit={submit}>
+              {register && (
+                <label>
+                  Adınız soyadınız
+                  <input
+                    name="name"
+                    autoComplete="name"
+                    required
+                    maxLength={100}
+                    placeholder="Adınız ve soyadınız"
+                  />
+                </label>
+              )}
               <label>
-                Adınız soyadınız
+                E-posta adresiniz
                 <input
-                  name="name"
-                  autoComplete="name"
+                  type="email"
+                  name="email"
                   required
-                  maxLength={100}
-                  placeholder="Adınız ve soyadınız"
+                  autoComplete="email"
+                  placeholder="E-posta adresinizi girin"
                 />
               </label>
-            )}
-            <label>
-              E-posta adresiniz
-              <input
-                type="email"
-                name="email"
-                required
-                autoComplete="email"
-                placeholder="E-posta adresinizi girin"
-              />
-            </label>
-            <label>
-              Şifreniz
-              <span className="auth-password-field">
-                <input
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  minLength={12}
-                  maxLength={256}
-                  required
-                  autoComplete={register ? "new-password" : "current-password"}
-                  placeholder="En az 12 karakter"
-                />
-                <button
-                  type="button"
-                  className="auth-password-toggle"
-                  aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </span>
-            </label>
-            {error && (
-              <p role="alert" className="error">
-                {error}
-              </p>
-            )}
-            <button className="primary full" disabled={busy}>
-              {busy
-                ? "İşlem yapılıyor…"
-                : register
-                  ? "Hesabımı oluştur"
-                  : "Platforma giriş yap"}
-              <ArrowRight size={18} />
+              <label>
+                Şifreniz
+                <span className="auth-password-field">
+                  <input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    minLength={12}
+                    maxLength={256}
+                    required
+                    autoComplete={
+                      register ? "new-password" : "current-password"
+                    }
+                    placeholder="En az 12 karakter"
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    aria-label={
+                      showPassword ? "Şifreyi gizle" : "Şifreyi göster"
+                    }
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </span>
+              </label>
+              {error && (
+                <p role="alert" className="error">
+                  {error}
+                </p>
+              )}
+              {register &&
+                runtime?.runtime === "commercial" &&
+                !runtime.emailConfigured && (
+                  <p role="status">
+                    Yeni hesap kaydı için e-posta hizmetinin etkinleştirilmesi
+                    gerekiyor.
+                  </p>
+                )}
+              <button
+                className="primary full"
+                disabled={
+                  busy ||
+                  (register &&
+                    runtime?.runtime === "commercial" &&
+                    !runtime.emailConfigured)
+                }
+              >
+                {busy
+                  ? "İşlem yapılıyor…"
+                  : register
+                    ? "Hesabımı oluştur"
+                    : "Platforma giriş yap"}
+                <ArrowRight size={18} />
+              </button>
+            </form>
+          )}
+          {!register && !recovery && runtime?.runtime === "commercial" && (
+            <button
+              className="text-button"
+              onClick={() => setRecovery("forgot")}
+            >
+              Şifremi unuttum
             </button>
-          </form>
+          )}
           <div className="auth-trust">
             <ShieldCheck size={20} />
             <span>
@@ -195,7 +261,9 @@ export default function Auth({ onLogin }) {
           </div>
         </div>
         <small className="local-note">
-          Yerel geliştirme sürümü · E-posta doğrulaması henüz etkin değil.
+          {runtime?.runtime === "commercial"
+            ? "Hesap ve işletme çalışma alanı"
+            : "Agromax · Parsel ve tarımsal veri çalışma alanı"}
         </small>
       </section>
     </main>

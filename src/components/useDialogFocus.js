@@ -7,6 +7,8 @@ export default function useDialogFocus(onClose) {
     const previous = document.activeElement,
       dialog = ref.current;
     if (!dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const selectors =
       'button:not([disabled]),input:not([disabled]),a[href],select,textarea,[tabindex="0"]';
     (dialog.querySelector("input") || dialog.querySelector(selectors))?.focus();
@@ -34,7 +36,9 @@ export default function useDialogFocus(onClose) {
     document.addEventListener("keydown", key);
     return () => {
       document.removeEventListener("keydown", key);
-      previous?.focus?.();
+      document.body.style.overflow = previousOverflow;
+      if (previous?.isConnected && previous !== document.body)
+        previous.focus?.({ preventScroll: true });
     };
   }, []);
   return ref;

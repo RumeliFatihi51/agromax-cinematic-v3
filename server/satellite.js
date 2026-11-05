@@ -2,6 +2,7 @@ import proj4 from "proj4";
 import { PNG } from "pngjs";
 import { isISODate } from "../shared/dates.js";
 import { boundedStatistics } from "./statistics-request.js";
+import { meterProvider } from "./provider-meter.js";
 import {
   metrics,
   indices,
@@ -52,12 +53,12 @@ class ProviderError extends Error {
 }
 async function providerFetch(url, options, signal) {
   try {
-    return await fetch(url, {
+    return await meterProvider(new URL(url).pathname.endsWith("/token") ? "oauth" : new URL(url).pathname.split("/").at(-1), () => fetch(url, {
       ...options,
       signal: signal
         ? AbortSignal.any([signal, options.signal])
         : options.signal,
-    });
+    }));
   } catch (e) {
     if (signal?.aborted) throw signal.reason || e;
     const failure = new ProviderError(
@@ -320,14 +321,17 @@ export function summarize(raw, range) {
   );
   return { observations, comparison };
 }
-export async function fetchAnalysis(geometry, { signal } = {}) {
-  const range = comparisonRange(),
+/** @param {any} geometry @param {{ signal?: AbortSignal, range?: ReturnType<typeof comparisonRange>, metricIds?: string[], catalog?: boolean, maximumRequests?:number }} options */
+export async function fetchAnalysis(geometry, { signal, range: requestedRange, metricIds, catalog = true,maximumRequests=128 } = {}) {
+  const range = requestedRange || comparisonRange(),
     projected = utmGeometry(geometry);
   const merged = new Map();
-  const selected = availableMetrics(process.env.SENTINEL_PROVIDER);
+  const supported = availableMetrics(process.env.SENTINEL_PROVIDER);
+  const selected = metricIds ? supported.filter((m) => metricIds.includes(m.id)) : supported;
+  if (!selected.length || (metricIds && selected.length !== metricIds.length)) throw new ProviderError("Desteklenmeyen çıktı grubu.", 400);
   let baseline;
   let requestCount = 0;
-  const budget = {requests:0,maximum:128};
+  const budget = {requests:0,maximum:maximumRequests};
   // Bounded output groups avoid the provider's calculation-size limit. Every
   // requested metric must succeed; failures never publish a partial analysis.
   for (let offset = 0; offset < selected.length; offset += 8) {
@@ -412,6 +416,15 @@ export async function fetchAnalysis(geometry, { signal } = {}) {
     requestCount:budget.requests,
     outputGroups:requestCount,
   };
+  const scenes = catalog ? await fetchObservations(geometry, range, { signal }) : [];
+  return {
+    ...summarize(raw, range),
+    ...analysisMetadata(range),
+    scenes,
+    raw,
+  };
+}
+export async function fetchObservations(geometry, range, { signal } = {}) {
   const scenes = [];
   let next;
   const seen = new Set();
@@ -457,8 +470,10 @@ export async function fetchAnalysis(geometry, { signal } = {}) {
       seen.add(next);
     }
   } while (next !== undefined && next !== null);
+  return scenes;
+}
+function analysisMetadata(range) {
   return {
-    ...summarize(raw, range),
     range,
     fetchedAt: new Date().toISOString(),
     source: "Copernicus Sentinel-2 L2A / Sentinel Hub",
@@ -473,10 +488,28 @@ export async function fetchAnalysis(geometry, { signal } = {}) {
     ),
     qualityBands: availableQualityBands(process.env.SENTINEL_PROVIDER),
     aggregation:
-      "Günlük mozaiklerin geçerli piksel sayısına göre ağırlıklı dönem ortalaması. Bu ay kısmi, geçen ay tam dönemdir; doğrudan nedensel yorum yapılamaz.",
-    scenes,
-    raw,
+      "Günlük mozaiklerin geçerli piksel sayısına göre ağırlıklı dönem ortalaması. Dönemlerin tarih kapsamı ve gözlem sayısı birlikte değerlendirilmelidir; doğrudan nedensel yorum yapılamaz.",
   };
+}
+export function assembleAnalysis(parts, scenes) {
+  if (!parts.length) throw new ProviderError("Analiz grupları eksik.");
+  const range = parts[0].range, rows = new Map();
+  let baseline;
+  for (const part of parts) {
+    if (JSON.stringify(part.range) !== JSON.stringify(range)) throw new ProviderError("Analiz tarihleri tutarsız.");
+    const intervals = part.raw.data.map((d) => `${d.interval.from}/${d.interval.to}`).sort();
+    if (baseline && JSON.stringify(intervals) !== JSON.stringify(baseline)) throw new ProviderError("Analiz aralıkları tutarsız.");
+    baseline = intervals;
+    for (const day of part.raw.data) {
+      const key = `${day.interval.from}/${day.interval.to}`;
+      const current = rows.get(key) || { interval: day.interval, outputs: {} };
+      Object.assign(current.outputs, day.outputs); rows.set(key, current);
+    }
+  }
+  const supported = availableMetrics(process.env.SENTINEL_PROVIDER);
+  for (const row of rows.values()) if (supported.some((m) => !row.outputs[m.id]?.bands?.B0?.stats)) throw new ProviderError("Tamamlanmamış analiz yayımlanamaz.");
+  const raw = { status: "OK", data: [...rows.values()].sort((a,b) => a.interval.from.localeCompare(b.interval.from)), requestCount: parts.reduce((s,p) => s + p.raw.requestCount, 0), outputGroups: parts.reduce((s,p) => s + p.raw.outputGroups, 0) };
+  return { ...analysisMetadata(range), ...summarize(raw, range), scenes, raw };
 }
 export function imagePixels(image) {
   if (

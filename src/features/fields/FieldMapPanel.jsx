@@ -15,6 +15,7 @@ import {
 import ParcelMap from "./ParcelMap";
 import ParcelPreview from "./ParcelPreview";
 import FieldEditor from "./FieldEditor";
+import { useAreaFormat } from "../../components/PreferenceProvider";
 export default function FieldMapPanel({
   fields,
   onSelect,
@@ -30,6 +31,7 @@ export default function FieldMapPanel({
   onCancel,
   onSaved,
 }) {
+  const areaFormat = useAreaFormat();
   const [query, setQuery] = useState("");
   const [browserCollapsed, setBrowserCollapsed] = useState(
     () => window.matchMedia("(max-width:640px)").matches,
@@ -115,11 +117,7 @@ export default function FieldMapPanel({
                   <span>
                     <strong>{f.name}</strong>
                     <small>
-                      {f.crop || "Ürün eklenmedi"} ·{" "}
-                      {f.area.toLocaleString("tr-TR", {
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      da
+                      {f.crop || "Ürün eklenmedi"} · {areaFormat.format(f.area)}
                     </small>
                     <em>
                       {f.geometry
@@ -167,10 +165,8 @@ export default function FieldMapPanel({
             <MapPinned size={15} />
             {fields.filter((f) => f.geometry).length} çizilmiş parsel{" "}
             <span>·</span>{" "}
-            {fields
-              .reduce((s, f) => s + f.area, 0)
-              .toLocaleString("tr-TR", { maximumFractionDigits: 2 })}{" "}
-            da kayıtlı alan
+            {areaFormat.format(fields.reduce((s, f) => s + f.area, 0))} kayıtlı
+            alan
           </div>
         </aside>
         {editing && (

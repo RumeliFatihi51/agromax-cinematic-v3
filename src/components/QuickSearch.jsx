@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { Search, ArrowUpRight, MapPinned, Command, X } from "lucide-react";
-import { modules } from "../features/modules";
+import { availableModules } from "../features/modules";
 import { I } from "./icons";
 import useDialogFocus from "./useDialogFocus";
-export default function QuickSearch({ fields, onNavigate, onField, onClose }) {
+export default function QuickSearch({
+  fields,
+  onNavigate,
+  onField,
+  onClose,
+  commercial = false,
+}) {
   const [query, setQuery] = useState("");
   const ref = useDialogFocus(onClose),
     needle = query.trim().toLocaleLowerCase("tr-TR");
@@ -15,7 +21,7 @@ export default function QuickSearch({ fields, onNavigate, onField, onClose }) {
       icon: MapPinned,
       run: () => onField(f),
     })),
-    ...modules.map(([id, label, icon]) => ({
+    ...availableModules(commercial).map(([id, label, icon]) => ({
       id,
       label,
       description: "Çalışma alanı",

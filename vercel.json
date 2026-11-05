@@ -4,7 +4,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "regions": ["fra1"],
-  "functions": { "api/index.js": { "maxDuration": 300 } },
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 300,
+      "includeFiles": "public/fonts/Manrope-Report.ttf"
+    }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?__agromax_route=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }

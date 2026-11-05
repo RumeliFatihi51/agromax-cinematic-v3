@@ -26,7 +26,7 @@ export function MetricCard({
     <button className={`workspace-metric tone-${tone}`} onClick={onClick}>
       <span className="workspace-metric-top">
         <span>{label}</span>
-        <Icon size={19} />
+        <Icon size={20} aria-hidden="true" />
       </span>
       <span className="workspace-metric-value">
         {value}

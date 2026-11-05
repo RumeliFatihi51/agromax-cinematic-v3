@@ -3,11 +3,13 @@ import { Sprout, ArrowRight, X, LoaderCircle } from "lucide-react";
 import AppShell from "./components/AppShell";
 import Auth from "./components/Auth";
 import TaskModal from "./features/tasks/TaskModal";
-import { modules } from "./features/modules";
+import { modules, canonicalPage, operationPages } from "./features/modules";
 import { I } from "./components/icons";
-import { api } from "./api";
+import { api, setOrganizationId } from "./api";
 import { LogoMark } from "./components/Brand";
 import ErrorBoundary from "./components/ErrorBoundary";
+import PreferenceProvider from "./components/PreferenceProvider";
+import useWorkspacePage from "./components/useWorkspacePage";
 const Dashboard = lazy(() => import("./features/overview/Dashboard"));
 const FieldsWorkspace = lazy(() => import("./features/fields/FieldsWorkspace"));
 const Filiz = lazy(() => import("./features/assistant/Filiz"));
@@ -15,6 +17,25 @@ const IntegrationStatus = lazy(
   () => import("./features/integrations/IntegrationStatus"),
 );
 const TaskBoard = lazy(() => import("./features/tasks/TaskBoard"));
+const Onboarding = lazy(() => import("./features/commercial/Onboarding"));
+const BusinessWorkspace = lazy(
+  () => import("./features/commercial/BusinessWorkspace"),
+);
+const AccountSettings = lazy(
+  () => import("./features/commercial/AccountSettings"),
+);
+const ReportsWorkspace = lazy(
+  () => import("./features/commercial/ReportsWorkspace"),
+);
+const OperationsWorkspace = lazy(
+  () => import("./features/commercial/OperationsWorkspace"),
+);
+const WeatherWorkspace = lazy(
+  () => import("./features/commercial/WeatherWorkspace"),
+);
+const FilizWorkspace = lazy(
+  () => import("./features/commercial/FilizWorkspace"),
+);
 const WeatherDashboard = lazy(
   () => import("./features/weather/WeatherDashboard"),
 );
@@ -25,12 +46,12 @@ const Notifications = lazy(
   () => import("./features/notifications/Notifications"),
 );
 export default function App() {
+  const [page, setPage] = useWorkspacePage();
   const [user, setUser] = useState(null),
     [loading, setLoading] = useState(true),
     [ready, setReady] = useState(false),
     [records, setRecords] = useState([]),
     [recordError, setRecordError] = useState(""),
-    [page, setPage] = useState("overview"),
     [error, setError] = useState(""),
     [modal, setModal] = useState(false),
     [saving, setSaving] = useState(false),
@@ -38,7 +59,49 @@ export default function App() {
     [focus, setFocus] = useState(null),
     [reload, setReload] = useState(0),
     [notifications, setNotifications] = useState(null),
-    [historyFocus, setHistoryFocus] = useState(null);
+    [historyFocus, setHistoryFocus] = useState(null),
+    [commercial, setCommercial] = useState(null),
+    [commercialError, setCommercialError] = useState(""),
+    [operationPage, setOperationPage] = useState("seasons");
+  const activeWorkspace =
+    commercial?.organizations.find(
+      (o) => o.id === commercial.preferences?.activeOrganizationId,
+    ) || commercial?.organizations[0];
+  async function reloadWorkspace() {
+    const data = await api("v1/bootstrap");
+    const selected =
+      data.organizations.find(
+        (o) => o.id === data.preferences?.activeOrganizationId,
+      ) || data.organizations[0];
+    setOrganizationId(selected?.id);
+    setCommercial(data);
+    setCommercialError("");
+    setUser((previous) =>
+      previous ? { ...previous, ...data.user, commercial: true } : previous,
+    );
+  }
+  useEffect(() => {
+    if (!user?.commercial) {
+      setCommercial(null);
+      return;
+    }
+    const controller = new AbortController();
+    setCommercialError("");
+    api("v1/bootstrap", undefined, "GET", { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const selected =
+          data.organizations.find(
+            (o) => o.id === data.preferences?.activeOrganizationId,
+          ) || data.organizations[0];
+        setOrganizationId(selected?.id);
+        setCommercial(data);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setCommercialError(e.message);
+      });
+    return () => controller.abort();
+  }, [user?.id, user?.commercial]);
   useEffect(() => {
     api("me")
       .then(setUser)
@@ -46,7 +109,11 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
-    if (!user) return;
+    if (
+      !user ||
+      (user.commercial && (!commercial || commercial.onboardingRequired))
+    )
+      return;
     let active = true;
     setReady(false);
     setRecordError("");
@@ -61,10 +128,20 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [user, reload]);
+  }, [
+    user?.id,
+    user?.commercial,
+    reload,
+    commercial?.onboardingRequired,
+    commercial?.preferences?.activeOrganizationId,
+  ]);
   useEffect(() => {
     setNotifications(null);
-    if (!user) return;
+    if (
+      !user ||
+      (user.commercial && (!commercial || commercial.onboardingRequired))
+    )
+      return;
     const controller = new AbortController();
     const load = () =>
       api("notifications", undefined, "GET", { signal: controller.signal })
@@ -79,14 +156,19 @@ export default function App() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [user]);
+  }, [
+    user?.id,
+    commercial?.preferences?.activeOrganizationId,
+    commercial?.onboardingRequired,
+  ]);
   const fields = useMemo(
       () => records.filter((r) => r.kind === "field"),
       [records],
     ),
     tasks = useMemo(() => records.filter((r) => r.kind === "task"), [records]);
   function navigate(id) {
-    setPage(id);
+    if (operationPages.includes(id)) setOperationPage(id);
+    setPage(canonicalPage(id));
     setFocus(null);
     setHistoryFocus(null);
     setError("");
@@ -98,7 +180,7 @@ export default function App() {
   }
   function analyze(field) {
     setFocus(field.id);
-    setPage("satellite");
+    setPage("fields");
   }
   async function saveTask(e) {
     e.preventDefault();
@@ -132,13 +214,18 @@ export default function App() {
   async function logout() {
     try {
       await api("logout", {});
-      setUser(null);
-      setRecords([]);
-      setReady(false);
-      setPage("overview");
     } catch (e) {
-      setError(e.message);
+      if (e.status !== 401) {
+        setError(e.message);
+        return;
+      }
     }
+    setOrganizationId("");
+    setCommercial(null);
+    setUser(null);
+    setRecords([]);
+    setReady(false);
+    setPage("overview");
   }
   function openTask() {
     setError("");
@@ -155,7 +242,42 @@ export default function App() {
         <LoaderCircle size={18} className="spin" />
       </div>
     );
-  if (!user) return <Auth onLogin={setUser} />;
+  if (
+    !user ||
+    new URLSearchParams(window.location.search).get("flow") === "reset"
+  )
+    return <Auth onLogin={setUser} />;
+  if (user.commercial && !commercial)
+    return (
+      <section className="studio-module-empty">
+        {commercialError ? (
+          <>
+            <h1>Çalışma alanı yüklenemedi.</h1>
+            <p>{commercialError}</p>
+            <button className="primary" onClick={reloadWorkspace}>
+              Yeniden dene
+            </button>
+            <button className="secondary" onClick={logout}>
+              Çıkış yap
+            </button>
+          </>
+        ) : (
+          <LoaderCircle className="spin" size={26} />
+        )}
+      </section>
+    );
+  if (user.commercial && commercial.onboardingRequired)
+    return (
+      <Suspense
+        fallback={
+          <div className="studio-module-loading">
+            <LoaderCircle className="spin" size={24} />
+          </div>
+        }
+      >
+        <Onboarding onSaved={reloadWorkspace} onLogout={logout} />
+      </Suspense>
+    );
   const descriptor = modules.find((m) => m[0] === page) || modules[0],
     PageIcon = I[descriptor[2]] || I.Sprout;
   let content;
@@ -219,6 +341,21 @@ export default function App() {
   else if (["fields", "satellite"].includes(page))
     content = (
       <FieldsWorkspace
+        commercial={!!activeWorkspace}
+        customAnalysis={commercial?.capabilities?.customAnalysis !== false}
+        canAnalyze={
+          !activeWorkspace ||
+          (activeWorkspace.role !== "viewer" && commercial.user.emailVerified)
+        }
+        locale={commercial?.preferences?.locale || "tr"}
+        favorites={commercial?.preferences?.metricFavorites || []}
+        onFavorites={async (ids) => {
+          await api("v1/preferences", { metricFavorites: ids }, "PATCH");
+          setCommercial((data) => ({
+            ...data,
+            preferences: { ...data.preferences, metricFavorites: ids },
+          }));
+        }}
         fields={fields}
         createRequest={createRequest}
         onCreateHandled={() => setCreateRequest(0)}
@@ -240,9 +377,71 @@ export default function App() {
   else if (page === "tasks")
     content = <TaskBoard tasks={tasks} onToggle={toggle} onCreate={openTask} />;
   else if (page === "weather")
-    content = <WeatherDashboard fields={fields} onNavigate={navigate} />;
+    content = activeWorkspace ? (
+      <WeatherWorkspace
+        key={activeWorkspace.id}
+        fields={fields}
+        locale={commercial.preferences?.locale || "tr"}
+        onNavigate={navigate}
+      />
+    ) : (
+      <WeatherDashboard fields={fields} onNavigate={navigate} />
+    );
+  else if (activeWorkspace && page === "finance")
+    content = (
+      <BusinessWorkspace
+        key={`${activeWorkspace.id}:cost`}
+        kind="cost"
+        fields={fields}
+        workspace={activeWorkspace}
+        userId={user.id}
+        locale={commercial.preferences?.locale || "tr"}
+      />
+    );
+  else if (activeWorkspace && page === "operations")
+    content = (
+      <OperationsWorkspace
+        key={activeWorkspace.id}
+        active={operationPage}
+        onActive={setOperationPage}
+        fields={fields}
+        workspace={activeWorkspace}
+        userId={user.id}
+        locale={commercial.preferences?.locale || "tr"}
+      />
+    );
+  else if (activeWorkspace && page === "settings")
+    content = (
+      <AccountSettings
+        bootstrap={commercial}
+        workspace={activeWorkspace}
+        onChanged={reloadWorkspace}
+        onLogout={logout}
+      />
+    );
+  else if (activeWorkspace && page === "reports")
+    content = (
+      <ReportsWorkspace
+        key={activeWorkspace.id}
+        fields={fields}
+        organizationId={activeWorkspace.id}
+        dailyLimit={commercial?.capabilities?.reportDailyLimit}
+        locale={commercial.preferences?.locale || "tr"}
+        canCreate={activeWorkspace.role !== "viewer"}
+      />
+    );
   else if (page === "assistant")
-    content = <Filiz fields={fields} tasks={tasks} onNavigate={navigate} />;
+    content = activeWorkspace ? (
+      <FilizWorkspace
+        key={activeWorkspace.id}
+        fields={fields}
+        workspace={activeWorkspace}
+        locale={commercial.preferences?.locale || "tr"}
+        onConfirmed={() => setReload((n) => n + 1)}
+      />
+    ) : (
+      <Filiz fields={fields} tasks={tasks} onNavigate={navigate} />
+    );
   else if (page === "integrations")
     content = (
       <>
@@ -291,45 +490,78 @@ export default function App() {
       </>
     );
   return (
-    <AppShell
-      page={page}
-      user={user}
-      fields={fields}
-      tasks={tasks}
-      notifications={notifications}
-      onNavigate={navigate}
-      onField={analyze}
-      onCreate={create}
-      onLogout={logout}
-    >
-      {error && !modal && (
-        <div className="studio-error-banner" role="alert">
-          <p>{error}</p>
-          <button aria-label="Bildirimi kapat" onClick={() => setError("")}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      <ErrorBoundary resetKey={page}>
-        <Suspense
-          fallback={
-            <div className="studio-module-loading" role="status">
-              <LoaderCircle size={22} className="spin" />
-              Çalışma alanı açılıyor…
-            </div>
-          }
-        >
-          {content}
-        </Suspense>
-      </ErrorBoundary>
-      {modal && (
-        <TaskModal
-          onClose={() => setModal(false)}
-          onSave={saveTask}
-          busy={saving}
-          error={error}
-        />
-      )}
-    </AppShell>
+    <PreferenceProvider preferences={commercial?.preferences}>
+      <AppShell
+        page={page}
+        user={user}
+        fields={fields}
+        tasks={tasks}
+        notifications={notifications}
+        onNavigate={navigate}
+        onField={analyze}
+        onCreate={create}
+        onLogout={logout}
+        workspace={activeWorkspace}
+        organizationControl={
+          commercial && (
+            <select
+              className="business-organization-select"
+              aria-label="Çalışma alanı seç"
+              value={activeWorkspace?.id || ""}
+              onChange={async (event) => {
+                const id = event.target.value,
+                  previous = activeWorkspace?.id;
+                setReady(false);
+                setRecords([]);
+                setOrganizationId(id);
+                try {
+                  await api("v1/organizations/select", { organizationId: id });
+                  await reloadWorkspace();
+                } catch (e) {
+                  setOrganizationId(previous);
+                  setError(e.message);
+                  setReload((n) => n + 1);
+                }
+              }}
+            >
+              {commercial.organizations.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          )
+        }
+      >
+        {error && !modal && (
+          <div className="studio-error-banner" role="alert">
+            <p>{error}</p>
+            <button aria-label="Bildirimi kapat" onClick={() => setError("")}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        <ErrorBoundary resetKey={page}>
+          <Suspense
+            fallback={
+              <div className="studio-module-loading" role="status">
+                <LoaderCircle size={22} className="spin" />
+                Çalışma alanı açılıyor…
+              </div>
+            }
+          >
+            {content}
+          </Suspense>
+        </ErrorBoundary>
+        {modal && (
+          <TaskModal
+            onClose={() => setModal(false)}
+            onSave={saveTask}
+            busy={saving}
+            error={error}
+          />
+        )}
+      </AppShell>
+    </PreferenceProvider>
   );
 }

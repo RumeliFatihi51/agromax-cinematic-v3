@@ -28,6 +28,7 @@ import {
   Layers,
   Compass,
   Info,
+  LoaderCircle,
 } from "lucide-react";
 import { validateGeometry } from "../../../shared/geometry";
 import { basemaps, labelsLayer } from "./basemaps";
@@ -80,6 +81,9 @@ export default function ParcelMap({
     [version, setVersion] = useState(0),
     [notice, setNotice] = useState(""),
     [tileError, setTileError] = useState(false),
+    [tilesLoading, setTilesLoading] = useState(true),
+    [tilesSlow, setTilesSlow] = useState(false),
+    [tileRevision, setTileRevision] = useState(0),
     [base, setBase] = useState("satellite"),
     [labels, setLabels] = useState(false),
     [showInfo, setShowInfo] = useState(false),
@@ -284,20 +288,36 @@ export default function ParcelMap({
     const map = instance.current;
     if (!map) return;
     setTileError(false);
+    setTilesLoading(true);
+    setTilesSlow(false);
     baseLayer.current?.remove();
     const config = basemaps[base];
-    const tile = L.tileLayer(config.url, config.options).addTo(map);
+    const tile = L.tileLayer(config.url, config.options);
     baseLayer.current = tile;
     let errors = 0;
+    let loaded = false;
+    const slow = window.setTimeout(() => {
+      if (!loaded) setTilesSlow(true);
+    }, 12000);
+    tile.on("loading", () => setTilesLoading(true));
+    tile.on("load", () => setTilesLoading(false));
     tile.on("tileerror", () => {
       if (++errors >= 3) setTileError(true);
     });
     tile.on("tileload", () => {
+      loaded = true;
       errors = 0;
       setTileError(false);
+      setTilesLoading(false);
+      setTilesSlow(false);
+      window.clearTimeout(slow);
     });
-    return () => tile.remove();
-  }, [base]);
+    tile.addTo(map);
+    return () => {
+      window.clearTimeout(slow);
+      tile.remove();
+    };
+  }, [base, tileRevision]);
   useEffect(() => {
     labelLayer.current?.remove();
     if (labels && base === "satellite")
@@ -711,12 +731,38 @@ export default function ParcelMap({
         </form>
       )}
       {tileError && (
-        <div className="map-tile-error">
+        <div className="map-tile-error" role="status">
           {base === "satellite"
             ? "Uydu görüntüsü yüklenemedi."
             : "Harita altlığı yüklenemedi."}{" "}
           Bağlantıyı kontrol edin veya diğer altlığı seçin. Parsel sınırları
           korunur.
+          <button type="button" onClick={() => setTileRevision((n) => n + 1)}>
+            Yeniden dene
+          </button>
+          <button
+            type="button"
+            onClick={() => setBase(base === "satellite" ? "road" : "satellite")}
+          >
+            Diğer altlığı aç
+          </button>
+        </div>
+      )}
+      {!tileError && tilesLoading && (
+        <div className="canopy-map-loading" role="status">
+          <LoaderCircle size={16} className="spin" aria-hidden="true" />
+          <span>
+            {tilesSlow
+              ? "Görüntü bağlantısı bekleniyor…"
+              : base === "satellite"
+                ? "Uydu görüntüsü yükleniyor…"
+                : "Harita yükleniyor…"}
+          </span>
+          {tilesSlow && (
+            <button type="button" onClick={() => setTileRevision((n) => n + 1)}>
+              Yeniden dene
+            </button>
+          )}
         </div>
       )}
       {notice && (

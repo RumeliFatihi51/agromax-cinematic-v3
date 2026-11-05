@@ -3,7 +3,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  CalendarDays,
   ChevronRight,
   LogOut,
   Cable,
@@ -11,8 +10,9 @@ import {
   X,
   Menu,
   Bell,
+  Settings2,
 } from "lucide-react";
-import { modules } from "../features/modules";
+import { availableModules } from "../features/modules";
 import { I } from "./icons";
 import QuickSearch from "./QuickSearch";
 import Brand, { FilizAvatar } from "./Brand";
@@ -27,6 +27,8 @@ export default function AppShell({
   onCreate,
   onLogout,
   children,
+  workspace,
+  organizationControl,
 }) {
   const [mobile, setMobile] = useState(false),
     [slim, setSlim] = useState(() => {
@@ -39,8 +41,15 @@ export default function AppShell({
     [search, setSearch] = useState(false);
   const menuButton = useRef(null),
     sidebar = useRef(null);
+  const modules = availableModules(!!workspace);
   const active = modules.find((m) => m[0] === page) || modules[0],
     pending = tasks.filter((t) => !t.done).length;
+  const roles = {
+    owner: "İşletme sahibi",
+    manager: "Yönetici",
+    worker: "Ekip üyesi",
+    viewer: "Görüntüleme",
+  };
   useEffect(() => {
     const key = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -107,11 +116,13 @@ export default function AppShell({
           <button
             key={id}
             className={`studio-nav-link ${page === id ? "is-active" : ""}`}
-            title={slim ? label : undefined}
+            title={label}
             aria-current={page === id ? "page" : undefined}
             onClick={() => navigate(id)}
           >
-            <Icon size={20} />
+            <span className="canopy-nav-icon">
+              <Icon size={19} aria-hidden="true" />
+            </span>
             <span>{label}</span>
             {id === "tasks" && pending > 0 && <b>{pending}</b>}
             {page === id && <i />}
@@ -120,9 +131,16 @@ export default function AppShell({
       });
   return (
     <div
-      className={`studio-shell ${slim ? "sidebar-slim" : ""} studio-page-${page}`}
+      className={`studio-shell ${workspace ? "commercial-shell" : ""} ${slim ? "sidebar-slim" : ""} studio-page-${page}`}
     >
-      <a className="workspace-skip-link" href="#main-content">
+      <a
+        className="workspace-skip-link"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
         İçeriğe geç
       </a>
       {mobile && (
@@ -163,26 +181,20 @@ export default function AppShell({
         <div className="studio-workspace">
           <span>{user.name.charAt(0).toLocaleUpperCase("tr-TR")}</span>
           <div>
-            <strong>Benim işletmem</strong>
-            <small>Kişisel çalışma alanı</small>
+            <strong>{workspace?.name || "Benim işletmem"}</strong>
+            <small>{roles[workspace?.role] || "Kişisel çalışma alanı"}</small>
           </div>
         </div>
+        <div className="canopy-mobile-workspace">{organizationControl}</div>
         <nav aria-label="Ana gezinme">
           <span className="studio-nav-heading">ÇALIŞMA ALANI</span>
-          {group(["overview", "fields", "satellite", "history", "weather"])}
+          {group(["overview", "fields", "history", "weather"])}
           <span className="studio-nav-heading">PLANLA & YÖNET</span>
-          {group([
-            "tasks",
-            "irrigation",
-            "nutrition",
-            "protection",
-            "finance",
-            "reports",
-            "notifications",
-          ])}
+          {group(["tasks", "operations", "finance", "reports"])}
         </nav>
         <button
           className={`studio-filiz ${page === "assistant" ? "is-active" : ""}`}
+          aria-label="Filiz"
           onClick={() => navigate("assistant")}
           title="Filiz kayıt rehberi"
         >
@@ -191,11 +203,21 @@ export default function AppShell({
           </span>
           <div>
             <strong>Filiz</strong>
-            <small>Toprağının yanındaki rehber</small>
+            <small>Kayıtlarından birlikte ilerleyelim</small>
           </div>
           <ArrowUpRight size={17} />
         </button>
         <div className="studio-sidebar-footer">
+          {workspace && (
+            <button
+              className={`studio-nav-link ${page === "settings" ? "is-active" : ""}`}
+              onClick={() => navigate("settings")}
+              title="Hesap ve işletme"
+            >
+              <Settings2 size={20} />
+              <span>Hesap ve işletme</span>
+            </button>
+          )}
           <button
             className={`studio-nav-link ${page === "integrations" ? "is-active" : ""}`}
             onClick={() => navigate("integrations")}
@@ -231,13 +253,20 @@ export default function AppShell({
             >
               <Menu size={21} />
             </button>
-            <span>İşletmem</span>
+            <span className="canopy-topbar-label">Çalışma alanı</span>
             <ChevronRight size={13} />
             <strong>{active[1]}</strong>
           </div>
+          <nav className="mission-top-tabs" aria-label="Ana bölümler">
+            {[["overview", "Komuta merkezi"], ["fields", "Arazi atlası"], ["weather", "Atmosfer"], ["tasks", "Operasyonlar"]].map(([id, label]) => (
+              <button key={id} aria-current={page === id ? "page" : undefined} onClick={() => navigate(id)}>{label}</button>
+            ))}
+          </nav>
           <div className="studio-topbar-actions">
+            {organizationControl}
             <button
               className="studio-global-search"
+              aria-label="Hızlı erişim"
               onClick={() => setSearch(true)}
             >
               <Search size={17} />
@@ -253,15 +282,6 @@ export default function AppShell({
             </span>
             <button
               className="studio-calendar-button"
-              aria-label={`Görevler: ${pending} bekleyen görev`}
-              title="Görevlerimi aç"
-              onClick={() => navigate("tasks")}
-            >
-              <CalendarDays size={20} />
-              {pending > 0 && <i />}
-            </button>
-            <button
-              className="studio-calendar-button"
               aria-label={`Bildirimler${notifications ? `: ${notifications.filter((n) => !n.readAt).length} okunmamış` : ""}`}
               title="Bildirimleri aç"
               onClick={() => navigate("notifications")}
@@ -269,9 +289,15 @@ export default function AppShell({
               <Bell size={19} />
               {notifications?.some((n) => !n.readAt) && <i />}
             </button>
-            <span className="studio-top-avatar">
+            <button
+              className="studio-top-avatar"
+              aria-label={
+                workspace ? "Profil ayarlarını aç" : "Genel bakışı aç"
+              }
+              onClick={() => navigate(workspace ? "settings" : "overview")}
+            >
               {user.name.charAt(0).toLocaleUpperCase("tr-TR")}
-            </span>
+            </button>
           </div>
         </header>
         <main className="studio-content" id="main-content" tabIndex={-1}>
@@ -284,8 +310,30 @@ export default function AppShell({
           </footer>
         </main>
       </div>
+      <nav className="canopy-mobile-dock" aria-label="Hızlı gezinme">
+        {[
+          ["overview", "Ana ekran"],
+          ["fields", "Parseller"],
+          ["tasks", "Görevler"],
+          ["assistant", "Filiz"],
+        ].map(([id, label]) => {
+          const entry = modules.find(([key]) => key === id);
+          const Icon = I[entry[2]] || I.Sprout;
+          return (
+            <button
+              key={id}
+              aria-current={page === id ? "page" : undefined}
+              onClick={() => navigate(id)}
+            >
+              <Icon size={21} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </nav>
       {search && (
         <QuickSearch
+          commercial={!!workspace}
           fields={fields}
           onNavigate={navigate}
           onField={onField}

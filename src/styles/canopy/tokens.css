@@ -1,0 +1,101 @@
+/* Canopy · Agromax product tokens. Layouts and controls consume these values. */
+:root.agromax-ui {
+  --ag-paper: #f4f5f0;
+  --ag-surface: #ffffff;
+  --ag-ink: #173c34;
+  --ag-muted: #5e7068;
+  --ag-line: #dce4dc;
+  --ag-forest: #103c32;
+  --ag-primary: #236b4e;
+  --ag-primary-hover: #174f3a;
+  --ag-lime: #d7ef93;
+  --ag-mint: #e8f3eb;
+  --ag-blue: #e7f0fb;
+  --ag-on-blue: #315d88;
+  --ag-peach: #fceddc;
+  --ag-on-peach: #875222;
+  --ag-lilac: #efebfa;
+  --ag-on-lilac: #69528c;
+  --ag-danger: #b43f36;
+  --ag-danger-soft: #fff0ed;
+  --ag-radius: 20px;
+  --ag-radius-sm: 12px;
+  --ag-shadow: 0 4px 24px #183d3006;
+  --ag-shadow-raised: 0 14px 40px #183d3012;
+  --ag-fast: 160ms;
+  --ag-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --workspace-bg: var(--ag-paper);
+  --workspace-ink: var(--ag-ink);
+  --workspace-muted: var(--ag-muted);
+  --workspace-line: var(--ag-line);
+  --workspace-primary: var(--ag-primary);
+  --workspace-lime: var(--ag-lime);
+  --studio-bg: var(--ag-paper);
+  --studio-ink: var(--ag-ink);
+  --studio-green: var(--ag-primary);
+  --studio-muted: var(--ag-muted);
+  --studio-line: var(--ag-line);
+  --studio-radius: var(--ag-radius);
+  font-family: Manrope, system-ui, sans-serif;
+  font-size: 16px;
+  color: var(--ag-ink);
+  background: var(--ag-paper);
+  accent-color: var(--ag-primary);
+  color-scheme: light;
+}
+.agromax-ui body {
+  background: var(--ag-paper);
+}
+.agromax-ui :is(button, input, select, textarea) {
+  font-family: inherit;
+}
+.agromax-ui :is(h1, h2, h3) {
+  color: var(--ag-ink);
+  text-wrap: balance;
+}
+.agromax-ui p {
+  color: var(--ag-muted);
+}
+.agromax-ui :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #38896b;
+  outline-offset: 3px;
+}
+.agromax-ui :is(button, a) {
+  -webkit-tap-highlight-color: transparent;
+}
+.agromax-ui button {
+  transition:
+    background-color var(--ag-fast),
+    color var(--ag-fast),
+    box-shadow var(--ag-fast);
+}
+.agromax-ui button:active:not(:disabled) {
+  filter: brightness(0.96);
+}
+.agromax-ui button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.agromax-ui :is(input, select, textarea) {
+  font-size: 14px;
+}
+.agromax-ui input::placeholder,
+.agromax-ui textarea::placeholder {
+  color: #718177;
+  opacity: 1;
+}
+.agromax-ui :is(table, .workspace-metric-value, .business-money-summary) {
+  font-variant-numeric: tabular-nums;
+}
+.agromax-ui [hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agromax-ui *,
+  .agromax-ui *::before,
+  .agromax-ui *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

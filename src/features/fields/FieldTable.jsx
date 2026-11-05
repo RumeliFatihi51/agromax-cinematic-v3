@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowUpRight, PenTool, Trash2, SlidersHorizontal } from "lucide-react";
 import { metrics } from "../../../shared/metrics";
 import { number, date } from "./FieldAnalysis";
+import { useAreaFormat } from "../../components/PreferenceProvider";
 export default function FieldTable({
   fields,
   cache,
@@ -9,6 +10,7 @@ export default function FieldTable({
   onEdit,
   onDelete,
 }) {
+  const areaFormat = useAreaFormat();
   const [columns, setColumns] = useState(["NDVI", "NDWI", "NDMI", "NDRE"]);
   function toggle(id) {
     setColumns((c) =>
@@ -81,10 +83,7 @@ export default function FieldTable({
                     {f.geometry ? "Sınır kayıtlı" : "Sınır eksik"}
                   </small>
                 </td>
-                <td>
-                  {f.area.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}{" "}
-                  da
-                </td>
+                <td>{areaFormat.format(f.area)}</td>
                 {columns.map((id) => {
                   const c = cache[f.id]?.comparison?.[id];
                   return (
