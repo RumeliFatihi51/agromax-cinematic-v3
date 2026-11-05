@@ -168,11 +168,11 @@ export default function FieldsWorkspace({
       )}
       <div hidden={!!field}>
         <PageHeading
-          eyebrow={analysisMode ? "UYDU ANALİZLERİ" : "AGROMAX / ARAZİ ATLASI"}
+          eyebrow={analysisMode ? "UYDU ANALİZLERİ" : "ARAZİNİ TANI"}
           title={
             analysisMode
               ? "Tarlanın verisine yakından bak."
-              : "Her parselin bir dünyası var."
+              : "Parsellerim"
           }
           description="Parsel dosyalarını keşfet. Atlas, harita ve tablo arasında geçiş yaparak arazini kendi perspektifinden yönet."
         >

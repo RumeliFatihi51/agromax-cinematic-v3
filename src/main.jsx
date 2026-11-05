@@ -13,7 +13,6 @@ import "./styles/canopy/tokens.css";
 import "./styles/canopy/shell.css";
 import "./styles/canopy/components.css";
 import "./styles/canopy/screens.css";
-import "./styles/orbital.css";
-import "./styles/mission.css";
+import "./styles/fieldwork.css";
 document.documentElement.classList.add("agromax-ui");
 createRoot(document.getElementById("root")).render(<App />);

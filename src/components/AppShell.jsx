@@ -161,7 +161,7 @@ export default function AppShell({
             onClick={() => navigate("overview")}
             aria-label="Agromax ana ekran"
           >
-            <Brand light size={36} />
+            <Brand size={36} />
           </button>
           <button
             className="studio-sidebar-collapse"
@@ -257,11 +257,6 @@ export default function AppShell({
             <ChevronRight size={13} />
             <strong>{active[1]}</strong>
           </div>
-          <nav className="mission-top-tabs" aria-label="Ana bölümler">
-            {[["overview", "Komuta merkezi"], ["fields", "Arazi atlası"], ["weather", "Atmosfer"], ["tasks", "Operasyonlar"]].map(([id, label]) => (
-              <button key={id} aria-current={page === id ? "page" : undefined} onClick={() => navigate(id)}>{label}</button>
-            ))}
-          </nav>
           <div className="studio-topbar-actions">
             {organizationControl}
             <button

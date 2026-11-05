@@ -1,4 +1,3 @@
-import HologramTerrain from "./HologramTerrain";
 import Brand from "./Brand";
 import { useEffect, useState } from "react";
 import AccountRecovery from "./AccountRecovery";
@@ -51,7 +50,6 @@ export default function Auth({ onLogin }) {
   return (
     <main className="auth">
       <section className="auth-story">
-        <HologramTerrain />
         <figure className="auth-brand-art">
           <picture>
             <source
@@ -78,9 +76,9 @@ export default function Auth({ onLogin }) {
         <div className="auth-copy">
           <span className="eyebrow">TOPRAĞI ANLA. GELECEĞİ YETİŞTİR.</span>
           <h1>
-            Tarımın geleceği,
+            Toprağına iyi bak.
             <br />
-            <em>senin kontrolünde.</em>
+            <em>Gerisi birlikte.</em>
           </h1>
           <p>
             Tarlalarını tanı. Her adımını planla.
@@ -116,7 +114,7 @@ export default function Auth({ onLogin }) {
               ? "Hesabına geri dön."
               : register
                 ? "Birlikte büyüyelim."
-                : "Kaldığımız yerden."}
+                : "Tekrar hoş geldin."}
           </h2>
           <p>
             {register

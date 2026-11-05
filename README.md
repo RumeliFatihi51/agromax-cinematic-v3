@@ -21,6 +21,7 @@ http://127.0.0.1:5173 adresini açın. İlk hesabınızı arayüzden oluşturun.
 - [Gerekli veri erişimleri](docs/INTEGRATIONS.md)
 - [Parsel araçları, uydu kapsamı ve kalite sözleşmesi](docs/SATELLITE.md)
 - [Arayüz bileşenleri ve düzenleme rehberi](docs/INTERFACE.md)
+- [Güncel Fieldwork tasarımı ve ekran yapıları](docs/FIELDWORK_UI.md)
 - [Logo, görseller, boyutlar ve üretim istemleri](docs/BRAND.md)
 - [NASA ve Earthdata erişimi](docs/NASA_ACCESS.md)
 - [Doğrulama sonuçları ve sınırları](docs/VERIFICATION.md)

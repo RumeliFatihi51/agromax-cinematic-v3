@@ -1,4 +1,6 @@
-﻿# Mission Control interface · 5 November 2026
+> Historical design. Replaced by [Fieldwork](FIELDWORK_UI.md) on 5 November 2026.
+
+# Mission Control interface · 5 November 2026
 
 The interface now uses distinct page compositions instead of recoloring the previous dashboard.
 

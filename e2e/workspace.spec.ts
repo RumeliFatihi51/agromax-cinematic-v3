@@ -27,7 +27,7 @@ test("menus, operation CRUD, sourced guide, confirmed tasks and private PDF down
   await expect(page.locator(".studio-workspace")).toContainText(
     `TEST WORKSPACE ${info.project.name}`,
   );
-  await expect(page.locator(".mission-deck")).toBeVisible();
+  await expect(page.locator(".fw-overview-section")).toBeVisible();
   await page.screenshot({
     path: `data/browser-results/${info.project.name}-overview.png`,
     fullPage: true,
@@ -385,7 +385,7 @@ test("every workspace menu, responsive screen and record workflow is usable", as
   await navigate(page, "Genel bakış");
   for (const width of [375, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 950 });
-    await expect(page.locator(".mission-deck")).toBeVisible();
+    await expect(page.locator(".fw-overview-section")).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth + 2,

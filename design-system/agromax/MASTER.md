@@ -1,4 +1,4 @@
-# Agromax · Canopy design system
+# Agromax · Fieldwork design system
 
 UI/UX Pro Max is installed at `~/.codex/skills/ui-ux-pro-max` from
 [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
@@ -10,8 +10,8 @@ Organic Biophilic + Flat Design, with a readable analytics workspace. This direc
 uses the skill's verified Agriculture/Farm Tech product match. The initial generic
 enterprise gateway/blue palette was unsuitable for this product and was not adopted.
 
-- Forest navigation; warm, quiet background; white surfaces.
-- Lime for active navigation, peach for plans, blue for water/weather, lilac for money.
+- White navigation and surfaces; quiet neutral background; forest primary actions.
+- Pale sage for selected navigation, sand for plans, blue for water/weather.
 - Existing Agromax logo, locally hosted Manrope and Lucide outlines.
 - Large, direct headings, 13–14px supporting data, 16px mobile form controls.
 - No decorative metrics, fictional customers, fabricated forecasts or implied provider verification.
@@ -23,6 +23,11 @@ enterprise gateway/blue palette was unsuitable for this product and was not adop
 `components.css`: headings, controls, forms, tables, confirmations and feedback.
 `screens.css`: auth, onboarding, overview, maps, analysis, operations, weather,
 history, notifications, reports, Filiz, connections and account management.
+
+`src/styles/fieldwork.css` is the current composition and visual layer, loaded after
+Canopy. It defines the map-first overview, searchable/filterable parcel library,
+calendar agenda, white sidebar and branded entrance. Orbital/Mission styles and
+the hologram component were removed. See [Fieldwork](../../../docs/FIELDWORK_UI.md).
 
 Feature styles continue to own layout and map geometry. Canopy selectors explicitly
 scope visual overrides under `.agromax-ui` so lazy feature styles cannot reset the
