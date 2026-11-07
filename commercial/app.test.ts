@@ -105,6 +105,17 @@ test("commercial API preserves tenant/role boundaries, exact costs, optimistic l
       a.cookie,
     );
     assert.equal(field.response.status, 201, JSON.stringify(field.data));
+    const platformInput = {
+      fieldId: field.data.id, kind: "scenario", name: "Isolated platform scenario",
+      payload: { waterM3: 10, waterUnitCost: 2, fertilizerKg: 0, fertilizerUnitCost: 0, laborHours: 1, laborHourlyCost: 100, otherCost: 0, currency: "TRY", assumptions: "Test" },
+    };
+    const platformBoot = await request("/api/platform/bootstrap", undefined, a.cookie);
+    assert.equal(platformBoot.data.ownership, "organization");
+    const platformSaved = await request("/api/platform/records", platformInput, a.cookie);
+    assert.equal(platformSaved.response.status, 201, JSON.stringify(platformSaved.data));
+    assert.equal(platformSaved.data.record.calculation.totalMinor, 12000);
+    assert.equal(platformSaved.data.record.createdBy, a.data.id);
+    assert.equal((await request(`/api/platform/records/${platformSaved.data.record.id}`, undefined, b.cookie)).response.status, 404);
     const cost = {
       fieldId: field.data.id,
       date: "2026-11-01",
@@ -151,6 +162,8 @@ test("commercial API preserves tenant/role boundaries, exact costs, optimistic l
       .update(memberships)
       .set({ role: "viewer" })
       .where(eq(memberships.userId, a.data.id));
+    assert.equal((await request("/api/platform/records", platformInput, a.cookie)).response.status, 403);
+    assert.equal((await request(`/api/platform/fields/${field.data.id}`, undefined, a.cookie)).response.status, 200);
     assert.equal(
       (await request("/api/v1/records/cost", cost, a.cookie)).response.status,
       403,

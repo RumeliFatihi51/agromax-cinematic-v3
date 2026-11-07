@@ -24,6 +24,12 @@ import {
   Sprout,
   Wallet,
   X,
+  Layers3,
+  Navigation,
+  GitCompareArrows,
+  Search,
+  FileCheck2,
+  MonitorSmartphone,
 } from "lucide-react";
 export const I = {
   ArrowRight,
@@ -51,4 +57,10 @@ export const I = {
   Sprout,
   Wallet,
   X,
+  Layers3,
+  Navigation,
+  GitCompareArrows,
+  Search,
+  FileCheck2,
+  MonitorSmartphone,
 };

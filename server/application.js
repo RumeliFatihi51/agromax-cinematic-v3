@@ -11,6 +11,7 @@ import {
   createHash,
 } from "node:crypto";
 import { openDatabase, initializeDatabase } from "./database.js";
+import { createPlatformService } from "./platform.js";
 
 /** @param {{db?:any, background?:(work:Promise<unknown>)=>void,workspace?:any}} [options] */
 export async function createApplication({
@@ -21,6 +22,7 @@ export async function createApplication({
   db ??= await openDatabase();
   await initializeDatabase(db);
   const analysisService = await createAnalysisService(db);
+  const platformService = await createPlatformService(db);
   const nasaService = await createNasaService(db);
   const weatherService = await createWeatherService(db);
   const workspace =
@@ -167,6 +169,7 @@ export async function createApplication({
           });
         }
         if (!session) return reply(401, { error: "Oturum açmanız gerekiyor." });
+        if (await platformService.routes({ req, body, session, reply, res })) return;
         if (
           workspace &&
           (req.url.startsWith("/api/v1/") || req.url.startsWith("/api/auth/"))

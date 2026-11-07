@@ -44,6 +44,7 @@ export default function Dashboard({ user, fields, tasks, onCreate, onSelect, onN
       <div><span className="fw-overline">İŞLETMENE GENEL BAKIŞ</span><h1>Merhaba, {user.name.split(" ")[0]}<span className="fw-greeting-dot">.</span></h1><p>Toprağında neler var, bugün sırada ne var?</p></div>
       <div className="fw-heading-actions"><button className="secondary" onClick={onTask}><Plus size={16} /> Görev ekle</button><button className="primary" disabled={editing} onClick={onCreate}><Plus size={17} /> Parsel çiz</button></div>
     </header>
+    {!editing && <section className="fw-platform-callout"><span><Layers3 size={23} /></span><div><strong>AgroMax platform araçları</strong><p>Uydu, dijital ikiz, senaryolar ve doğrulama. 14 yeteneğin çalışma alanı ve hazırlık durumu.</p></div><button onClick={() => onNavigate('platform')}>Platformu keşfet <ArrowRight size={17} /></button></section>}
     {notice && <p role="status" className="inline-parcel-saved">{notice}</p>}
     {!editing && <section className="fw-metrics" aria-label="İşletme özeti">{metrics.map(({ icon: Icon, label, value, unit, detail, page, tone }) => <button key={label} className={`fw-stat fw-tone-${tone}`} onClick={() => onNavigate(page)}><div className="fw-stat-head"><span>{label}</span><span className="fw-stat-icon"><Icon size={19} strokeWidth={1.7} /></span></div><strong>{value}<small>{unit}</small></strong><p>{detail}<ArrowUpRight size={14} /></p></button>)}</section>}
     <div className={`fw-dashboard-grid ${editing ? "is-editing" : ""}`}>

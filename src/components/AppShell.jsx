@@ -12,7 +12,7 @@ import {
   Bell,
   Settings2,
 } from "lucide-react";
-import { availableModules } from "../features/modules";
+import { availableModules, navigationGroups } from "../features/modules";
 import { I } from "./icons";
 import QuickSearch from "./QuickSearch";
 import Brand, { FilizAvatar } from "./Brand";
@@ -187,10 +187,11 @@ export default function AppShell({
         </div>
         <div className="canopy-mobile-workspace">{organizationControl}</div>
         <nav aria-label="Ana gezinme">
-          <span className="studio-nav-heading">ÇALIŞMA ALANI</span>
-          {group(["overview", "fields", "history", "weather"])}
-          <span className="studio-nav-heading">PLANLA & YÖNET</span>
-          {group(["tasks", "operations", "finance", "reports"])}
+          {group(["overview", "platform"])}
+          {navigationGroups.map(section => <details className="platform-nav-group" key={section.id} open={section.pages.includes(page) || undefined}>
+            <summary aria-label={section.label} title={section.label}><span>{section.label}</span><ChevronRight size={14} /></summary>
+            {group(section.pages)}
+          </details>)}
         </nav>
         <button
           className={`studio-filiz ${page === "assistant" ? "is-active" : ""}`}

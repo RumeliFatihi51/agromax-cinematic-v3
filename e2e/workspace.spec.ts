@@ -2,10 +2,14 @@ import { test, expect, type Page } from "@playwright/test";
 async function navigate(page: Page, name: string) {
   const menu = page.getByRole("button", { name: "Menüyü aç", exact: true });
   if (await menu.isVisible()) await menu.click();
-  await page
+  const target = page
     .locator(".studio-sidebar")
-    .getByRole("button", { name: new RegExp(`^${name}(?: \\d+)?$`) })
-    .click();
+    .getByRole("button", { name: new RegExp(`^${name}(?: \\d+)?$`), includeHidden: true });
+  if (!(await target.isVisible())) {
+    const section = target.locator('xpath=ancestor::details');
+    if (await section.count()) await section.locator('summary').click();
+  }
+  await target.click();
 }
 test("menus, operation CRUD, sourced guide, confirmed tasks and private PDF downloads work", async ({
   page,

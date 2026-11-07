@@ -105,13 +105,15 @@ const legacyTables: Record<string, string> = {
   audit_events: "farm_audit_events",
   integration_checks: "commercial_integration_checks",
   weather_cache: "commercial_weather_cache",
+  platform_records: "farm_platform_records",
+  platform_revisions: "farm_platform_revisions",
 };
 function translate(sql: string) {
   let n = 0;
   return sql
-    .replace(/\b(analysis_jobs_[a-z_]+|notifications_owner)\b/g, "farm_$1")
+    .replace(/\b(analysis_jobs_[a-z_]+|notifications_owner|platform_records_owner|platform_revision_unique)\b/g, "farm_$1")
     .replace(
-      /\b(records|analyses|analysis_jobs|notifications|audit_events|integration_checks|weather_cache)\b/g,
+      /\b(records|analyses|analysis_jobs|notifications|audit_events|integration_checks|weather_cache|platform_records|platform_revisions)\b/g,
       (name) => legacyTables[name]!,
     )
     .replace(

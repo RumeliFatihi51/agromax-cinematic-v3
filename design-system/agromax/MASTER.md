@@ -35,6 +35,13 @@ shared language. No map, provider or permission behavior belongs in these styles
 
 ## Interaction rules
 
+Platform expansion: the sidebar groups modules under Gözlem ve Arazi, Karar ve
+Uygulama, and Doğrulama ve Rapor. `src/features/platform/platform.css` owns the
+14-capability hub and field-scoped workspaces. Every capability states what is
+usable now and which data/model adapters remain. Keep readiness labels distinct
+from provider health, expert approval, agronomic confidence and certification.
+See [platform scope](../../../docs/PLATFORM_FOUNDATION.md).
+
 - One dominant action per screen; useful empty states with real next steps.
 - Same map for drawing and editing. List is an optional view.
 - Pending requests have feedback and disable duplicate submission.

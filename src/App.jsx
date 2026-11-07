@@ -10,6 +10,8 @@ import { LogoMark } from "./components/Brand";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PreferenceProvider from "./components/PreferenceProvider";
 import useWorkspacePage from "./components/useWorkspacePage";
+import { platformPages } from "../shared/platform";
+const PlatformWorkspace = lazy(() => import("./features/platform/PlatformWorkspace"));
 const Dashboard = lazy(() => import("./features/overview/Dashboard"));
 const FieldsWorkspace = lazy(() => import("./features/fields/FieldsWorkspace"));
 const Filiz = lazy(() => import("./features/assistant/Filiz"));
@@ -326,6 +328,8 @@ export default function App() {
         }
       />
     );
+  else if (platformPages.includes(page))
+    content = <PlatformWorkspace key={`${activeWorkspace?.id || user.id}:${page}`} page={page} fields={fields} onNavigate={navigate} onSelect={analyze} commercial={!!activeWorkspace} canWrite={!activeWorkspace || activeWorkspace.role !== 'viewer'} />;
   else if (page === "history")
     content = <AnalysisHistory focusJob={historyFocus} />;
   else if (page === "notifications")

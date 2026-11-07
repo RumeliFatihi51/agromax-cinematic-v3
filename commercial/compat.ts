@@ -4,6 +4,7 @@ import { fieldRoutes, prepareField } from "../server/fields.js";
 import { createAnalysisService } from "../server/analysis-jobs.js";
 import { createWeatherService } from "../server/weather.js";
 import { createNasaService } from "../server/nasa.js";
+import { createPlatformService } from "../server/platform.js";
 import { searchPlaces } from "../server/places.js";
 import { isISODate } from "../shared/dates.js";
 import { legacyDomainAdapter, type Store } from "./db/store";
@@ -22,6 +23,7 @@ export async function createCompatibility(
   } = {},
 ) {
   const db = legacyDomainAdapter(store);
+  const platform = await createPlatformService(db, { ownership: "organization" });
   const baseJobs = await createAnalysisService(db),
     weather = await createWeatherService(db),
     nasa = await createNasaService(db);
@@ -90,6 +92,7 @@ export async function createCompatibility(
       };
       const session = {
         id: ctx.organization.id,
+        actorId: ctx.actor.id,
         name: ctx.actor.name,
         email: ctx.actor.email,
       };
@@ -152,6 +155,7 @@ export async function createCompatibility(
           requirePermission(ctx, "field.write");
         else requirePermission(ctx, "record.write");
       }
+      if (await platform.routes({ req, body, session, reply, res })) return response!;
       if (path === "/api/notifications" && method === "GET") {
         const rows = await store.db
           .select({

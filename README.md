@@ -1,5 +1,13 @@
 # Agromax
 
+## Platform çalışma alanları
+
+**Platform merkezi**, 14 temel yeteneği Gözlem ve Arazi, Karar ve Uygulama, Doğrulama ve Rapor menülerinde toplar. Her araçta bugünkü kapsamı ve bir sonraki veri/model bağımlılıklarını görebilirsiniz.
+
+Parsel özeti, analiz hafızası, kaynaklı dönem farkları, kayıt hazırlık kontrolleri; kalıcı senaryo, saha gözlemi, inceleme dosyası, reçete taslağı ve cihaz profilleri kullanılabilir. Senaryo hesapları girilen miktar ve birim fiyatlara dayanır. Reçete/dron dışa aktarımları yalnızca inceleme dosyasıdır; uzman onayı veya çalıştırılabilir görev değildir. Sentinel-1, Landsat, ticari görüntü işleme ve tahmine dayalı tarımsal modeller henüz etkin değildir.
+
+[14 yeteneğin kapsamı, API, veri sahipliği ve doğrulama ayrıntıları](docs/PLATFORM_FOUNDATION.md).
+
 Uydu haritasında parsel yönetimi, gerçek Copernicus Sentinel-2 L2A analizi ve sezon görevleri için modüler tarım platformu. Geliştirme aşamasındadır; tamamlanmış ve eksik özellikler [ürün kapsam raporunda](docs/PRODUCT_AUDIT.md) izlenir.
 
 Node.js 24 gereklidir. Proje klasöründe:
