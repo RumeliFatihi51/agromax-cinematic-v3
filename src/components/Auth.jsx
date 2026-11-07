@@ -53,37 +53,37 @@ export default function Auth({ onLogin }) {
         <figure className="auth-brand-art">
           <picture>
             <source
-              srcSet="/brand/agromax-landscape-v1-768.webp 768w, /brand/agromax-landscape-v1.webp 1024w"
+              srcSet="/visuals/agromax-landscape-editorial-v1.webp"
               sizes="(max-width:640px) 100vw, 50vw"
               type="image/webp"
             />
             <img
-              src="/brand/agromax-landscape-v1.png"
-              width="1024"
-              height="1536"
+              src="/visuals/agromax-landscape-editorial-v1.png"
+              width="1672"
+              height="941"
               alt=""
               fetchPriority="high"
               decoding="async"
             />
           </picture>
           <figcaption>
-            Marka illüstrasyonu · Gerçek arazi veya uydu görüntüsü değildir.
+            AgroMax için üretilmiş temsili görsel · Kayıtlı bir parselin görüntüsü değildir.
           </figcaption>
         </figure>
         <a className="brand" aria-label="Agromax">
           <Brand light size={42} />
         </a>
         <div className="auth-copy">
-          <span className="eyebrow">TOPRAĞI ANLA. GELECEĞİ YETİŞTİR.</span>
+          <span className="eyebrow">TARIMSAL VERİ VE KARAR PLATFORMU</span>
           <h1>
-            Toprağına iyi bak.
+            Arazi verisi.
             <br />
-            <em>Gerisi birlikte.</em>
+            <em>Daha net kararlar.</em>
           </h1>
           <p>
-            Tarlalarını tanı. Her adımını planla.
+            Parsellerini izle. Gözlemlerini karşılaştır.
             <br />
-            Toprağınla kurduğun bağ, hep elinin altında.
+            Bir sonraki adımını verilerinle planla.
           </p>
           <div className="auth-capabilities">
             <span>

@@ -1,4 +1,4 @@
-# Agromax · Fieldwork design system
+# Agromax · Harvest design system
 
 UI/UX Pro Max is installed at `~/.codex/skills/ui-ux-pro-max` from
 [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
@@ -10,10 +10,10 @@ Organic Biophilic + Flat Design, with a readable analytics workspace. This direc
 uses the skill's verified Agriculture/Farm Tech product match. The initial generic
 enterprise gateway/blue palette was unsuitable for this product and was not adopted.
 
-- White navigation and surfaces; quiet neutral background; forest primary actions.
-- Pale sage for selected navigation, sand for plans, blue for water/weather.
-- Existing Agromax logo, locally hosted Manrope and Lucide outlines.
-- Large, direct headings, 13–14px supporting data, 16px mobile form controls.
+- Warm cream navigation and surfaces; mineral sand background; terracotta primary actions.
+- Dark olive selected navigation; restrained earth tones; semantic warnings retain distinct labels.
+- Geometric AgroMax wordmark, Georgia editorial headings, system sans body and Lucide outlines.
+- Large, direct headings, 14–15px supporting data, 16px mobile form controls.
 - No decorative metrics, fictional customers, fabricated forecasts or implied provider verification.
 
 ## Implementation
