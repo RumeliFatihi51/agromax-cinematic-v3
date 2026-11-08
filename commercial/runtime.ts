@@ -4,6 +4,7 @@ import { start } from "workflow/api";
 import { analysisWorkflow } from "../workflows/analysis";
 import { reportWorkflow } from "../workflows/report";
 import { gatewayAdapter } from "./assistant/model";
+import { transactionalMail } from "./auth/mail";
 let app: ReturnType<typeof createCommercialApplication> | undefined;
 export function getApplication() {
   return (app ??= (async () => {
@@ -15,6 +16,7 @@ export function getApplication() {
       store: await getStore(),
       baseURL,
       secret,
+      mail: transactionalMail(),
       dispatchAnalysis: async (id) => {
         await start(analysisWorkflow, [id]);
       },

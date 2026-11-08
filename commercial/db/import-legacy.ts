@@ -15,6 +15,8 @@ const tablePairs = [
   ["analysis_jobs", "farm_analysis_jobs"],
   ["notifications", "farm_notifications"],
   ["audit_events", "farm_audit_events"],
+  ["platform_records", "farm_platform_records"],
+  ["platform_revisions", "farm_platform_revisions"],
 ] as const;
 const workspaceId = (id: string) =>
   createHash("sha256")
@@ -36,8 +38,27 @@ export async function importLegacy(
   const users = (await source.query("SELECT id,name,email,password FROM users"))
     .rows;
   const snapshots = new Map<string, Record<string, unknown>[]>();
-  for (const [from] of tablePairs)
-    snapshots.set(from, (await source.query(`SELECT * FROM ${from}`)).rows);
+  let missingPlatformTables = 0;
+  for (const [from] of tablePairs) {
+    try {
+      snapshots.set(from, (await source.query(`SELECT * FROM ${from}`)).rows);
+    } catch (error) {
+      if (!from.startsWith("platform_") || !(error instanceof Error) ||
+        (!("code" in error && error.code === "42P01") && !error.message.includes(`no such table: ${from}`)))
+        throw error;
+      missingPlatformTables++;
+      snapshots.set(from, []);
+    }
+  }
+  if (missingPlatformTables === 1)
+    throw new Error("Legacy platform records and revisions must be imported together.");
+  const ownerByField = new Map(snapshots.get("records")!
+    .filter((row) => row.kind === "field").map((row) => [row.id, row.user_id]));
+  const platform = snapshots.get("platform_records")!;
+  const ownerByRecord = new Map(platform.map((row) => [row.id, row.user_id]));
+  if (platform.some((row) => ownerByField.get(row.field_id) !== row.user_id) ||
+    snapshots.get("platform_revisions")!.some((row) => ownerByRecord.get(row.record_id) !== row.user_id))
+    throw new Error("Legacy platform records have inconsistent field or revision ownership.");
   if (
     snapshots
       .get("analysis_jobs")!
@@ -129,6 +150,13 @@ export async function importLegacy(
             "action",
             "resource_id",
             "created_at",
+          ]),
+          platform_records: new Set([
+            "id", "user_id", "field_id", "kind", "name", "status",
+            "version", "body", "created_at", "updated_at",
+          ]),
+          platform_revisions: new Set([
+            "id", "user_id", "record_id", "version", "body", "created_at",
           ]),
         };
         if (columns.some((c) => !allowed[from]!.has(c)))

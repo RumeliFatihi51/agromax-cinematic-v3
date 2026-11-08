@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AgroMax · Çevrimdışı saha</title>
+  <style>
+    :root{font:1rem/1.6 system-ui,sans-serif;background:#f2f1e8;color:#243a2c}
+    body{max-width:44rem;margin:auto;padding:1.25rem}
+    h1{line-height:1.1}a{color:#315a43}input,textarea,button{font:inherit}
+    textarea{display:block;box-sizing:border-box;width:100%;padding:.6rem}
+    input,button{padding:.45rem .7rem}label{display:block;margin:1rem 0}
+    button{color:white;background:#243a2c;border:0;border-radius:.3rem}
+    [hidden]{display:none!important}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Çevrimdışı saha</h1>
+    <p id="status" role="status"></p>
+    <section id="workspace" hidden>
+      <h2 id="field"></h2>
+      <p id="summary"></p>
+      <h3>Kayıtlı görevler</h3>
+      <ul id="tasks"></ul>
+      <h3>Yeni saha notu</h3>
+      <form id="note-form">
+        <label>Tarih <input name="date" type="date" required></label>
+        <label>Gözlem <textarea name="observation" rows="5" required maxlength="4000"></textarea></label>
+        <button type="submit">Taslağı bu cihazda kaydet</button>
+      </form>
+      <p id="draft-count"></p>
+    </section>
+    <p><a href="/?resume=offline#access">Bağlantı geldiğinde AgroMax’ı aç</a></p>
+  </main>
+  <script src="/agromax-offline.js" defer></script>
+</body>
+</html>

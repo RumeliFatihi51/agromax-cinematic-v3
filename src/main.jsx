@@ -14,5 +14,6 @@ import "./styles/canopy/shell.css";
 import "./styles/canopy/components.css";
 import "./styles/canopy/screens.css";
 import "./styles/fieldwork.css";
+import "./styles/platform-v2.css";
 document.documentElement.classList.add("agromax-ui");
 createRoot(document.getElementById("root")).render(<App />);

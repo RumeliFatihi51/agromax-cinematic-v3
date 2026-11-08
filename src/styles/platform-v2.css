@@ -1,0 +1,76 @@
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/fonts/instrument-sans.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+html.agromax-ui {
+  --ag-paper: #f2f1e8;
+  --ag-surface: #fffdf7;
+  --ag-ink: #243a2c;
+  --ag-muted: #526253;
+  --ag-line: #d4d9ca;
+  --ag-forest: #243a2c;
+  --ag-primary: #315a43;
+  --ag-primary-hover: #243a2c;
+  --ag-lime: #d6dfbc;
+  --ag-display: "Instrument Sans", Manrope, system-ui, sans-serif;
+}
+
+html.agromax-ui .studio-shell :is(.fw-page-heading, .studio-page-title, .analysis-heading, .atlas-dashboard-hero) :is(h1, h2) {
+  font-family: var(--ag-display);
+  letter-spacing: -0.035em;
+}
+
+html.agromax-ui .studio-shell :is(.analysis-heading, .studio-page-title) {
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--ag-line);
+}
+
+html.agromax-ui .studio-shell :is(button, a, input, select, textarea, summary):focus-visible {
+  outline-color: var(--ag-forest);
+}
+
+.filiz-source-layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.filiz-source-layout .business-fact small {
+  overflow-wrap: anywhere;
+}
+
+.observation-plot {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-line);
+  border-radius: var(--ag-radius-sm);
+}
+
+.observation-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 9rem;
+}
+
+.observation-plot figcaption {
+  font-weight: 650;
+}
+
+@media (max-width: 768px) {
+  .filiz-source-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .agromax-ui .studio-main {
+    transition: none;
+  }
+}

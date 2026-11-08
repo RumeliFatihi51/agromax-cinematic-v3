@@ -56,6 +56,9 @@ async function observations(
     }),
   );
 }
+statistics.maxRetries = 2;
+observations.maxRetries = 2;
+
 async function publish(
   jobId: string,
   runId: string,

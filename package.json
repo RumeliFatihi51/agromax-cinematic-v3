@@ -24,6 +24,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1164.0",
+    "@aws-sdk/s3-request-presigner": "3.1164.0",
     "@better-auth/drizzle-adapter": "1.7.14",
     "@electric-sql/pglite": "0.5.14",
     "@geoman-io/leaflet-geoman-free": "^2.20.4",
@@ -36,6 +38,7 @@
     "ai": "7.0.159",
     "better-auth": "1.7.14",
     "drizzle-orm": "0.45.4",
+    "geotiff": "3.0.5",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.65.0",
     "nitro": "3.0.261029-rc",

@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { hashPassword } from "better-auth/crypto";
 import { createStore } from "../commercial/db/store";
-import { user, account, farmRecords, farmJobs } from "../commercial/db/schema";
+import { user, account, farmRecords, farmJobs, analysisClaims } from "../commercial/db/schema";
 import {
   createOrganization,
   resolveContext,
@@ -16,6 +16,7 @@ import { privateObjects } from "../commercial/files/private-store";
 import { prepareField } from "../server/fields.js";
 import { comparisonRange } from "../server/satellite.js";
 import { geometryHash } from "../server/analysis-jobs.js";
+import { deriveClaims } from "../commercial/intelligence/claims";
 export default async function setup() {
   const root = resolve("data", `browser-fixtures-${Date.now()}`),
     directory = resolve(root, "postgres"),
@@ -26,7 +27,9 @@ export default async function setup() {
   await mkdir(root, { recursive: true });
   const store = await createStore({ dataDir: directory, migrate: true });
   try {
-    for (const project of ["desktop", "mobile"]) {
+    for (const [project, fieldDigit, analysisDigit] of [
+      ["desktop", "a", "c"], ["mobile", "b", "d"], ["upgrade", "e", "f"],
+    ] as const) {
       const actor = {
         id: `browser-${project}`,
         name: `EXPLICIT BROWSER TEST ${project}`,
@@ -45,10 +48,7 @@ export default async function setup() {
         name: `TEST WORKSPACE ${project}`,
       });
       const ctx = await resolveContext(store.db, actor, org.id);
-      const fieldId =
-        project === "desktop"
-          ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          : "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      const fieldId = fieldDigit.repeat(32);
       const field = prepareField({
         name: `EXPLICIT TEST PARCEL ${project}`,
         crop: "Buğday",
@@ -71,10 +71,7 @@ export default async function setup() {
         kind: "field",
         body: JSON.stringify(field),
       });
-      const id =
-        project === "desktop"
-          ? "cccccccccccccccccccccccccccccccc"
-          : "dddddddddddddddddddddddddddddddd";
+      const id = analysisDigit.repeat(32);
       const analysis = {
         source: "EXPLICIT SYNTHETIC BROWSER FIXTURE",
         method: "s2-l2a-v3",
@@ -83,7 +80,11 @@ export default async function setup() {
         resolution: 20,
         range: comparisonRange(),
         comparison: {
-          NDVI: { previous: { mean: 0 }, current: { mean: 0.3 }, delta: 0.3 },
+          NDVI: {
+            previous: { mean: 0, meanCoverage: 0.9, observations: 3 },
+            current: { mean: 0.3, meanCoverage: 0.9, observations: 2 },
+            delta: 0.3,
+          },
           NDMI: { previous: null, current: null, delta: null },
         },
         observations: [],
@@ -100,6 +101,16 @@ export default async function setup() {
         result: JSON.stringify(analysis),
         createdAt: new Date().toISOString(),
       });
+      const claims = deriveClaims(analysis);
+      if (!claims.length) throw new Error("Expected explicit browser fixture claim.");
+      await store.db.insert(analysisClaims).values(claims.map((claim) => ({
+        ...claim,
+        id: randomBytes(16).toString("hex"),
+        organizationId: org.id,
+        fieldId,
+        analysisId: id,
+        geometryVersion: geometryHash(JSON.parse(JSON.stringify(field)).geometry),
+      })));
       const report = await createReport(
         store.db,
         ctx,
@@ -122,8 +133,12 @@ export default async function setup() {
     AGROMAX_LOCAL_OBJECT_DIR: resolve(root, "objects"),
     AGROMAX_ENFORCE_QUOTAS: "false",
     SENTINEL_PROVIDER: "cdse",
-    SENTINEL_CLIENT_ID: "",
-    SENTINEL_CLIENT_SECRET: "",
+    SENTINEL_CLIENT_ID: "explicit-browser-fixture",
+    SENTINEL_CLIENT_SECRET: "explicit-browser-fixture",
+    AGROMAX_ISOLATED_BROWSER_FIXTURE: "true",
+    AGROMAX_LANDSAT_AWS_ENABLED: "false",
+    AGROMAX_RESEND_API_KEY: "",
+    AGROMAX_MAIL_FROM: "",
     AGROMAX_FILIZ_ENABLED: "false",
   };
   delete env.VERCEL;
@@ -134,7 +149,7 @@ export default async function setup() {
     WORKFLOW_LOCAL_DATA_DIR: resolve(root, "workflow"),
     WORKFLOW_LOCAL_BASE_URL: "http://127.0.0.1:5182",
   });
-  const server = spawn(process.execPath, [".output/server/index.mjs"], {
+  const server = spawn(process.execPath, ["--import", "./e2e/provider-fixture.mjs", ".output/server/index.mjs"], {
     env,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -169,7 +184,7 @@ export default async function setup() {
       Origin: "http://127.0.0.1:5182",
     },
     body: JSON.stringify({
-      email: "desktop@example.invalid",
+      email: "upgrade@example.invalid",
       password: "browser-fixture-password-123",
     }),
   });
@@ -180,8 +195,10 @@ export default async function setup() {
       `Compiled login failed (${smoke.status}): ${JSON.stringify(data)} ${logs}`,
     );
   }
+  process.env.AGROMAX_BROWSER_UPGRADE_COOKIE = smoke.headers.getSetCookie()
+    .map((value) => value.split(";")[0]).join("; ");
   console.log(
-    "Browser tests use isolated, explicitly labeled PostgreSQL fixtures. No production data or authenticated satellite/model requests.",
+    "Browser tests use isolated, explicitly labeled PostgreSQL and satellite HTTP fixtures.",
   );
   return async () => {
     await writeFile(resolve(root, "server.log"), logs);

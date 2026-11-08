@@ -4,7 +4,7 @@ import { scryptSync } from "node:crypto";
 import { createStore, type SqlClient } from "./store";
 import { importLegacy } from "./import-legacy";
 import { createIdentity, verifyMigratedPassword } from "../auth/service";
-import { user } from "./schema";
+import { user, farmPlatformRecords, farmPlatformRevisions } from "./schema";
 test("legacy import preserves identifiers and exact records, keeps passwords valid and does not forge verification or sessions", async () => {
   const store = await createStore({ migrate: true });
   const password = "isolated-legacy-password-123",
@@ -33,12 +33,28 @@ test("legacy import preserves identifiers and exact records, keeps passwords val
           ]
         : sql.includes("FROM records")
           ? [records]
+          : sql.includes("FROM platform_records")
+            ? [{
+                id: "platform-record-fixture", user_id: records.user_id, field_id: records.id,
+                kind: "scenario", name: "Explicit platform fixture", status: "draft",
+                version: 1, body: "{}", created_at: "2026-01-01", updated_at: "2026-01-01",
+              }]
+          : sql.includes("FROM platform_revisions")
+            ? [{
+                id: "platform-revision-fixture", user_id: records.user_id, record_id: "platform-record-fixture",
+                version: 1, body: "{}", created_at: "2026-01-01",
+              }]
           : [],
     }),
   };
   try {
     const first = await importLegacy(store, source);
     assert.equal(first.exactRecordsVerified, true);
+    const [platformRecord] = await store.db.select().from(farmPlatformRecords);
+    const [platformRevision] = await store.db.select().from(farmPlatformRevisions);
+    assert.equal(platformRecord?.fieldId, records.id);
+    assert.equal(platformRevision?.recordId, platformRecord?.id);
+    assert.equal(platformRevision?.organizationId, platformRecord?.organizationId);
     assert.equal((await importLegacy(store, source)).alreadyImported, true);
     const [person] = await store.db.select().from(user);
     assert.equal(person!.id, "legacy-owner-fixture");

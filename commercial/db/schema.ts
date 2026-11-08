@@ -384,6 +384,66 @@ export const jobExecutions = pgTable("job_executions", {
   }>(),
   completedAt: date("completed_at"),
 });
+export const analysisRequests = pgTable(
+  "analysis_requests",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    key: text("request_key").notNull(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => farmJobs.id),
+    selection: text("selection").notNull(),
+  },
+  (t) => [uniqueIndex("analysis_requests_org_key_idx").on(t.organizationId, t.key)],
+);
+export const analysisClaims = pgTable(
+  "analysis_claims",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id").notNull().references(() => organizations.id),
+    fieldId: text("field_id").notNull().references(() => farmRecords.id),
+    analysisId: text("analysis_id").notNull().references(() => farmJobs.id),
+    metric: text("metric").notNull(),
+    geometryVersion: text("geometry_version").notNull(),
+    evidence: jsonb("evidence").notNull().$type<import("../intelligence/claims").ClaimEvidence>(),
+    createdAt: date("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("analysis_claim_metric_idx").on(t.analysisId, t.metric),
+    index("analysis_claim_field_idx").on(t.organizationId, t.fieldId, t.createdAt),
+  ],
+);
+// Preserve the compatibility runtime's existing table names and physical schema.
+export const farmPlatformRecords = pgTable(
+  "farm_platform_records",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("user_id").notNull(),
+    fieldId: text("field_id").notNull(),
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    status: text("status").notNull(),
+    version: integer("version").notNull(),
+    body: text("body").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("farm_platform_records_owner").on(t.organizationId, t.fieldId, t.updatedAt)],
+);
+export const farmPlatformRevisions = pgTable(
+  "farm_platform_revisions",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("user_id").notNull(),
+    recordId: text("record_id").notNull(),
+    version: integer("version").notNull(),
+    body: text("body").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("farm_platform_revision_unique").on(t.recordId, t.version)],
+);
 export const notificationReceipts = pgTable(
   "notification_receipts",
   {

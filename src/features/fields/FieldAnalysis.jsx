@@ -9,6 +9,7 @@ import {
   Download,
   Image as ImageIcon,
 } from "lucide-react";
+import ObservationPlot from "./ObservationPlot";
 import { api, requestAnalysis } from "../../api";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 import {
@@ -540,6 +541,7 @@ export default function FieldAnalysis({
               : "İki dönemde de en az %70 geçerli piksel kapsamına sahip gözlem bulunmadan karşılaştırma üretilemez. Eksik veri sıfır olarak gösterilmez."}
           </p>
         </div>
+        <ObservationPlot observations={observations} metric={metric} />
         {observations.length > 0 ? (
           <div className="analysis-table-wrap">
             <table className="analysis-table">

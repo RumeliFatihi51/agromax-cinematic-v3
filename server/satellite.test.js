@@ -57,6 +57,16 @@ test("no data does not become zero, and low coverage never enters period means",
   assert.equal(result.observations[3].stats.NDVI, null);
   assert.equal(result.comparison.NDWI.delta, null);
 });
+test("the split instant belongs to the second period regardless of ISO precision", () => {
+  const result = summarize({
+    data: [
+      day("2026-09-30T00:00:00Z", 0.2, 10, 0),
+      day("2026-10-01T00:00:00.000Z", 0.4, 10, 0),
+    ],
+  }, { split: "2026-10-01T00:00:00Z" });
+  assert.equal(result.comparison.NDVI.previous.mean, 0.2);
+  assert.equal(result.comparison.NDVI.current.mean, 0.4);
+});
 test("every declared metric is emitted and nonfinite calculations are masked", () => {
   const script = statisticsScript("cdse");
   const available = availableMetrics("cdse");

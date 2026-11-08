@@ -45,7 +45,7 @@ export function satelliteStatus() {
     health,
   };
 }
-class ProviderError extends Error {
+export class ProviderError extends Error {
   constructor(message, status = 502) {
     super(message);
     this.status = status;
@@ -299,16 +299,13 @@ export function summarize(raw, range) {
       meanCoverage: valid.reduce((s, v) => s + v.coverage, 0) / valid.length,
     };
   };
+  const splitAt = Date.parse(range.split);
+  const previousDays = observations.filter((o) => Date.parse(o.from) < splitAt);
+  const currentDays = observations.filter((o) => Date.parse(o.from) >= splitAt);
   const comparison = Object.fromEntries(
     [...metrics, ...observationAngles].map((m) => {
-      const previous = aggregate(
-          observations.filter((o) => o.from < range.split),
-          m.id,
-        ),
-        current = aggregate(
-          observations.filter((o) => o.from >= range.split),
-          m.id,
-        );
+      const previous = aggregate(previousDays, m.id),
+        current = aggregate(currentDays, m.id);
       return [
         m.id,
         {
@@ -472,6 +469,98 @@ export async function fetchObservations(geometry, range, { signal } = {}) {
   } while (next !== undefined && next !== null);
   return scenes;
 }
+
+const radarScript = `//VERSION=3
+function setup() {
+  return {
+    input: [{ bands: ["VV", "VH", "localIncidenceAngle", "shadowMask", "dataMask"] }],
+    output: [
+      { id: "default", bands: 3, sampleType: "FLOAT32" },
+      { id: "dataMask", bands: 1 }
+    ]
+  };
+}
+function evaluatePixel(s) {
+  const valid = s.dataMask === 1 && s.shadowMask === 0 &&
+    isFinite(s.VV) && s.VV > 0 && isFinite(s.VH) && s.VH > 0 &&
+    isFinite(s.localIncidenceAngle) && s.localIncidenceAngle > 0 && s.localIncidenceAngle < 90;
+  return {
+    default: valid ? [s.VV, s.VH, s.localIncidenceAngle] : [0, 0, 0],
+    dataMask: [valid ? 1 : 0]
+  };
+}`;
+
+/** @param {any} geometry @param {{from:string,to:string}} range @param {"ASCENDING" | "DESCENDING"} orbit */
+export async function fetchRadarStatistics(geometry, range, orbit) {
+  const status = satelliteStatus();
+  if (!status.configured || status.provider !== "cdse")
+    throw new ProviderError("Sentinel-1 için CDSE bağlantısı gerekli.", 503);
+  const projected = utmGeometry(geometry);
+  const resolution = 20;
+  const raw = await call("/statistics", {
+    input: {
+      bounds: { geometry: projected.geometry, properties: { crs: projected.crs } },
+      data: [{
+        type: "sentinel-1-grd",
+        dataFilter: { acquisitionMode: "IW", polarization: "DV", resolution: "HIGH", orbitDirection: orbit },
+        processing: { backCoeff: "GAMMA0_TERRAIN", orthorectify: true, demInstance: "COPERNICUS_30" },
+      }],
+    },
+    aggregation: {
+      timeRange: range,
+      aggregationInterval: { of: "P1D" },
+      resx: resolution,
+      resy: resolution,
+      evalscript: radarScript,
+    },
+  }, false, AbortSignal.timeout(20000));
+  if (raw?.status !== "OK" || !Array.isArray(raw.data) || raw.data.length > 7)
+    throw new ProviderError("Sentinel-1 istatistik yanıtı doğrulanamadı.");
+
+  const seen = new Set();
+  /** @type {{from:string,to:string,validPixels:number,sampleCount:number,vv:number|null,vh:number|null,incidenceDegrees:number|null}[]} */
+  const observations = raw.data.map((row) => {
+    const from = row?.interval?.from, to = row?.interval?.to;
+    if (!Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(to)) ||
+      Date.parse(from) < Date.parse(range.from) || Date.parse(to) > Date.parse(range.to) ||
+      Date.parse(to) - Date.parse(from) !== 86400000 || seen.has(Date.parse(from)))
+      throw new ProviderError("Sentinel-1 zaman aralığı doğrulanamadı.");
+    seen.add(Date.parse(from));
+    const samples = ["B0", "B1", "B2"].map((band) => row.outputs?.default?.bands?.[band]?.stats);
+    const pixels = samples[0]?.sampleCount, masked = samples[0]?.noDataCount;
+    if (!Number.isSafeInteger(pixels) || !Number.isSafeInteger(masked) ||
+      masked < 0 || pixels < masked ||
+      samples.some((s) => s?.sampleCount !== pixels || s?.noDataCount !== masked))
+      throw new ProviderError("Sentinel-1 piksel kalite sayımı doğrulanamadı.");
+    const validPixels = pixels - masked;
+    const [vv, vh, incidence] = samples.map((s) => s.mean);
+    if (validPixels && (![vv, vh, incidence].every(Number.isFinite) ||
+      vv <= 0 || vh <= 0 || incidence <= 0 || incidence >= 90))
+      throw new ProviderError("Sentinel-1 ölçüm birimleri veya değerleri geçersiz.");
+    return {
+      from, to, validPixels, sampleCount: pixels,
+      vv: validPixels ? vv : null,
+      vh: validPixels ? vh : null,
+      incidenceDegrees: validPixels ? incidence : null,
+    };
+  }).sort((a, b) => Date.parse(a.from) - Date.parse(b.from));
+  return {
+    kind: "radar_statistics",
+    source: "Copernicus Sentinel-1 GRD / CDSE",
+    sourceURL: "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/S1GRD.html",
+    methodVersion: "s1-grd-gamma0-terrain-v1",
+    fetchedAt: new Date().toISOString(),
+    gridMetres: resolution,
+    sourcePixelSpacingMetres: 10,
+    orbit,
+    unit: "LINEAR_POWER",
+    mask: "dataMask, radar gölgesi, VV/VH ve yerel geliş açısı",
+    state: !observations.length ? "no_observations" :
+      observations.some((row) => row.validPixels) ? "available" : "masked",
+    observations,
+  };
+}
+
 function analysisMetadata(range) {
   return {
     range,

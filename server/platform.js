@@ -79,7 +79,19 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     try {
       if(url.pathname==='/api/platform/bootstrap'&&req.method==='GET') {
         const counts=await db.prepare('SELECT kind,COUNT(*) AS count FROM platform_records WHERE user_id=? GROUP BY kind').all(session.id);
-        reply(200,{schemaVersion:1,features:platformFeatures,sources:sourceAdapters.map(source=>({...source,state:source.id==='sentinel2'?(satelliteStatus().configured?'configured':'unconfigured'):source.state})),drones:droneAdapters,counts:Object.fromEntries(counts.map(row=>[row.kind,Number(row.count)])),capabilities:{predictiveTwin:false,aiAnomalyModel:false,machinePrescription:false,certifiedMrv:false,draftPersistence:true,scenarioArithmetic:true},ownership});return true;
+        const satellite = satelliteStatus();
+        const sources = sourceAdapters.map((source) => {
+          if (source.id === 'sentinel2')
+            return {...source, state:satellite.configured?'configured':'unconfigured'};
+          if (ownership === 'organization' && source.id === 'sentinel1')
+            return {...source, state:satellite.configured && satellite.provider === 'cdse'?'configured':'unconfigured',
+              detail:'CDSE yörüngesine göre VV/VH ve radar kalite istatistikleri. Gerçek sağlayıcı kabulü ayrı doğrulanır.'};
+          if (ownership === 'organization' && source.id === 'landsat')
+            return {...source, state:process.env.AGROMAX_LANDSAT_AWS_ENABLED === 'true'?'configured':'catalog',
+              detail:'USGS kataloğunda yüzey yansıtımı ve sıcaklığı. Piksel işlemesi için yetkili COG erişimi gerekir.'};
+          return source;
+        });
+        reply(200,{schemaVersion:1,features:platformFeatures,sources,drones:droneAdapters,counts:Object.fromEntries(counts.map(row=>[row.kind,Number(row.count)])),capabilities:{predictiveTwin:false,aiAnomalyModel:false,machinePrescription:false,certifiedMrv:false,draftPersistence:true,scenarioArithmetic:true},ownership});return true;
       }
       const fieldRoute=url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})(?:\/(export))?$/);
       if(fieldRoute&&req.method==='GET') {

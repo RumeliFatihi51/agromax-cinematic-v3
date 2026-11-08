@@ -7,6 +7,8 @@ import {
   farmAnalyses,
   farmNotifications,
   auditLog,
+  analysisRequests,
+  analysisClaims,
 } from "../db/schema";
 import { reserveUsage, settleUsage } from "../usage/service";
 import { uid } from "../organizations/service";
@@ -16,6 +18,7 @@ import { comparisonRange, satelliteStatus } from "../../server/satellite.js";
 import { availableMetrics } from "../../shared/metrics.js";
 import { DomainError } from "../core/errors";
 import { analysisWindow } from "./range";
+import { deriveClaims } from "../intelligence/claims";
 
 export type AnalysisPlan = typeof jobExecutions.$inferSelect.plan;
 const stamp = () => new Date().toISOString();
@@ -25,6 +28,7 @@ export async function queueAnalysis(
   fieldId: string,
   enforceQuota: boolean,
   requestedRange?: unknown,
+  request: { key?: string; actorId?: string } = {},
 ) {
   const id = uid();
   let window: ReturnType<typeof analysisWindow>;
@@ -58,6 +62,39 @@ export async function queueAnalysis(
       throw new DomainError("NOT_FOUND", "Parsel bulunamadı.", 404);
     if (!field.geometry)
       throw new DomainError("GEOMETRY_REQUIRED", "Önce parsel sınırını çizin.");
+    const selection = JSON.stringify([
+      fieldId,
+      window.scope === "custom" ? window.selectionKey : null,
+    ]);
+    if (request.key) {
+      const [prior] = await tx
+        .select()
+        .from(analysisRequests)
+        .where(
+          and(
+            eq(analysisRequests.organizationId, organizationId),
+            eq(analysisRequests.key, request.key),
+          ),
+        );
+      if (prior) {
+        if (prior.selection !== selection)
+          throw new DomainError(
+            "IDEMPOTENCY_CONFLICT",
+            "İstek anahtarı başka bir parsel veya analiz dönemi için kullanıldı.",
+            409,
+          );
+        return prior.jobId;
+      }
+    }
+    async function rememberRequest(jobId: string) {
+      if (!request.key) return;
+      await tx.insert(analysisRequests).values({
+        organizationId,
+        key: request.key,
+        jobId,
+        selection,
+      });
+    }
     if (!satelliteStatus().configured)
       throw new DomainError(
         "PROVIDER_UNAVAILABLE",
@@ -88,6 +125,7 @@ export async function queueAnalysis(
           "Bu parsel için farklı bir dönem işleniyor. İşlemin tamamlanmasını bekleyin veya iptal edin.",
           409,
         );
+      await rememberRequest(duplicate.id);
       return duplicate.id;
     }
     if (active.length >= 10)
@@ -125,6 +163,14 @@ export async function queueAnalysis(
         provider: process.env.SENTINEL_PROVIDER!,
         groups,
       },
+    });
+    await rememberRequest(id);
+    await tx.insert(auditLog).values({
+      id: uid(),
+      organizationId,
+      actorId: request.actorId,
+      action: "analysis.queued",
+      resourceId: id,
     });
     return id;
   });
@@ -202,7 +248,13 @@ export async function finishAnalysis(
     const [record] = await tx
       .select()
       .from(farmRecords)
-      .where(eq(farmRecords.id, job.fieldId))
+      .where(
+        and(
+          eq(farmRecords.id, job.fieldId),
+          eq(farmRecords.organizationId, job.organizationId),
+          eq(farmRecords.kind, "field"),
+        ),
+      )
       .for("update");
     const field = record && JSON.parse(record.body);
     if (
@@ -243,6 +295,17 @@ export async function finishAnalysis(
           target: farmAnalyses.fieldId,
           set: { geometryHash: job.geometryHash, body: result },
         });
+    const claims = analysis ? deriveClaims(analysis) : [];
+    if (claims.length) {
+      await tx.insert(analysisClaims).values(claims.map((claim) => ({
+        ...claim,
+        id: uid(),
+        organizationId: job.organizationId,
+        fieldId: job.fieldId,
+        analysisId: job.id,
+        geometryVersion: job.geometryHash,
+      })));
+    }
     await tx
       .update(jobExecutions)
       .set({ completedAt: new Date() })

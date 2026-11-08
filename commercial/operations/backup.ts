@@ -7,7 +7,7 @@ import {
 } from "node:crypto";
 import type { Store } from "../db/store";
 // Fixed dependency order; no request-controlled SQL identifiers are accepted.
-const tables = [
+const previousTables = [
   "auth_users",
   "auth_accounts",
   "auth_sessions",
@@ -38,8 +38,11 @@ const tables = [
   "observation_cache",
   "assistant_requests",
 ] as const;
+const requestTables = [...previousTables, "analysis_requests"] as const;
+const claimTables = [...requestTables, "analysis_claims"] as const;
+const tables = [...claimTables, "farm_platform_records", "farm_platform_revisions"] as const;
 const magic = Buffer.from("AGROMAX_BACKUP_V1\n"),
-  schemaVersion = "commercial-schema-0005";
+  schemaVersion = "commercial-schema-0008";
 const canonical = (value: unknown): string =>
   JSON.stringify(value, (_key, v) => (typeof v === "bigint" ? String(v) : v));
 type Snapshot = {
@@ -109,11 +112,14 @@ export async function restoreEncryptedBackup(
   }
   const snapshot = JSON.parse(plain.toString("utf8")) as Snapshot;
   plain.fill(0);
-  if (
-    snapshot.schemaVersion !== schemaVersion ||
-    Object.keys(snapshot.tables).length !== tables.length ||
-    tables.some((t) => !Array.isArray(snapshot.tables[t]))
-  )
+  const sourceTables =
+    snapshot.schemaVersion === "commercial-schema-0005" ? previousTables :
+    snapshot.schemaVersion === "commercial-schema-0006" ? requestTables :
+    snapshot.schemaVersion === "commercial-schema-0007" ? claimTables :
+    snapshot.schemaVersion === schemaVersion ? tables : null;
+  if (!sourceTables ||
+    Object.keys(snapshot.tables).length !== sourceTables.length ||
+    sourceTables.some((t) => !Array.isArray(snapshot.tables[t])))
     throw new Error("Backup schema does not match this migration version.");
   await store.transaction(async (tx) => {
     for (const table of tables) {
@@ -123,7 +129,7 @@ export async function restoreEncryptedBackup(
           "Restore target must be empty. No existing records were removed.",
         );
     }
-    for (const table of tables) {
+    for (const table of sourceTables) {
       const allowed = (
         await tx.query(
           "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1",
@@ -147,7 +153,7 @@ export async function restoreEncryptedBackup(
         );
       }
     }
-    for (const table of tables) {
+    for (const table of sourceTables) {
       const actual = (await tx.query(`SELECT * FROM "${table}"`)).rows;
       const rows = (list: Record<string, unknown>[]) =>
         list

@@ -1,0 +1,148 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { api } from "../../api";
+import type { runWaterBalance } from "../../../commercial/simulation/water-balance";
+
+type SavedBalance = {
+  run: {
+    id: string;
+    createdAt: string;
+    data: {
+      geometryVersion: string;
+      input: { weatherSource: string; soilSource: string };
+      result: ReturnType<typeof runWaterBalance>;
+    };
+  } | null;
+  geometryVersion: string;
+};
+const soilFields = [
+  ["fieldCapacity", "Tarla kapasitesi (m³/m³)", "0.0001"],
+  ["wiltingPoint", "Solma noktası (m³/m³)", "0.0001"],
+  ["rootDepthM", "Sabit kök derinliği (m)", "0.01"],
+  ["initialDepletionMm", "Başlangıç su açığı (mm)", "0.01"],
+  ["depletionFraction", "Stres eşiği oranı (0–1)", "0.01"],
+  ["systemEfficiency", "Sulama verimi (0–1)", "0.01"],
+  ["baseTemperatureC", "Fenoloji taban sıcaklığı (°C)", "0.01"],
+  ["waterCost", "Su birim maliyeti (₺/m³)", "0.01"],
+  ["maxVolumeM3", "Su bütçesi (m³)", "0.01"],
+  ["maxCost", "Maliyet sınırı (₺)", "0.01"],
+] as const;
+
+function csv(text: FormDataEntryValue | null, columns: number) {
+  return String(text ?? "").split(/\r?\n/).filter((line) => line.trim()).map((line) => {
+    const row = line.split(",").map((cell) => cell.trim());
+    if (row.length !== columns || row.some((cell) => !cell))
+      throw new Error("Her satırda belirtilen sayıda dolu sütun olmalı.");
+    return row;
+  });
+}
+
+const fmt = (value: number) => value.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+export default function WaterBalance({ fieldId, canRun }: { fieldId: string; canRun: boolean }) {
+  const path = `v1/fields/${fieldId}/water-balance`;
+  const [saved, setSaved] = useState<SavedBalance | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    api(path, undefined, "GET", { signal: controller.signal })
+      .then(setSaved)
+      .catch((e) => { if (!controller.signal.aborted) setError(e.message); });
+    return () => controller.abort();
+  }, [path]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    const number = (key: string) => Number(values.get(key));
+    setBusy(true);
+    setError("");
+    try {
+      const days = csv(values.get("days"), 5).map(([date, et, rain, kc, temp]) => ({
+        date, et0Mm: Number(et), effectiveRainMm: Number(rain),
+        cropCoefficient: Number(kc), meanTempC: Number(temp),
+      }));
+      const schedule = (key: string) => csv(values.get(key), 2).map(([date, depth]) => ({
+        date, grossMm: Number(depth),
+      }));
+      setSaved(await api(path, {
+        scope: "trakya-winter-wheat",
+        weatherSource: values.get("weatherSource"),
+        soilSource: values.get("soilSource"),
+        sowingDate: values.get("sowingDate"),
+        soil: {
+          fieldCapacity: number("fieldCapacity"), wiltingPoint: number("wiltingPoint"),
+          rootDepthM: number("rootDepthM"), initialDepletionMm: number("initialDepletionMm"),
+          depletionFraction: number("depletionFraction"),
+        },
+        systemEfficiency: number("systemEfficiency"),
+        baseTemperatureC: number("baseTemperatureC"),
+        scenarios: [
+          { name: "Temel", irrigation: schedule("baseline") },
+          { name: "Alternatif", irrigation: schedule("alternative") },
+        ],
+        days,
+        waterCostMinorPerM3: Math.round(number("waterCost") * 100),
+        maxVolumeM3: number("maxVolumeM3"),
+        maxCostMinor: Math.round(number("maxCost") * 100),
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Su dengesi hesaplanamadı.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const run = saved?.run;
+  const result = run?.data.result;
+  return (
+    <section className="px-surface px-section business-workspace water-balance">
+      <h2>Trakya kışlık buğdayı · Su dengesi pilotu</h2>
+      <p>FAO-56 kök bölgesi modeli, sağladığınız verilerle iki sulama takvimini karşılaştırır. Çıktılar saha kalibrasyonu bekliyor.</p>
+      {canRun && <details>
+        <summary>Yeni su dengesi çalıştır</summary>
+        <form onSubmit={submit}>
+          <div className="business-form-grid">
+            <label>Meteoroloji kaynağı<input name="weatherSource" maxLength={160} required /></label>
+            <label>Toprak verisi kaynağı<input name="soilSource" maxLength={160} required /></label>
+            <label>Ekim tarihi<input name="sowingDate" type="date" required /></label>
+            {soilFields.map(([key, label, step]) => (
+              <label key={key}>{label}<input name={key} type="number" step={step} required /></label>
+            ))}
+          </div>
+          <label>Günlük girdiler (UTC)
+            <small>Başlıksız satırlarda tarih, ET₀ (mm), etkin yağış (mm), Kc, ortalama sıcaklık (°C). Sütunları virgülle ve ondalıkları noktayla ayırın.</small>
+            <textarea name="days" rows={5} maxLength={20_000} required />
+          </label>
+          <div className="business-form-grid">
+            <label>Temel sulama takvimi<textarea name="baseline" rows={3} maxLength={8000} /></label>
+            <label>Alternatif sulama takvimi<textarea name="alternative" rows={3} maxLength={8000} /></label>
+          </div>
+          <p>Her sulama satırı tarih ve brüt derinlik (mm) içerir. Boş takvim sulamasız senaryodur.</p>
+          <label className="water-balance-scope"><input type="checkbox" required /> Bu parseli Trakya kışlık buğday pilotu kapsamında değerlendiriyorum.</label>
+          <button type="submit" className="primary" disabled={busy}>{busy ? "Hesaplanıyor…" : "Senaryoları hesapla ve kaydet"}</button>
+        </form>
+      </details>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {run && result && (
+        <div>
+          <p role="status">Son çalışma · {run.createdAt.slice(0, 10)} · {result.methodVersion}</p>
+          <p>{run.data.input.weatherSource} · {run.data.input.soilSource}</p>
+          {saved.geometryVersion !== run.data.geometryVersion && <p>Bu çalışma önceki parsel sınırına aittir.</p>}
+          <div className="px-table-wrap">
+            <table>
+              <thead><tr><th>Senaryo</th><th>Stres günü</th><th>Son açık (mm)</th><th>Su (m³)</th><th>Maliyet (₺)</th><th>Kısıt</th></tr></thead>
+              <tbody>{result.scenarios.map((row) => <tr key={row.name}>
+                <th scope="row">{row.name}</th><td>{row.stressDays}</td><td>{fmt(row.finalDepletionMm)}</td>
+                <td>{fmt(row.volumeM3)}</td><td>{fmt(row.costMinor / 100)}</td><td>{row.feasible ? "Uygun" : "Aşıldı"}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <p>ET₀ ±%10 duyarlılığı, son su açığı (mm): {result.scenarios.map((row) =>
+            row.sensitivity ? `${row.name} ${fmt(row.sensitivity.minDepletionMm)}–${fmt(row.sensitivity.maxDepletionMm)}` : row.name).join(" · ")}</p>
+          <p>{result.bestFeasible ? `Girilen takvimler arasında en az stres ve suyla: ${result.bestFeasible}.` : "Girilen takvimlerden hiçbiri su ve bütçe kısıtlarına uymuyor."}</p>
+          <a href={result.methodSource} target="_blank" rel="noreferrer">FAO-56 yöntem kaynağı</a>
+        </div>
+      )}
+    </section>
+  );
+}

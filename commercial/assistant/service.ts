@@ -20,6 +20,7 @@ import { selectionSchema } from "./model";
 import { createReport } from "../reports/service";
 import { reserveUsage, settleUsage } from "../usage/service";
 import { geometryHash } from "../../server/analysis-jobs.js";
+import { fieldClaims } from "../intelligence/claims";
 
 export async function fieldFacts(
   db: CommercialDb,
@@ -114,6 +115,22 @@ export async function fieldFacts(
           geometryVersion: cached.geometryHash,
         });
     }
+  }
+  const version = geometryHash(field.geometry);
+  const claims = ctx.actor.authentication === "legacy-session" ? [] :
+    await fieldClaims(db, ctx.organization.id, fieldId, 12);
+  for (const claim of claims) {
+    if (claim.geometryVersion !== version) continue;
+    const evidence = claim.evidence;
+    facts.push({
+      id: `claim-${claim.id}`,
+      text: `${claim.metric}: ${t("gözlenen dönem farkı", "observed period change")} ${evidence.delta.toFixed(4)} · ${evidence.range.from.slice(0, 10)} – ${evidence.range.to.slice(0, 10)}`,
+      source: `claim:${claim.id} · analysis:${claim.analysisId}`,
+      kind: "calculated",
+      observedAt: evidence.range.to,
+      methodVersion: evidence.claimMethod,
+      geometryVersion: version,
+    });
   }
   return facts;
 }

@@ -34,6 +34,9 @@ import type { RuntimeOptions } from "./core/api";
 import { assistantRoutes } from "./assistant/api";
 import { reportRoutes } from "./reports/api";
 import { recordRoutes } from "./records/api";
+import { simulationRoutes } from "./simulation/api";
+import { intelligenceRoutes } from "./intelligence/api";
+import { offlineRoutes } from "./records/offline";
 export async function createCommercialApplication(options: RuntimeOptions) {
   const { store } = options,
     db = store.db;
@@ -96,17 +99,22 @@ export async function createCommercialApplication(options: RuntimeOptions) {
     legacy,
     async handle(request: Request): Promise<Response> {
       try {
-        request = await boundedRequest(request);
         const url = new URL(request.url),
           path = url.pathname,
           method = request.method;
         const origin = request.headers.get("origin");
-        if (origin && origin !== new URL(options.baseURL).origin)
+        const fetchSite = request.headers.get("sec-fetch-site");
+        const unsafe = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+        if (
+          (origin && origin !== new URL(options.baseURL).origin) ||
+          (unsafe && (fetchSite === "cross-site" || fetchSite === "same-site"))
+        )
           throw new DomainError(
             "INVALID_ORIGIN",
             "İstek kaynağı doğrulanamadı.",
             403,
           );
+        request = await boundedRequest(request);
         if (path === "/api/runtime" && method === "GET")
           return Response.json({
             runtime: "commercial",
@@ -209,6 +217,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
             preferences: prefs || null,
             emailConfigured: identity.mailConfigured,
             onboardingRequired: orgs.length === 0,
+            capabilities: { waterBalance: true, claims: true, offlineNotes: true },
           });
         }
         if (path === "/api/v1/organizations" && method === "POST")
@@ -301,6 +310,11 @@ export async function createCommercialApplication(options: RuntimeOptions) {
           return Response.json(await calculate(db, context, body));
         if (path === "/api/v1/observations/search" && method === "POST")
           return Response.json(await searchObservations(db, context, body));
+        const evidence = path.match(/^\/api\/v1\/fields\/([a-f0-9]{32})\/evidence-bundle$/);
+        if (evidence && method === "GET")
+          return Response.json(await legacy.evidenceBundle(context, evidence[1]!), {
+            headers: { "Cache-Control": "no-store" },
+          });
         const input = {
           db,
           context,
@@ -311,7 +325,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
           path,
           method,
         };
-        for (const handler of [assistantRoutes, reportRoutes, recordRoutes]) {
+        for (const handler of [assistantRoutes, reportRoutes, recordRoutes, simulationRoutes, intelligenceRoutes, offlineRoutes]) {
           const response = await handler(input);
           if (response) return response;
         }

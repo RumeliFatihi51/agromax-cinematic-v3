@@ -105,6 +105,17 @@ test("commercial API preserves tenant/role boundaries, exact costs, optimistic l
       a.cookie,
     );
     assert.equal(field.response.status, 201, JSON.stringify(field.data));
+    const crossSite = await app.handle(new Request(baseURL + "/api/records", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Sec-Fetch-Site": "same-site",
+        Cookie: a.cookie,
+      },
+      body: JSON.stringify({ kind: "field", name: "Blocked cross-origin write" }),
+    }));
+    assert.equal(crossSite.status, 403);
+    assert.equal((await crossSite.json()).code, "INVALID_ORIGIN");
     const platformInput = {
       fieldId: field.data.id, kind: "scenario", name: "Isolated platform scenario",
       payload: { waterM3: 10, waterUnitCost: 2, fertilizerKg: 0, fertilizerUnitCost: 0, laborHours: 1, laborHourlyCost: 100, otherCost: 0, currency: "TRY", assumptions: "Test" },

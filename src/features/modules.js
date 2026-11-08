@@ -18,9 +18,11 @@ export const modules = [
 const legacyPages=new Set(['overview','fields','history','weather','tasks','notifications','assistant','integrations',...platformPages]);
 export const availableModules=(commercial=false)=>commercial?modules:modules.filter(([id])=>legacyPages.has(id));
 export const navigationGroups = [
-  {id:'observe',label:'Gözlem ve arazi',pages:['fields','satellite','twin','temporal','intelligence','weather','history']},
-  {id:'decide',label:'Karar ve uygulama',pages:['scenarios','economics','prescriptions','drones','tasks','operations','finance']},
-  {id:'assure',label:'Doğrulama ve rapor',pages:['evidence','contradictions','investigation','mrv','reports','access']},
+  {id:'observe',label:'Araziler ve gözlem',pages:['fields','satellite','temporal','weather','history']},
+  {id:'intelligence',label:'Zekâ ve analiz',pages:['intelligence','evidence','contradictions','investigation']},
+  {id:'decide',label:'Dijital ikiz ve kararlar',pages:['twin','scenarios','economics','finance']},
+  {id:'operate',label:'Operasyon ve uygulama',pages:['tasks','operations','prescriptions','drones']},
+  {id:'assure',label:'Raporlama ve doğrulama',pages:['reports','mrv','access']},
 ];
 export const operationPages=['seasons','irrigation','nutrition','protection','soil','evaluations'];
 export const canonicalPage=id=>operationPages.includes(id)?'operations':id;

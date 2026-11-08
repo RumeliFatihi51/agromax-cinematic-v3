@@ -14,6 +14,9 @@ import { queueAnalysis, cancelAnalysis } from "./analyses/service";
 import { and, eq, desc } from "drizzle-orm";
 import { farmNotifications, notificationReceipts } from "./db/schema";
 import { saveField } from "./fields/service";
+import { identifier } from "../shared/contracts/commercial";
+import { satelliteStatus } from "../server/satellite.js";
+import { extendedEvidenceBundle } from "./intelligence/mrv";
 
 export async function createCompatibility(
   store: Store,
@@ -33,6 +36,7 @@ export async function createCompatibility(
       organizationId: string,
       fieldId: string,
       requestedRange?: unknown,
+      request?: { key?: string; actorId?: string },
     ) {
       if (!options.dispatchAnalysis)
         throw new DomainError(
@@ -46,11 +50,14 @@ export async function createCompatibility(
         fieldId,
         options.enforceQuota ?? true,
         requestedRange,
+        request,
       );
-      try {
-        await options.dispatchAnalysis(id);
-      } catch {
-        /* The queued row is the durable outbox; the dispatcher retries it. */
+      if ((await baseJobs.get(organizationId, id))?.state === "queued") {
+        try {
+          await options.dispatchAnalysis(id);
+        } catch {
+          /* The queued row is the durable outbox; the dispatcher retries it. */
+        }
       }
       return baseJobs.get(organizationId, id);
     },
@@ -61,6 +68,8 @@ export async function createCompatibility(
   };
   return {
     jobs,
+    evidenceBundle: (context: Context, fieldId: string) =>
+      extendedEvidenceBundle(store.db, context, fieldId, platform.bundle),
     async handle(
       request: Request,
       ctx: Context,
@@ -217,14 +226,20 @@ export async function createCompatibility(
       const customAnalysis = path.match(
         /^\/api\/records\/([a-f0-9]{32})\/analysis$/,
       );
-      if (customAnalysis && method === "POST" && body.range !== undefined)
+      const requestKey = request.headers.get("idempotency-key");
+      if (customAnalysis && method === "POST" && (body.range !== undefined || requestKey !== null))
         return Response.json(
           {
             job: await jobs.enqueue(
               ctx.organization.id,
               customAnalysis[1]!,
               body.range,
+              {
+                key: requestKey === null ? undefined : identifier.parse(requestKey),
+                actorId: ctx.actor.id,
+              },
             ),
+            status: satelliteStatus(),
           },
           { status: 202 },
         );

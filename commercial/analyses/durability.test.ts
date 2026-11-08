@@ -10,6 +10,7 @@ import {
   farmAnalyses,
   farmNotifications,
   usageReservations,
+  analysisClaims,
 } from "../db/schema";
 import { createOrganization } from "../organizations/service";
 import {
@@ -21,6 +22,7 @@ import {
   cancelAnalysis,
 } from "./service";
 import { geometryHash } from "../../server/analysis-jobs.js";
+import { dispatchPendingWork } from "../operations/dispatch";
 test("duplicate workflows, retry delivery, changed geometry and canceled jobs settle quota at most once", async () => {
   const store = await createStore({ migrate: true });
   const before = {
@@ -65,12 +67,37 @@ test("duplicate workflows, retry delivery, changed geometry and canceled jobs se
       kind: "field",
       body: JSON.stringify({ name: "Fixture", geometry }),
     });
-    const id = await queueAnalysis(store.db, org.id, "fixture-field", true);
+    const request = { key: "explicit-fixture-request", actorId: actor.id };
+    const id = await queueAnalysis(
+      store.db, org.id, "fixture-field", true, undefined, request,
+    );
     assert.equal(
       await queueAnalysis(store.db, org.id, "fixture-field", true),
       id,
     );
     assert.equal((await store.db.select().from(usageReservations)).length, 1);
+    // Imported historical jobs have no executable plan and must not consume the batch.
+    await store.db.insert(farmJobs).values({
+      id: "legacy-no-plan",
+      fieldId: "fixture-field",
+      organizationId: org.id,
+      geometryHash: geometryHash(geometry),
+      snapshot: "{}",
+      state: "queued",
+      createdAt: "2000-01-01T00:00:00Z",
+    });
+    const reportStarter = async () => assert.fail("unexpected report");
+    assert.deepEqual(
+      await dispatchPendingWork(store.db, async () => { throw new Error("delivery interrupted"); }, reportStarter),
+      { dispatched: 0, failed: 1 },
+    );
+    assert.deepEqual(
+      await dispatchPendingWork(store.db, async (jobId) => {
+        assert.equal(jobId, id);
+      }, reportStarter),
+      { dispatched: 1, failed: 0 },
+    );
+    await store.db.delete(farmJobs).where(eq(farmJobs.id, "legacy-no-plan"));
     assert.ok(await claimAnalysis(store, id, "winner-run"));
     assert.equal(await claimAnalysis(store, id, "duplicate-run"), null);
     assert.equal(await assertActive(store, id, "winner-run"), true);
@@ -84,13 +111,46 @@ test("duplicate workflows, retry delivery, changed geometry and canceled jobs se
     );
     const result = {
       source: "EXPLICIT TEST FIXTURE",
-      method: "fixture-v1",
-      observations: [],
+      method: "s2-l2a-v3",
+      provider: "cdse",
+      range: {
+        from: "2026-09-01T00:00:00.000Z",
+        split: "2026-09-11T00:00:00.000Z",
+        to: "2026-09-21T00:00:00.000Z",
+      },
+      comparison: {
+        NDVI: {
+          previous: { mean: 0.2, meanCoverage: 0.8, observations: 2 },
+          current: { mean: 0.4, meanCoverage: 0.9, observations: 3 },
+        },
+        NDRE: { previous: null, current: { mean: 0.4, meanCoverage: 1, observations: 2 } },
+      },
+      observations: [0.18, 0.19, 0.2, 0.21, 0.22, 0.5].map((mean, index) => ({
+        from: `2026-09-${String(index === 5 ? 11 : index + 1).padStart(2, "0")}T00:00:00.000Z`,
+        stats: { NDVI: { mean, coverage: 0.9 } },
+      })),
       scenes: [],
       fetchedAt: new Date().toISOString(),
     };
     await finishAnalysis(store, id, "winner-run", result);
     await finishAnalysis(store, id, "winner-run", result);
+    const [claim] = await store.db.select().from(analysisClaims);
+    assert.equal(claim?.analysisId, id);
+    assert.equal(claim?.metric, "NDVI");
+    assert.equal(claim?.evidence.delta, 0.2);
+    assert.equal(claim?.evidence.verification, "observational");
+    assert.equal(claim?.evidence.anomaly?.direction, "above");
+    assert.deepEqual(claim?.evidence.warnings, ["observation_counts_differ", "limited_observations"]);
+    assert.equal((await store.db.select().from(analysisClaims)).length, 1);
+    assert.equal(
+      await queueAnalysis(store.db, org.id, "fixture-field", true, undefined, request),
+      id,
+    );
+    await assert.rejects(
+      () => queueAnalysis(store.db, org.id, "fixture-field", true,
+        { start: "2026-09-01", split: "2026-10-01", end: "2026-10-20" }, request),
+      { status: 409, code: "IDEMPOTENCY_CONFLICT" },
+    );
     assert.equal((await store.db.select().from(farmNotifications)).length, 1);
     assert.equal(
       (await store.db.select().from(usageReservations))[0]!.state,

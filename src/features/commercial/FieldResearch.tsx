@@ -13,6 +13,16 @@ type Scene = {
     platform?: string;
   };
 };
+type RadarResult = Awaited<ReturnType<typeof import("../../../server/satellite.js").fetchRadarStatistics>>;
+type CatalogResult = {
+  kind: "observation_metadata";
+  scenes: Scene[];
+  source: string;
+  fetchedAt: string;
+  rasterAccess?: "configured" | "unavailable";
+  truncated?: boolean;
+  raster?: Awaited<ReturnType<typeof import("../../../commercial/analyses/landsat-raster").analyzeLandsatRaster>>;
+};
 const catalog = [...metrics, ...observationAngles];
 export default function FieldResearch({
   fieldId,
@@ -42,11 +52,8 @@ export default function FieldResearch({
     [onlyFavorites, setOnlyFavorites] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [scenes, setScenes] = useState<{
-      scenes: Scene[];
-      source: string;
-      fetchedAt: string;
-    } | null>(null),
+    [result, setResult] = useState<CatalogResult | RadarResult | null>(null),
+    [source, setSource] = useState(""),
     [cloud, setCloud] = useState(100),
     [first, setFirst] = useState(""),
     [second, setSecond] = useState("");
@@ -54,6 +61,10 @@ export default function FieldResearch({
     observations = (customAnalysis || analysis)?.observations || [],
     a = observations.find((o) => o.from === first),
     b = observations.find((o) => o.from === second);
+  const scenes = result && "scenes" in result ? result : null;
+  const radar = result && "observations" in result ? result : null;
+  const radarSelected = source === "ASCENDING" || source === "DESCENDING";
+  const landsatSelected = source === "reflectance" || source === "temperature";
   const number = (v: unknown) =>
     typeof v === "number" && Number.isFinite(v)
       ? v.toLocaleString(locale, { maximumFractionDigits: 5 })
@@ -72,11 +83,17 @@ export default function FieldResearch({
   async function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const values = Object.fromEntries(new FormData(e.currentTarget));
+    const { processLatest, ...dates } = values;
     setBusy(true);
     setError("");
-    setScenes(null);
+    setResult(null);
     try {
-      setScenes(await api("v1/observations/search", { ...values, fieldId }));
+      setResult(await api("v1/observations/search", {
+        ...dates,
+        fieldId,
+        ...(radarSelected ? { radarOrbit: source } : {}),
+        ...(landsatSelected ? { landsat: source, ...(processLatest ? { processLatest: true } : {}) } : {}),
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
@@ -218,19 +235,32 @@ export default function FieldResearch({
         </h2>
         <p>
           {t(
-            "Sayısal analiz başlatmadan çekim metadatasını ara. Tarihler UTC'dir; bir arama en fazla 93 gün kapsar.",
-            "Search acquisition metadata without starting a numerical analysis. Dates use UTC; each search covers at most 93 days.",
+            "Sentinel veya Landsat gözlemlerini ara. Tarihler UTC'dir.",
+            "Search Sentinel or Landsat observations. Dates use UTC.",
           )}
         </p>
         <form onSubmit={search}>
+          {customAnalysisEnabled && (
+            <label>
+              {t("Uydu ürünü", "Satellite product")}
+              <select value={source} onChange={(e) => setSource(e.target.value)}>
+                <option value="">Sentinel-2 L2A</option>
+                <option value="ASCENDING" disabled={!canAnalyze}>{t("Sentinel-1 · Yükselen yörünge", "Sentinel-1 · Ascending orbit")}</option>
+                <option value="DESCENDING" disabled={!canAnalyze}>{t("Sentinel-1 · Alçalan yörünge", "Sentinel-1 · Descending orbit")}</option>
+                <option value="reflectance">{t("Landsat 8/9 · Yüzey yansıtımı", "Landsat 8/9 · Surface reflectance")}</option>
+                <option value="temperature">{t("Landsat 8/9 · Yüzey sıcaklığı", "Landsat 8/9 · Surface temperature")}</option>
+              </select>
+            </label>
+          )}
           <div className="business-form-grid">
             <label>
               {t("Başlangıç", "Start")}
               <input
+                key={radarSelected ? "radar-start" : "optical-start"}
                 type="date"
                 name="start"
                 required
-                defaultValue={new Date(Date.now() - 60 * 86400000)
+                defaultValue={new Date(Date.now() - (radarSelected ? 7 : 60) * 86400000)
                   .toISOString()
                   .slice(0, 10)}
               />
@@ -238,26 +268,59 @@ export default function FieldResearch({
             <label>
               {t("Bitiş", "End")}
               <input
+                key={radarSelected ? "radar-end" : "optical-end"}
                 type="date"
                 name="end"
                 required
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={new Date(Date.now() - (radarSelected ? 86400000 : 0)).toISOString().slice(0, 10)}
               />
             </label>
           </div>
+          {landsatSelected && canAnalyze && <label>
+            <span><input name="processLatest" type="checkbox" style={{ width: "auto" }} /> {t("Erişim varsa en güncel Landsat sahnesini işle", "Process the newest Landsat scene when access is available")}</span>
+          </label>}
           <button className="secondary" disabled={busy}>
             {busy ? (
               <LoaderCircle size={16} className="spin" />
             ) : (
               <Search size={16} />
             )}{" "}
-            {t("Çekimleri ara", "Search acquisitions")}
+            {radarSelected ? t("Radar istatistiklerini al", "Get radar statistics") : t("Çekimleri ara", "Search acquisitions")}
           </button>
         </form>
         {error && (
           <p className="error" role="alert">
             {error}
           </p>
+        )}
+        {radar && (
+          <>
+            <p>{radar.source} · {radar.orbit} · {radar.gridMetres} m · {radar.methodVersion}</p>
+            {radar.state !== "available" && <p role="status">
+              {radar.state === "masked"
+                ? t("Geçerli radar pikseli bulunamadı.", "No valid radar pixels.")
+                : t("Bu aralıkta radar gözlemi bulunamadı.", "No radar observations in this interval.")}
+            </p>}
+            {radar.observations.length > 0 && (
+              <div className="business-table-scroll">
+                <table className="research-table">
+                  <thead><tr>
+                    <th>{t("Gün (UTC)", "Day (UTC)")}</th><th>VV γ₀</th><th>VH γ₀</th>
+                    <th>{t("Yerel geliş açısı", "Local incidence angle")} (°)</th>
+                    <th>{t("Geçerli / toplam piksel", "Valid / total pixels")}</th>
+                  </tr></thead>
+                  <tbody>{radar.observations.map((day) => <tr key={day.from}>
+                    <td>{day.from.slice(0, 10)}</td><td>{number(day.vv)}</td><td>{number(day.vh)}</td>
+                    <td>{number(day.incidenceDegrees)}</td><td>{day.validPixels} / {day.sampleCount}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            )}
+            <p className="business-muted">{t(
+              "VV ve VH doğrusal geri saçılım gücüdür. Radar gölgesi dışlanır. Toprak nemi ölçümü için ayrı saha verisi gerekir.",
+              "VV and VH are linear backscatter power. Radar shadow is excluded. Soil moisture requires independent field data.",
+            )}</p>
+          </>
         )}
         {scenes && (
           <>
@@ -323,6 +386,18 @@ export default function FieldResearch({
                 "Tile cloud cover is not parcel pixel coverage. Missing cloud metadata is shown only with the 100% filter.",
               )}
             </p>
+            {scenes.truncated && <p>{t("İlk 50 sahne gösteriliyor. Daha dar bir tarih aralığı seçin.", "The first 50 scenes are shown. Select a narrower date range.")}</p>}
+            {scenes.rasterAccess === "unavailable" && <p role="status">{t("USGS katalog kaydı mevcut. Piksel işleme için yetkili COG erişimi gerekiyor.", "USGS catalog is available. Pixel processing requires authorized COG access.")}</p>}
+            {scenes.raster && (
+              <section>
+                <h3>{t("Parsel penceresi", "Parcel window")}</h3>
+                <p>{scenes.raster.sceneId} · {scenes.raster.gridMetres} m · {scenes.raster.validPixels} / {scenes.raster.coveredPixels} {t("geçerli piksel", "valid pixels")}</p>
+                {scenes.raster.thermalNativeResolutionMetres && <p>{t("Termal kaynak çözünürlüğü", "Native thermal resolution")}: {scenes.raster.thermalNativeResolutionMetres} m</p>}
+                {scenes.raster.state === "available" ? <dl>
+                  {Object.entries(scenes.raster.means).map(([metric, value]) => <div key={metric}><dt>{metric}</dt><dd>{number(value.mean)}</dd></div>)}
+                </dl> : <p>{t("Parsel penceresinde kullanılabilir piksel yok.", "No usable pixels in the parcel window.")}</p>}
+              </section>
+            )}
           </>
         )}
       </section>

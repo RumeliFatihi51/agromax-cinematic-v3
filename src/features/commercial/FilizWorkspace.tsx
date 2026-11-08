@@ -186,27 +186,6 @@ export default function FilizWorkspace({
         </div>
         <FilizAvatar size={80} />
       </div>
-      <section className="business-settings-section">
-        <label>
-          {t("Hangi parsele bakalım?", "Which parcel shall we review?")}
-          <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-            <option value="">{t("Parsel seç", "Select parcel")}</option>
-            {fields.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {!status?.modelAvailable && (
-          <p className="business-muted">
-            {t(
-              "Dil modeli bağlantısı beklemede. Aşağıdaki rehber kayıtlı verileri doğrudan gösterir.",
-              "The language model connection is on hold. The guide below displays saved records directly.",
-            )}
-          </p>
-        )}
-      </section>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -217,7 +196,29 @@ export default function FilizWorkspace({
           {message}
         </p>
       )}
-      <section className="business-settings-section">
+      <div className="filiz-source-layout">
+        <section className="business-settings-section">
+          <label>
+            {t("Hangi parsele bakalım?", "Which parcel shall we review?")}
+            <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+              <option value="">{t("Parsel seç", "Select parcel")}</option>
+              {fields.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {!status?.modelAvailable && (
+            <p className="business-muted">
+              {t(
+                "Dil modeli bağlantısı beklemede. Rehber kayıtlı verileri doğrudan gösterir.",
+                "The language model connection is on hold. The guide displays saved records directly.",
+              )}
+            </p>
+          )}
+        </section>
+        <section className="business-settings-section">
         <h2>{t("Parselin kayıt rehberi", "Parcel record guide")}</h2>
         {facts === null ? (
           <LoaderCircle className="spin" size={20} />
@@ -239,7 +240,8 @@ export default function FilizWorkspace({
             )}
           </p>
         )}
-      </section>
+        </section>
+      </div>
       {status?.modelAvailable && (
         <section className="business-settings-section">
           <h2>{t("Filiz'e sor", "Ask Filiz")}</h2>

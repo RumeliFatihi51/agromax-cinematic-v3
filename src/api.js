@@ -1,8 +1,10 @@
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, code = undefined, details = undefined) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 let organizationId = "";
@@ -32,6 +34,8 @@ export async function api(path, body, method, { signal, headers = {} } = {}) {
           ? data.message
           : "İstek tamamlanamadı.",
       r.status,
+      data.code,
+      data.details,
     );
   return data;
 }

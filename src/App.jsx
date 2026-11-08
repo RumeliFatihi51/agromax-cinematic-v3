@@ -6,6 +6,7 @@ import TaskModal from "./features/tasks/TaskModal";
 import { modules, canonicalPage, operationPages } from "./features/modules";
 import { I } from "./components/icons";
 import { api, setOrganizationId } from "./api";
+import { clearOffline, readOffline } from "./offline";
 import { LogoMark } from "./components/Brand";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PreferenceProvider from "./components/PreferenceProvider";
@@ -107,9 +108,15 @@ export default function App() {
   useEffect(() => {
     api("me")
       .then(setUser)
-      .catch(() => {})
+      .catch((error) => { if (error.status === 401) clearOffline(); })
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const local = readOffline();
+    if (local && user?.id && (local.userId !== user.id ||
+      (activeWorkspace?.id && local.organizationId !== activeWorkspace.id)))
+      clearOffline();
+  }, [activeWorkspace?.id, user?.id]);
   useEffect(() => {
     if (
       !user ||
@@ -223,6 +230,7 @@ export default function App() {
       }
     }
     setOrganizationId("");
+    clearOffline();
     setCommercial(null);
     setUser(null);
     setRecords([]);
@@ -329,7 +337,21 @@ export default function App() {
       />
     );
   else if (platformPages.includes(page))
-    content = <PlatformWorkspace key={`${activeWorkspace?.id || user.id}:${page}`} page={page} fields={fields} onNavigate={navigate} onSelect={analyze} commercial={!!activeWorkspace} canWrite={!activeWorkspace || activeWorkspace.role !== 'viewer'} />;
+    content = <PlatformWorkspace
+      key={`${activeWorkspace?.id || user.id}:${page}`}
+      page={page}
+      fields={fields}
+      onNavigate={navigate}
+      onSelect={analyze}
+      commercial={!!activeWorkspace}
+      canWrite={!activeWorkspace || activeWorkspace.role !== "viewer"}
+      waterBalance={commercial?.capabilities?.waterBalance}
+      claimsEnabled={commercial?.capabilities?.claims}
+      canCalculate={!!user.emailVerified && activeWorkspace?.role !== "viewer"}
+      offline={commercial?.capabilities?.offlineNotes && activeWorkspace && activeWorkspace.role !== "viewer"
+        ? { userId: user.id, organizationId: activeWorkspace.id, tasks }
+        : null}
+    />;
   else if (page === "history")
     content = <AnalysisHistory focusJob={historyFocus} />;
   else if (page === "notifications")

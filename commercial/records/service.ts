@@ -1,4 +1,5 @@
 import { and, eq, isNull, desc, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import type { CommercialDb } from "../db/store";
 import { domainRecords, farmRecords, farmJobs, auditLog } from "../db/schema";
 import {
@@ -27,6 +28,7 @@ export async function ownField(db: CommercialDb, ctx: Context, id: string) {
     id: string;
     name: string;
     area: number;
+    version?: number;
     geometry?: unknown;
   };
 }
@@ -57,6 +59,7 @@ export async function saveDomainRecord(
   inputKind: string,
   input: unknown,
   update?: { id: string; version: number },
+  offline?: { draftId: string; fieldVersion: number },
 ) {
   requirePermission(ctx, "record.write");
   const kind = domainKind.parse(inputKind),
@@ -66,7 +69,28 @@ export async function saveDomainRecord(
     await tx.execute(
       sql`select id from organizations where id=${ctx.organization.id} for update`,
     );
-    await ownField(tx as unknown as CommercialDb, ctx, fieldId);
+    const field = await ownField(tx as unknown as CommercialDb, ctx, fieldId);
+    const offlineId = offline && createHash("sha256")
+      .update(JSON.stringify(["field-note-v1", ctx.organization.id, ctx.actor.id, offline.draftId]))
+      .digest("hex").slice(0, 32);
+    if (offlineId && offline) {
+      const [prior] = await tx.select().from(domainRecords).where(and(
+        eq(domainRecords.id, offlineId),
+        eq(domainRecords.organizationId, ctx.organization.id),
+        eq(domainRecords.createdBy, ctx.actor.id),
+      ));
+      if (prior) {
+        if (prior.fieldId !== fieldId || !("date" in data) || prior.data.date !== data.date ||
+          !("observation" in data) || prior.data.observation !== data.observation)
+          throw new DomainError("IDEMPOTENCY_CONFLICT", "Bu taslak daha önce farklı içerikle eşitlendi.", 409);
+        return prior;
+      }
+      const currentVersion = Number(field.version || 1);
+      if (currentVersion !== offline.fieldVersion)
+        throw new DomainError("FIELD_VERSION_CONFLICT", "Parsel çevrimdışıyken değişti.", 409, {
+          name: field.name, currentVersion, draftVersion: offline.fieldVersion,
+        });
+    }
     if (kind === "evaluation" && "analysisId" in data && data.analysisId) {
       const [job] = await tx
         .select()
@@ -129,7 +153,7 @@ export async function saveDomainRecord(
       [row] = await tx
         .insert(domainRecords)
         .values({
-          id: uid(),
+          id: offlineId || uid(),
           organizationId: ctx.organization.id,
           fieldId,
           kind,
