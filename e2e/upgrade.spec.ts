@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 test("water-balance persistence, linked evidence, and reference screens", async ({ page }, info) => {
   test.setTimeout(120_000);
@@ -76,7 +77,8 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   const notifications = await page.request.get("/api/notifications");
   expect(await notifications.text()).toContain(job.id);
 
-  const widths = [360, 375, 390, 768, 1024, 1440, 1920];
+  const viewports = [[360, 800], [390, 844], [768, 1024], [1024, 768],
+    [1280, 800], [1440, 900], [1600, 900], [1672, 941], [1920, 1080]];
   for (const screen of ["overview", "fields", "assistant"]) {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`/#${screen}`);
@@ -89,13 +91,74 @@ test("water-balance persistence, linked evidence, and reference screens", async 
     }
     if (screen === "assistant")
       await expect(page.getByText(/s2-period-change-v1/)).toBeVisible();
+    if (screen === "overview") {
+      await expect(page.locator(".dashboard-layer-info strong")).toContainText("NDVI · 2026-10-31");
+      const ndre = page.getByRole("button", { name: "NDRE", exact: true });
+      await ndre.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator(".dashboard-layer-info strong")).toContainText("NDRE · 2026-10-31");
+      await page.getByRole("button", { name: "Zaman Serisi", exact: true }).click();
+      await page.getByLabel("Uydu çekimi").selectOption("2026-10-28");
+      await expect(page.locator(".dashboard-layer-info strong")).toContainText("NDRE · 2026-10-28");
+      await page.getByRole("button", { name: "Durum", exact: true }).click();
+      await page.route("**/api/records/*/image", (route) => route.fulfill({
+        status: 503, json: { error: "EXPLICIT RASTER UNAVAILABLE FIXTURE" },
+      }), { times: 1 });
+      await page.getByRole("button", { name: "NDMI", exact: true }).click();
+      await expect(page.getByText("EXPLICIT RASTER UNAVAILABLE FIXTURE")).toBeVisible();
+      await expect(page.locator(".dashboard-layer-info strong")).toContainText("NDRE · 2026-10-28");
+      await page.getByRole("button", { name: "NDRE", exact: true }).click();
+      await expect(page.getByText("EXPLICIT RASTER UNAVAILABLE FIXTURE")).toHaveCount(0);
+    }
     await page.evaluate(() => document.fonts.ready);
-    for (const width of widths) {
-      await page.setViewportSize({ width, height: 900 });
+    for (const [width, height] of viewports) {
+      await page.setViewportSize({ width: width!, height: height! });
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), { message: `${screen} at ${width}` }).toBe(true);
       await page.screenshot({ path: info.outputPath(`${screen}-${width}.png`), animations: "disabled" });
+      if (screen === "overview" && width === 1672) {
+        const layout = await page.evaluate(() => Object.fromEntries(
+          [".studio-sidebar", ".dashboard-hero", ".dashboard-stats", ".dashboard-map",
+            ".dashboard-parcel", ".dashboard-filiz", ".dashboard-modules"].map((selector) => {
+            const rect = document.querySelector(selector)!.getBoundingClientRect();
+            return [selector, { x: rect.x, y: rect.y + scrollY, width: rect.width, height: rect.height }];
+          }),
+        ));
+        expect(Math.abs(layout[".studio-sidebar"]!.width - 261)).toBeLessThan(10);
+        expect(Math.abs(layout[".dashboard-filiz"]!.width - 337)).toBeLessThan(24);
+        expect(Math.abs(layout[".dashboard-stats"]!.y - 235)).toBeLessThan(25);
+        expect(Math.abs(layout[".dashboard-map"]!.y - 362)).toBeLessThan(30);
+        await writeFile(info.outputPath("reference-layout-1672.json"), JSON.stringify(layout, null, 2));
+      }
+    }
+    if (screen === "overview") {
+      await page.setViewportSize({ width: 390, height: 844 });
+      const open = page.getByRole("button", { name: "Analizi göster" });
+      await open.click();
+      const sheet = page.getByRole("dialog", { name: "Parsel analizi" });
+      await expect(sheet).toBeVisible();
+      await expect(sheet.getByRole("button", { name: "Analizi kapat" })).toBeFocused();
+      await page.screenshot({ path: info.outputPath("overview-390-parcel-sheet.png") });
+      await page.keyboard.press("Escape");
+      await expect(sheet).toHaveCount(0);
+      await expect(open).toBeFocused();
     }
   }
+  await page.setViewportSize({ width: 1672, height: 941 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.route("**/api/me", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    await route.continue();
+  }, { times: 1 });
+  await page.goto("/?motion=1#overview");
+  const loader = page.locator(".earth-loader");
+  await expect(loader).toBeVisible();
+  await page.screenshot({ path: info.outputPath("motion-01-earth-loader.png") });
+  const motionLine = page.locator(".motion-line > span").last();
+  await expect.poll(() => motionLine.evaluate((node) => node.style.transform)).not.toBe("");
+  await page.screenshot({ path: info.outputPath("motion-02-reveal.png") });
+  await expect(motionLine).toHaveCSS("transform", "none");
+  await page.screenshot({ path: info.outputPath("motion-03-settled.png") });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/#access");
   const fieldId = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
   await page.getByLabel("Çevrimdışı parsel").selectOption(fieldId);

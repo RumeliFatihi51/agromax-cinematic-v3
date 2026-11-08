@@ -11,11 +11,12 @@ import {
   Menu,
   Bell,
   Settings2,
+  Layers3, ChartNoAxesColumn, Box, Waypoints, ClipboardCheck, Sprout,
 } from "lucide-react";
 import { availableModules, navigationGroups } from "../features/modules";
 import { I } from "./icons";
 import QuickSearch from "./QuickSearch";
-import Brand, { FilizAvatar } from "./Brand";
+const sectionIcons = [Layers3, ChartNoAxesColumn, Box, Waypoints, ClipboardCheck];
 export default function AppShell({
   page,
   user,
@@ -40,7 +41,8 @@ export default function AppShell({
     }),
     [search, setSearch] = useState(false);
   const menuButton = useRef(null),
-    sidebar = useRef(null);
+    sidebar = useRef(null),
+    content = useRef(null);
   const modules = availableModules(!!workspace);
   const active = modules.find((m) => m[0] === page) || modules[0],
     pending = tasks.filter((t) => !t.done).length;
@@ -50,6 +52,14 @@ export default function AppShell({
     worker: "Ekip üyesi",
     viewer: "Görüntüleme",
   };
+  useEffect(() => {
+    if (page === "overview" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const transition = content.current?.animate(
+      [{ opacity: 0.72, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 220, easing: "cubic-bezier(.18,.8,.3,1)" },
+    );
+    return () => transition?.cancel();
+  }, [page]);
   useEffect(() => {
     const key = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -131,7 +141,7 @@ export default function AppShell({
       });
   return (
     <div
-      className={`studio-shell ${workspace ? "commercial-shell" : ""} ${slim ? "sidebar-slim" : ""} studio-page-${page}`}
+      className={`studio-shell cinematic-shell ${workspace ? "commercial-shell" : ""} ${slim ? "sidebar-slim" : ""} studio-page-${page}`}
     >
       <a
         className="workspace-skip-link"
@@ -161,7 +171,7 @@ export default function AppShell({
             onClick={() => navigate("overview")}
             aria-label="Agromax ana ekran"
           >
-            <Brand size={36} />
+            <img src="/brand/agromax-logo-light-v1.svg" alt="" width="161" height="38" />
           </button>
           <button
             className="studio-sidebar-collapse"
@@ -178,20 +188,16 @@ export default function AppShell({
             <X size={20} />
           </button>
         </div>
-        <div className="studio-workspace">
-          <span>{user.name.charAt(0).toLocaleUpperCase("tr-TR")}</span>
-          <div>
-            <strong>{workspace?.name || "Benim işletmem"}</strong>
-            <small>{roles[workspace?.role] || "Kişisel çalışma alanı"}</small>
-          </div>
-        </div>
         <div className="canopy-mobile-workspace">{organizationControl}</div>
         <nav aria-label="Ana gezinme">
-          {group(["overview", "platform"])}
-          {navigationGroups.map(section => <details className="platform-nav-group" key={section.id} open={section.pages.includes(page) || undefined}>
-            <summary aria-label={section.label} title={section.label}><span>{section.label}</span><ChevronRight size={14} /></summary>
+          {group(["overview"])}
+          {navigationGroups.map((section, index) => {
+            const Icon = sectionIcons[index];
+            return <details className="platform-nav-group" key={section.id} open={section.pages.includes(page) || undefined}>
+            <summary aria-label={section.label} title={section.label}><Icon size={18} aria-hidden="true" /><span>{section.label}</span><ChevronRight size={13} /></summary>
             {group(section.pages)}
-          </details>)}
+          </details>;
+          })}
         </nav>
         <button
           className={`studio-filiz ${page === "assistant" ? "is-active" : ""}`}
@@ -200,7 +206,7 @@ export default function AppShell({
           title="Filiz kayıt rehberi"
         >
           <span>
-            <FilizAvatar size={37} />
+            <Sprout size={19} aria-hidden="true" />
           </span>
           <div>
             <strong>Filiz</strong>
@@ -208,7 +214,18 @@ export default function AppShell({
           </div>
           <ArrowUpRight size={17} />
         </button>
+        <div className="cinematic-sidebar-story">
+          <p>Tarımsal<br />Zekâ Platformu</p>
+          <small>Gözlemle · Anla · Simüle Et<br />Karar Ver · Uygula · Doğrula</small>
+        </div>
         <div className="studio-sidebar-footer">
+          <div className="studio-workspace">
+            <span>{user.name.charAt(0).toLocaleUpperCase("tr-TR")}</span>
+            <div>
+              <strong>{workspace?.name || "Benim işletmem"}</strong>
+              <small>{roles[workspace?.role] || "Kişisel çalışma alanı"}</small>
+            </div>
+          </div>
           {workspace && (
             <button
               className={`studio-nav-link ${page === "settings" ? "is-active" : ""}`}
@@ -266,7 +283,7 @@ export default function AppShell({
               onClick={() => setSearch(true)}
             >
               <Search size={17} />
-              <span>Hızlı erişim</span>
+              <span>Parsel, analiz, rapor ara…</span>
               <kbd>Ctrl K</kbd>
             </button>
             <span className="studio-today">
@@ -296,7 +313,7 @@ export default function AppShell({
             </button>
           </div>
         </header>
-        <main className="studio-content" id="main-content" tabIndex={-1}>
+        <main className="studio-content" id="main-content" tabIndex={-1} ref={content}>
           {children}
           <footer className="studio-page-footer">
             <span>

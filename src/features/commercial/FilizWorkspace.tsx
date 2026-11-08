@@ -21,16 +21,18 @@ type Draft = {
 };
 export default function FilizWorkspace({
   fields,
+  initialFieldId,
   workspace,
   locale,
   onConfirmed,
 }: {
   fields: Field[];
+  initialFieldId?: string;
   workspace: Workspace;
   locale: Locale;
   onConfirmed: () => void;
 }) {
-  const [fieldId, setFieldId] = useState(fields[0]?.id || ""),
+  const [fieldId, setFieldId] = useState(fields.find((field) => field.id === initialFieldId)?.id || fields[0]?.id || ""),
     [facts, setFacts] = useState<Fact[] | null>(null),
     [status, setStatus] = useState<{
       modelAvailable: boolean;

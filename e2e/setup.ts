@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { hashPassword } from "better-auth/crypto";
 import { createStore } from "../commercial/db/store";
-import { user, account, farmRecords, farmJobs, analysisClaims } from "../commercial/db/schema";
+import { user, account, farmRecords, farmJobs, farmAnalyses, analysisClaims } from "../commercial/db/schema";
 import {
   createOrganization,
   resolveContext,
@@ -72,6 +72,9 @@ export default async function setup() {
         body: JSON.stringify(field),
       });
       const id = analysisDigit.repeat(32);
+      const scenes = project === "upgrade" ? ["2026-10-28", "2026-10-31"].map((date) => ({
+        id: "EXPLICIT-RASTER-FIXTURE-" + date, properties: { datetime: date + "T09:00:00.000Z" },
+      })) : [];
       const analysis = {
         source: "EXPLICIT SYNTHETIC BROWSER FIXTURE",
         method: "s2-l2a-v3",
@@ -87,8 +90,18 @@ export default async function setup() {
           },
           NDMI: { previous: null, current: null, delta: null },
         },
-        observations: [],
-        scenes: [],
+        observations: scenes.map(({ properties }, index) => {
+          const date = properties.datetime.slice(0, 10);
+          const mean = index ? 0.3 : 0.2;
+          const stats = Object.fromEntries(["NDVI", "NDRE", "NDMI", "NDWI"].map((id) => [
+            id, { mean, min: 0.05, max: 0.54, coverage: 1, validPixels: 64, totalPixels: 64 },
+          ]));
+          return {
+            from: date + "T00:00:00.000Z",
+            to: new Date(Date.parse(date) + 86400000).toISOString(), stats,
+          };
+        }),
+        scenes,
         historyId: id,
       };
       await store.db.insert(farmJobs).values({
@@ -100,6 +113,10 @@ export default async function setup() {
         geometryHash: geometryHash(JSON.parse(JSON.stringify(field)).geometry),
         result: JSON.stringify(analysis),
         createdAt: new Date().toISOString(),
+      });
+      if (project === "upgrade") await store.db.insert(farmAnalyses).values({
+        fieldId, geometryHash: geometryHash(JSON.parse(JSON.stringify(field)).geometry),
+        body: JSON.stringify(analysis),
       });
       const claims = deriveClaims(analysis);
       if (!claims.length) throw new Error("Expected explicit browser fixture claim.");

@@ -1,71 +1,244 @@
-﻿import { useEffect, useState } from "react";
-import { ArrowUpRight, Plus, Sprout, MapPinned, CalendarDays, ArrowRight, Layers3, Check, List, Map, ChevronRight } from "lucide-react";
-import ParcelMap from "../fields/ParcelMap";
-import ParcelPreview from "../fields/ParcelPreview";
-import FieldEditor from "../fields/FieldEditor";
-import { FilizAvatar } from "../../components/Brand";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUpRight, Box, CalendarDays, ClipboardCheck, CloudSun, FileText,
+  Layers3, Map, Plus, SlidersHorizontal, Sprout, TriangleAlert, Wind,
+} from "lucide-react";
+import { api, fetchAnalysisImage } from "../../api";
 import { useAreaFormat } from "../../components/PreferenceProvider";
+import ParcelMap from "../fields/ParcelMap";
+import FieldEditor from "../fields/FieldEditor";
+import ParcelBrief from "./ParcelBrief";
+import FilizPanel from "./FilizPanel";
+import { TextReveal, useDashboardEntrance } from "../../motion/entrance";
+import "./dashboard.css";
 
-export default function Dashboard({ user, fields, tasks, onCreate, onSelect, onNavigate, onTask, onToggle, createRequest = 0, onCreateHandled, onSaved }) {
-  const areaFormat = useAreaFormat();
+const indices = ["NDVI", "NDRE", "NDMI", "NDWI"];
+const modules = [
+  ["twin", Box, "Dijital İkiz", "Parselinizin dinamik modeli"],
+  ["scenarios", SlidersHorizontal, "Senaryo Laboratuvarı", "Sulama, gübre ve maliyet senaryolarını karşılaştırın"],
+  ["prescriptions", Map, "Reçete Haritası", "Uygulama planınızı ve inceleme taslaklarını oluşturun"],
+  ["mrv", FileText, "Raporlar ve MRV", "Analiz, müdahale ve doğrulama kayıtları"],
+];
+const fmt = (value) => Number.isFinite(value) ? value.toLocaleString("tr-TR", { maximumFractionDigits: 1 }) : "—";
+
+export default function Dashboard({
+  user, fields, tasks, notifications, workspace, onCreate, onSelect, onNavigate, onTask, onToggle,
+  createRequest = 0, onCreateHandled, onSaved,
+}) {
+  const area = useAreaFormat();
+  const host = useRef(null);
+  useDashboardEntrance(host);
   const [editing, setEditing] = useState(false);
-  const [editSession, setEditSession] = useState(0);
   const [geometry, setGeometry] = useState(null);
   const [drawing, setDrawing] = useState(false);
   const [notice, setNotice] = useState("");
-  const [view, setView] = useState("map");
+  const [selectedId, setSelectedId] = useState("");
+  const [jobs, setJobs] = useState(null);
+  const selected = fields.find((field) => field.id === selectedId)
+    || fields.find((field) => field.geometry) || fields[0];
   useEffect(() => {
     if (!createRequest) return;
     setEditing(true);
     setGeometry(null);
     setDrawing(false);
     setNotice("");
-    setEditSession(n => n + 1);
     onCreateHandled?.();
   }, [createRequest, onCreateHandled]);
-  const pending = tasks.filter(t => !t.done).sort((a, b) => a.date.localeCompare(b.date));
-  const mapped = fields.filter(f => f.geometry).length;
-  const area = fields.reduce((sum, f) => sum + f.area, 0);
-  const completed = tasks.length - pending.length;
-  function finish(record) {
-    if (record) { onSaved(record); setNotice(`${record.name} kaydedildi.`); }
-    setEditing(false);
-    setGeometry(null);
-    setDrawing(false);
-  }
-  const metrics = [
-    { icon: Sprout, label: "Tarlalarım", value: fields.length, unit: "parsel", detail: `${mapped} parselin sınırı kayıtlı`, page: "fields", tone: "green" },
-    { icon: Layers3, label: "Toplam alan", value: areaFormat.value(area), unit: areaFormat.unit, detail: "Kayıtlı parsellerinin toplamı", page: "fields", tone: "sand" },
-    { icon: CalendarDays, label: "Bekleyen işler", value: pending.length, unit: "görev", detail: "Planına göz at ve önceliklendir", page: "tasks", tone: "blue" },
-    { icon: Check, label: "Tamamlanan", value: completed, unit: "görev", detail: "Sezon boyunca attığın adımlar", page: "tasks", tone: "rose" },
+  useEffect(() => {
+    const controller = new AbortController();
+    api("analyses", undefined, "GET", { signal: controller.signal })
+      .then(({ jobs }) => { if (!controller.signal.aborted) setJobs(jobs); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const recent = jobs?.filter(({ state, finishedAt }) =>
+    state === "completed" && Date.parse(finishedAt) >= Date.now() - 7 * 86400000);
+  const attention = notifications?.filter(({ type, readAt }) =>
+    !readAt && /^(analysis\.failed|risk\.|investigation\.)/.test(type));
+  const pending = tasks.filter((task) => !task.done);
+  const stats = [
+    [Layers3, fields.length, "Parsel", "Toplam " + area.format(fields.reduce((sum, field) => sum + (field.area || 0), 0)), "fields"],
+    [ClipboardCheck, recent?.length, "Güncel analiz", "Son 7 günde tamamlanan", "history"],
+    [TriangleAlert, attention?.length, "Dikkat gerektiren olay", "Okunmamış uyarılar", "notifications"],
+    [CalendarDays, pending.length, "Bekleyen görev", pending[0]?.name || "Saha planı ve kontroller", "tasks"],
   ];
-  return <div className="fw-dashboard">
-    <header className="fw-page-heading">
-      <div><span className="fw-overline">GENEL BAKIŞ</span><h1>Arazi kontrolü</h1><p>Hoş geldin, {user.name.split(" ")[0]}. Parsellerin ve günlük işlerin burada.</p></div>
-      <div className="fw-heading-actions"><button className="secondary" onClick={onTask}><Plus size={16} /> Görev ekle</button><button className="primary" disabled={editing} onClick={onCreate}><Plus size={17} /> Parsel çiz</button></div>
-    </header>
-    {!editing && <section className="atlas-dashboard-hero"><div><span className="atlas-section-label"><span/> AGROMAX ÇALIŞMA ALANI</span><h2>Arazini gör.<br/>Veriyi karara dönüştür.</h2><p>Uydu gözlemleri, parsel kayıtları ve saha planları.<br/>İhtiyacın olan araçlar tek bir yerde.</p><button onClick={()=>onNavigate('platform')}>Platform araçlarını aç <ArrowUpRight size={18}/></button></div><figure><img src="/visuals/agromax-landscape-editorial-v1.webp" alt="" width="1672" height="941"/><figcaption>AgroMax için üretilmiş temsili arazi görseli</figcaption></figure></section>}
-    {notice && <p role="status" className="inline-parcel-saved">{notice}</p>}
-    {!editing && <section className="atlas-stat-strip" aria-label="İşletme özeti">{metrics.map(({ label, value, unit, detail, page }) => <button key={label} onClick={() => onNavigate(page)}><div><span>{label}</span><ArrowUpRight size={15}/></div><strong>{value}<small>{unit}</small></strong><p>{detail}</p></button>)}</section>}
-    <div className={`fw-dashboard-grid ${editing ? "is-editing" : ""}`}>
-      <section className="fw-surface fw-overview-section">
-        <header className="fw-section-heading"><div><span className="fw-overline">ARAZİNE YAKINDAN BAK</span><h2>{editing ? "Yeni parsel çiz" : "Tarlaların, bir arada"}</h2></div>{!editing && <div className="fw-view-tabs" aria-label="Genel bakış görünümü"><button aria-pressed={view === "map"} onClick={() => setView("map")}><Map size={16} /> Harita</button><button aria-pressed={view === "list"} onClick={() => setView("list")}><List size={16} /> Parseller</button></div>}</header>
-        <div hidden={!editing && view !== "map"}>
-          <ParcelMap fields={fields} height={editing ? 720 : 420} compact={false} editable={editing} editSession={editSession} onChange={setGeometry} onDrawing={setDrawing} onSelect={editing ? undefined : onSelect}>
-            {editing && <FieldEditor key={editSession} field={null} geometry={geometry} drawing={drawing} onCancel={() => finish()} onSaved={finish} />}
-          </ParcelMap>
+  const finish = (record) => {
+    if (record) {
+      onSaved(record);
+      setSelectedId(record.id);
+      setNotice(record.name + " kaydedildi.");
+    }
+    setEditing(false);
+  };
+
+  return (
+    <div className="dashboard-v3" ref={host}>
+      <header className="dashboard-hero">
+        <div className="dashboard-hero-media" aria-hidden="true">
+          <img src="/visuals/agromax-landscape-editorial-v1.webp" alt="" fetchPriority="high" />
         </div>
-        {!editing && view === "list" && <div className="fw-overview-parcels">{fields.length ? fields.map(f => <button key={f.id} onClick={() => onSelect(f)}><ParcelPreview geometry={f.geometry} /><div><strong>{f.name}</strong><small>{f.crop || "Ürün belirtilmedi"}</small></div><span>{areaFormat.format(f.area)}</span><ChevronRight size={17} /></button>) : <div className="fw-empty"><MapPinned size={32} /><h3>İlk tarlanı ekleyelim.</h3><p>Haritada yerini bul, sınırlarını çiz ve sezonunu planlamaya başla.</p><button className="primary" onClick={onCreate}>Parsel çiz <Plus size={16} /></button></div>}</div>}
-        {!editing && <footer className="fw-map-footer"><span><MapPinned size={15} /> {fields.length ? `${mapped} parsel haritada işaretli` : "Tarlanı arayarak başlayabilirsin"}</span><button onClick={() => onNavigate("fields")}>Tüm parseller <ArrowRight size={15} /></button></footer>}
-      </section>
-      {!editing && <aside className="fw-dashboard-aside">
-        <section className="fw-surface fw-agenda"><header className="fw-section-heading"><div><span className="fw-overline">PLANIN HAZIR OLSUN</span><h2>Sıradaki işler</h2></div><button className="fw-icon-button" aria-label="Yeni görev ekle" onClick={onTask}><Plus size={19} /></button></header>
-          {pending.length ? <div className="fw-task-list">{pending.slice(0, 4).map(t => <label key={t.id}><input type="checkbox" checked={!!t.done} onChange={() => onToggle(t)} aria-label={`${t.name} görevini tamamla`} /><div><strong>{t.name}</strong><small><CalendarDays size={12} /> {new Date(t.date + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}</small></div></label>)}</div> : <div className="fw-agenda-empty"><span><CalendarDays size={24} strokeWidth={1.5} /></span><h3>Bugüne bir plan ekle.</h3><p>Ekim, sulama, saha ziyareti.<br />Bir sonraki adımını kaydet.</p><button onClick={onTask}>İlk görevini oluştur <Plus size={15} /></button></div>}
-          <button className="fw-card-link" onClick={() => onNavigate("tasks")}>Görev planını aç <ArrowRight size={16} /></button>
+        <div className="dashboard-greeting">
+          <p data-enter>Merhaba, {user.name.split(" ")[0]}</p>
+          <TextReveal lines={["Arazilerinizdeki", "güncel durum"]} />
+          <p data-enter>Uydu gözlemleri, model analizleri ve saha verilerine göre öncelikli gelişmeler burada.</p>
+        </div>
+        <WeatherStrip key={selected?.id} field={selected} onOpen={() => onNavigate("weather")} />
+      </header>
+      {notice && <p className="dashboard-notice" role="status">{notice}</p>}
+      {editing ? (
+        <section className="dashboard-editor fw-overview-section" aria-label="Yeni parsel">
+          <ParcelMap fields={fields} height={700} editable editSession={createRequest}
+            onChange={setGeometry} onDrawing={setDrawing}>
+            <FieldEditor field={null} geometry={geometry} drawing={drawing}
+              onCancel={() => finish()} onSaved={finish} />
+          </ParcelMap>
         </section>
-        <section className="fw-assistant-card"><FilizAvatar size={46} /><div><span>FİLİZ</span><h2>Kayıtlarından ilerle.</h2><p>Parsel bilgilerini ve saha notlarını incele.</p></div><button onClick={() => onNavigate("assistant")}>Çalışma alanını aç <ArrowUpRight size={17} /></button></section>
-      </aside>}
+      ) : (
+        <div className="dashboard-grid">
+          <div className="dashboard-main">
+            <section className="dashboard-stats" aria-label="İşletme özeti">
+              {stats.map(([Icon, value, label, detail, page]) => (
+                <button className="dashboard-kpi" data-enter key={page} onClick={() => onNavigate(page)}>
+                  <span className="dashboard-kpi-icon"><Icon size={23} aria-hidden="true" /></span>
+                  <span><strong>{value ?? "—"}</strong><span>{label}</span><small>{detail}</small></span>
+                </button>
+              ))}
+            </section>
+            <div className="dashboard-observation" data-enter>
+              <ObservationWorkspace field={selected} fields={fields}
+                onSelect={(field) => setSelectedId(field.id)}
+                onOpen={onSelect} onNavigate={onNavigate} onCreate={onCreate} />
+            </div>
+            <nav className="dashboard-modules" aria-label="Araştırma ve operasyon araçları" data-enter>
+              {modules.map(([id, Icon, title, summary]) => (
+                <button className="dashboard-module" data-module={id} key={id} onClick={() => onNavigate(id, selected?.id)}>
+                  <Icon size={25} aria-hidden="true" /><strong>{title}</strong><span>{summary}</span>
+                  <ArrowUpRight className="module-arrow" size={16} aria-hidden="true" />
+                </button>
+              ))}
+            </nav>
+            <div className="dashboard-actions">
+              <button className="secondary" onClick={onCreate}><Plus size={16} /> Parsel çiz</button>
+              <button className="secondary" onClick={onTask}><Plus size={16} /> Görev ekle</button>
+            </div>
+            {pending.length > 0 && <details className="dashboard-agenda">
+              <summary>Sıradaki işler · {pending.length}</summary>
+              <ul>{pending.slice(0, 4).map((task) => <li key={task.id}><label>
+                <input type="checkbox" checked={!!task.done} onChange={() => onToggle(task)} />
+                <span>{task.name} <small>{task.date}</small></span>
+              </label></li>)}</ul>
+            </details>}
+          </div>
+          <FilizPanel key={selected?.id} field={selected} workspace={workspace}
+            onOpenField={() => onSelect(selected)} onNavigate={onNavigate} />
+        </div>
+      )}
     </div>
-    {!editing && <section className="fw-surface fw-portfolio"><header className="fw-section-heading"><div><span className="fw-overline">SANA AİT TOPRAKLAR</span><h2>Parsel defterin</h2></div><button className="text-button" onClick={() => onNavigate("fields")}>Tümünü gör <ArrowRight size={16} /></button></header>{fields.length ? <div className="fw-portfolio-grid">{fields.slice(0, 3).map(f => <button key={f.id} onClick={() => onSelect(f)}><span className="fw-parcel-mini"><ParcelPreview geometry={f.geometry} /></span><div><small>{f.crop || "Ürün belirtilmedi"}</small><strong>{f.name}</strong><span>{areaFormat.format(f.area)}</span></div><ArrowUpRight size={19} /></button>)}</div> : <div className="fw-portfolio-empty"><span><Sprout size={23} /></span><div><strong>Yeni bir sezon, ilk parselinle başlar.</strong><p>Kendi arazini ekle; verilerin ve planların burada biriksin.</p></div><button className="secondary" onClick={onCreate}>Parsel ekle <Plus size={16} /></button></div>}</section>}
-  </div>;
+  );
+}
+
+function WeatherStrip({ field, onOpen }) {
+  const [state, setState] = useState({ data: null, error: false });
+  useEffect(() => {
+    if (!field?.geometry) return;
+    const controller = new AbortController();
+    api("weather?fieldId=" + encodeURIComponent(field.id), undefined, "GET", { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) setState({ data, error: false }); })
+      .catch(() => { if (!controller.signal.aborted) setState({ data: null, error: true }); });
+    return () => controller.abort();
+  }, [field?.id, Boolean(field?.geometry)]);
+  const point = state.data?.points?.find(({ time }) => Date.parse(time) >= Date.now());
+  const rain = point?.periods?.find(({ hours }) => hours === 1);
+  return (
+    <button className="dashboard-weather" onClick={onOpen} data-enter>
+      <CloudSun size={31} aria-hidden="true" />
+      {point ? <>
+        <span><strong>{fmt(point.values.air_temperature)} °C</strong><small>{field.name} · Tahmin</small></span>
+        <span><strong>{fmt(rain?.values.precipitation_amount)} mm</strong><small>1 saatlik yağış</small></span>
+        <span><strong><Wind size={19} /> {fmt(point.values.wind_speed)} m/s</strong><small>MET Norway</small></span>
+      </> : <span><strong>Hava durumu</strong><small>{!field?.geometry ? "Sınırı olan bir parsel gerekli" :
+        state.error ? "Tahmin alınamadı" : state.data ? "Güncel tahmin yok" : "Tahmin alınıyor…"}</small></span>}
+    </button>
+  );
+}
+
+function ObservationWorkspace({ field, fields, onSelect, onOpen, onNavigate, onCreate }) {
+  const [metric, setMetric] = useState("NDVI");
+  const [record, setRecord] = useState(null);
+  const [imageError, setImageError] = useState("");
+  const [image, setImage] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [selection, setSelection] = useState(null);
+  const fieldId = field?.id;
+  const current = record?.fieldId === fieldId ? record : null;
+  const analysis = current?.analysis;
+  const loaded = !fieldId || !!current;
+  const dates = [...new Set((analysis?.scenes || [])
+    .map((scene) => scene.properties?.datetime?.slice(0, 10)).filter(Boolean))].sort().reverse();
+  const date = (selection?.fieldId === fieldId && dates.includes(selection?.date) ? selection.date : dates[0]);
+  const visibleImage = image?.fieldId === fieldId ? image : null;
+  const legend = visibleImage?.legend;
+
+  useEffect(() => {
+    if (!fieldId) return;
+    const controller = new AbortController();
+    api("records/" + fieldId + "/analysis", undefined, "GET", { signal: controller.signal })
+      .then(({ analysis }) => { if (!controller.signal.aborted) setRecord({ fieldId, analysis }); })
+      .catch((e) => { if (!controller.signal.aborted) setRecord({ fieldId, error: e.message }); });
+    return () => controller.abort();
+  }, [fieldId]);
+
+  useEffect(() => {
+    if (!date || !field?.geometry) {
+      setImage(null);
+      setBusy(false);
+      setImageError("");
+      return;
+    }
+    const controller = new AbortController();
+    setBusy(true);
+    setImageError("");
+    fetchAnalysisImage(field.id, { date, layer: metric, analysisId: analysis?.historyId, signal: controller.signal })
+      .then((image) => {
+        if (controller.signal.aborted) URL.revokeObjectURL(image.url);
+        else setImage({ ...image, fieldId });
+      })
+      .catch((e) => { if (!controller.signal.aborted) setImageError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setBusy(false); });
+    return () => controller.abort();
+  }, [field?.id, Boolean(field?.geometry), date, metric, analysis?.historyId]);
+  useEffect(() => () => { if (image) URL.revokeObjectURL(image.url); }, [image]);
+
+  return <>
+    <section className="dashboard-map fw-overview-section" aria-label="Parsel uydu haritası">
+      <ParcelMap fields={fields} height="var(--dashboard-map-height)" activeFieldId={field?.id} onSelect={onSelect}
+        image={visibleImage} compact animateImagery />
+      <div className="dashboard-map-tools">
+        <div className="dashboard-indices" role="group" aria-label="Uydu indeksi">
+          {indices.map((id) => <button key={id} aria-pressed={metric === id}
+            onClick={() => setMetric(id)}>{id}</button>)}
+          <button aria-label="Diğer göstergeler" disabled={!field} onClick={() => onOpen(field)}>···</button>
+        </div>
+        {fields.length > 1 && <select aria-label="Haritada parsel seç" value={field.id}
+          onChange={(event) => onSelect(fields.find(({ id }) => id === event.target.value))}>
+          {fields.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+        </select>}
+      </div>
+      {!field && <button className="dashboard-map-empty secondary" onClick={onCreate}><Plus size={16} /> İlk parselinizi çizin</button>}
+      <div className="dashboard-layer-info" aria-live="polite">
+        <strong>{visibleImage ? visibleImage.layer + " · " + visibleImage.date : "Uydu altlığı"}</strong>
+        {legend?.min != null && legend?.max != null && <>
+          <div className="dashboard-legend-ramp" aria-hidden="true"
+            style={{ backgroundImage: "linear-gradient(90deg," + (legend.colors || ["#30668c", "#b9df55"]).join(",") + ")" }} />
+          <span>{Number(legend.min).toFixed(2)} – {Number(legend.max).toFixed(2)} {legend.unit}</span>
+        </>}
+        {busy && <span>{metric} katmanı alınıyor…</span>}
+        {imageError && <span>{imageError}</span>}
+        {!busy && !imageError && field && !date && <span>{loaded ? "Kayıtlı uydu katmanı yok" : "Analiz yükleniyor…"}</span>}
+      </div>
+    </section>
+    <ParcelBrief key={fieldId} field={field} analysis={analysis} loaded={loaded} error={current?.error}
+      metric={metric} dates={dates} date={date} onDate={(date) => setSelection({ fieldId, date })}
+      onOpen={onOpen} onNavigate={onNavigate} />
+  </>;
 }

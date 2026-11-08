@@ -61,6 +61,8 @@ export default function ParcelMap({
   children,
   compact = false,
   editSession = null,
+  activeFieldId = null,
+  animateImagery = false,
 }) {
   const element = useRef(),
     instance = useRef(),
@@ -336,10 +338,10 @@ export default function ParcelMap({
       const layer = L.geoJSON(field.geometry, {
         pmIgnore: true,
         style: {
-          color: "#dcff69",
-          weight: 3,
+          color: activeFieldId === field.id ? "#fff7d2" : "#dcff69",
+          weight: activeFieldId === field.id ? 3 : 2,
           fillColor: "#c6f367",
-          fillOpacity: 0.12,
+          fillOpacity: activeFieldId === field.id && image ? 0 : 0.12,
         },
       }).addTo(group);
       const tooltip = document.createElement("span");
@@ -348,29 +350,54 @@ export default function ParcelMap({
       layer.on("click", () => callbacks.current.onSelect?.(field));
     }
     fitInitialFields();
-  }, [fields]);
+  }, [fields, activeFieldId, Boolean(image)]);
   useEffect(() => {
-    if (imageLayer.current) {
-      imageLayer.current.remove();
+    const field = fields.find((item) => item.id === activeFieldId);
+    const map = instance.current;
+    if (!map || !field?.geometry) return;
+    const bounds = L.geoJSON(field.geometry).getBounds();
+    if (!bounds.isValid()) return;
+    const options = { padding: [45, 45], maxZoom: 17 };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      map.fitBounds(bounds, { ...options, animate: false });
+    else map.flyToBounds(bounds, { ...options, duration: 0.55 });
+  }, [activeFieldId, fields]);
+  useEffect(() => {
+    const prior = imageLayer.current;
+    if (!image || !instance.current) {
+      prior?.remove();
       imageLayer.current = null;
+      return;
     }
-    if (image && instance.current) {
-      imageLayer.current = L.imageOverlay(
+    const motion = animateImagery && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!motion) prior?.remove();
+    const next = L.imageOverlay(
         image.url,
         [
           [image.bounds[1], image.bounds[0]],
           [image.bounds[3], image.bounds[2]],
         ],
-        { opacity: 0.9, interactive: false },
+        { opacity: 0.9, interactive: false, className: motion ? "dashboard-raster" : "" },
       ).addTo(instance.current);
-      draft.current?.bringToFront();
-      saved.current?.bringToFront();
-    }
-    return () => {
-      imageLayer.current?.remove();
-      imageLayer.current = null;
+    imageLayer.current = next;
+    draft.current?.bringToFront();
+    saved.current?.bringToFront();
+    let timer;
+    const finish = () => {
+      next.getElement()?.classList.add("is-loaded");
+      timer = setTimeout(() => prior?.remove(), 400);
     };
-  }, [image]);
+    if (motion) next.once("load", finish).once("error", finish);
+    return () => {
+      next.off("load", finish).off("error", finish);
+      clearTimeout(timer);
+      prior?.remove();
+      if (!motion) {
+        next.remove();
+        imageLayer.current = null;
+      }
+    };
+  }, [image, animateImagery]);
   function activate(next) {
     stop();
     const map = instance.current;

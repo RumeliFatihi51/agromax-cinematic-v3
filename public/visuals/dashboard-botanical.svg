@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 265 188" fill="none">
+  <defs>
+    <linearGradient id="young" x1="0" x2="1" y1="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop stop-color="#223d26"/><stop offset=".57" stop-color="#71853c"/><stop offset="1" stop-color="#adb75d"/>
+    </linearGradient>
+    <linearGradient id="old" x1="0" x2="1" y1="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#223a23"/><stop offset=".6" stop-color="#506d32"/><stop offset="1" stop-color="#7f954e"/>
+    </linearGradient>
+  </defs>
+  <path d="M244 191C205 143 195 87 224-7" stroke="#688044" stroke-width="3"/>
+  <path d="M216 118C164 120 114 103 92 51c61 1 109 16 124 67Z" fill="url(#young)"/>
+  <path d="M208 85C160 68 123 41 114-4c48 11 80 39 94 89Z" fill="url(#old)"/>
+  <path d="M213 107c-4-51 12-89 54-115-4 48-17 90-54 115Z" fill="url(#young)"/>
+  <path d="M222 147c7-39 23-66 53-83-4 41-22 67-53 83Z" fill="url(#old)"/>
+  <path d="M216 118c-40-21-79-44-124-67m116 34-94-89m99 111L267-8m-45 155 53-83" stroke="#b6bc70" stroke-opacity=".72"/>
+  <path d="m162 88-28 3m43 5-16-23m30 33-27 2m75-45-3-18m-9 36 24-7m-56-8-17 1" stroke="#aab467" stroke-opacity=".43"/>
+</svg>

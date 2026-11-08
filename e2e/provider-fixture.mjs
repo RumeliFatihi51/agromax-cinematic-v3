@@ -1,4 +1,5 @@
 import { runInNewContext } from "node:vm";
+import { PNG } from "pngjs";
 
 if (process.env.AGROMAX_ISOLATED_BROWSER_FIXTURE !== "true" ||
   process.env.SENTINEL_CLIENT_ID !== "explicit-browser-fixture")
@@ -12,6 +13,15 @@ globalThis.fetch = async (input, options) => {
   if (url.hostname !== "sh.dataspace.copernicus.eu") return fetchNetwork(input, options);
   if (url.pathname.endsWith("/catalog/1.0.0/search"))
     return Response.json({ features: [], context: {} });
+  if (url.pathname.endsWith("/process")) {
+    const png = new PNG({ width: 48, height: 48 });
+    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+      const offset = (y * 48 + x) * 4;
+      const t = 0.35 + 0.35 * Math.sin(x / 13) * Math.cos(y / 19);
+      png.data.set([48 + 137 * t, 102 + 121 * t, 140 - 55 * t, 255], offset);
+    }
+    return new Response(PNG.sync.write(png), { headers: { "Content-Type": "image/png" } });
+  }
   if (!url.pathname.endsWith("/statistics"))
     throw new Error("Unexpected satellite call in the isolated browser fixture.");
 

@@ -10,7 +10,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import ObservationPlot from "./ObservationPlot";
-import { api, requestAnalysis } from "../../api";
+import { api, fetchAnalysisImage, requestAnalysis } from "../../api";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 import {
   indices,
@@ -128,40 +128,14 @@ export default function FieldAnalysis({
     const controller = new AbortController();
     imageRequest.current = controller;
     try {
-      const response = await fetch("/api/records/" + field.id + "/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: imageDate,
-          layer,
-          analysisId: analysis?.historyId,
-        }),
+      setImage(await fetchAnalysisImage(field.id, {
+        date: imageDate, layer, analysisId: analysis?.historyId,
         signal: controller.signal,
-      });
-      if (!response.ok) {
-        const e = await response.json();
-        throw new Error(e.error);
-      }
-      const blob = await response.blob();
-      controller.signal.throwIfAborted();
-      setImage({
-        url: URL.createObjectURL(blob),
-        bounds: JSON.parse(response.headers.get("X-Image-Bounds")),
-        date: imageDate,
-        layer,
-        legend: JSON.parse(
-          decodeURIComponent(response.headers.get("X-Image-Legend") || "null"),
-        ),
-        validPixels: Number(response.headers.get("X-Valid-Pixels")),
-        totalPixels: Number(response.headers.get("X-Total-Pixels")),
-        interval: JSON.parse(
-          response.headers.get("X-Image-Interval") || "null",
-        ),
-      });
+      }));
     } catch (e) {
       if (e.name !== "AbortError") setError(e.message);
     } finally {
-      setImageBusy(false);
+      if (imageRequest.current === controller) setImageBusy(false);
     }
   }
   const sceneDates = [

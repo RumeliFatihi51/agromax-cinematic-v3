@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Sprout, ArrowRight, X, LoaderCircle } from "lucide-react";
 import AppShell from "./components/AppShell";
+import { CinematicLoader } from "./motion/entrance";
 import Auth from "./components/Auth";
 import TaskModal from "./features/tasks/TaskModal";
 import { modules, canonicalPage, operationPages } from "./features/modules";
 import { I } from "./components/icons";
 import { api, setOrganizationId } from "./api";
 import { clearOffline, readOffline } from "./offline";
-import { LogoMark } from "./components/Brand";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PreferenceProvider from "./components/PreferenceProvider";
 import useWorkspacePage from "./components/useWorkspacePage";
@@ -63,6 +63,7 @@ export default function App() {
     [reload, setReload] = useState(0),
     [notifications, setNotifications] = useState(null),
     [historyFocus, setHistoryFocus] = useState(null),
+    [destinationField, setDestinationField] = useState(""),
     [commercial, setCommercial] = useState(null),
     [commercialError, setCommercialError] = useState(""),
     [operationPage, setOperationPage] = useState("seasons");
@@ -175,11 +176,12 @@ export default function App() {
       [records],
     ),
     tasks = useMemo(() => records.filter((r) => r.kind === "task"), [records]);
-  function navigate(id) {
+  function navigate(id, fieldId = "") {
     if (operationPages.includes(id)) setOperationPage(id);
     setPage(canonicalPage(id));
     setFocus(null);
     setHistoryFocus(null);
+    setDestinationField(typeof fieldId === "string" ? fieldId : "");
     setError("");
   }
   function create() {
@@ -241,17 +243,7 @@ export default function App() {
     setError("");
     setModal(true);
   }
-  if (loading)
-    return (
-      <div className="studio-loading">
-        <span>
-          <LogoMark size={68} />
-        </span>
-        <strong>agromax.</strong>
-        <p>Çalışma alanın hazırlanıyor…</p>
-        <LoaderCircle size={18} className="spin" />
-      </div>
-    );
+  if (loading) return <CinematicLoader />;
   if (
     !user ||
     new URLSearchParams(window.location.search).get("flow") === "reset"
@@ -321,9 +313,12 @@ export default function App() {
   else if (page === "overview")
     content = (
       <Dashboard
+        key={activeWorkspace?.id || user.id}
         user={user}
         fields={fields}
         tasks={tasks}
+        notifications={notifications}
+        workspace={activeWorkspace}
         onCreate={create}
         onSelect={analyze}
         onNavigate={navigate}
@@ -340,6 +335,7 @@ export default function App() {
     content = <PlatformWorkspace
       key={`${activeWorkspace?.id || user.id}:${page}`}
       page={page}
+      initialFieldId={destinationField}
       fields={fields}
       onNavigate={navigate}
       onSelect={analyze}
@@ -461,6 +457,7 @@ export default function App() {
       <FilizWorkspace
         key={activeWorkspace.id}
         fields={fields}
+        initialFieldId={destinationField}
         workspace={activeWorkspace}
         locale={commercial.preferences?.locale || "tr"}
         onConfirmed={() => setReload((n) => n + 1)}

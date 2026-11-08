@@ -18,7 +18,7 @@ export const modules = [
 const legacyPages=new Set(['overview','fields','history','weather','tasks','notifications','assistant','integrations',...platformPages]);
 export const availableModules=(commercial=false)=>commercial?modules:modules.filter(([id])=>legacyPages.has(id));
 export const navigationGroups = [
-  {id:'observe',label:'Araziler ve gözlem',pages:['fields','satellite','temporal','weather','history']},
+  {id:'observe',label:'Araziler ve gözlem',pages:['platform','fields','satellite','temporal','weather','history']},
   {id:'intelligence',label:'Zekâ ve analiz',pages:['intelligence','evidence','contradictions','investigation']},
   {id:'decide',label:'Dijital ikiz ve kararlar',pages:['twin','scenarios','economics','finance']},
   {id:'operate',label:'Operasyon ve uygulama',pages:['tasks','operations','prescriptions','drones']},

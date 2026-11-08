@@ -39,6 +39,7 @@
     "better-auth": "1.7.14",
     "drizzle-orm": "0.45.4",
     "geotiff": "3.0.5",
+    "gsap": "3.14.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.65.0",
     "nitro": "3.0.261029-rc",

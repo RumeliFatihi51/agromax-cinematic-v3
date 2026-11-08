@@ -19,10 +19,10 @@ const kindLabels={scenario:'Senaryo',investigation:'Saha incelemesi',prescriptio
 const statuses={draft:'Taslak',review_requested:'İnceleme istendi',archived:'Arşivlendi'};
 function download(name,value) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function Notice({children}) {return <div className="px-notice"><Info size={17} aria-hidden="true" /><p>{children}</p></div>;}
-export default function PlatformWorkspace({page,fields,onNavigate,onSelect,commercial,canWrite=true,waterBalance,claimsEnabled,canCalculate,offline}) {
+export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,waterBalance,claimsEnabled,canCalculate,offline}) {
   const area=useAreaFormat();
   const [bootstrap,setBootstrap]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[editor,setEditor]=useState(null),[revisions,setRevisions]=useState(null),[query,setQuery]=useState('');
-  const [fieldId,setFieldId]=useState(()=>{try{return localStorage.getItem('agromax.platform.field')||'';}catch{return '';}});
+  const [fieldId,setFieldId]=useState(()=>{if(initialFieldId)return initialFieldId;try{return localStorage.getItem('agromax.platform.field')||'';}catch{return '';}});
   const activeId=fields.some(field=>field.id===fieldId)?fieldId:fields[0]?.id||'';
   const feature=platformFeatures.find(item=>item.id===page);
   const kind=recordKinds[page];

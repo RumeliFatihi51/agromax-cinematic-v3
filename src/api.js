@@ -11,6 +11,34 @@ let organizationId = "";
 export function setOrganizationId(value) {
   organizationId = value || "";
 }
+export async function fetchAnalysisImage(fieldId, { date, layer, analysisId, signal }) {
+  const response = await fetch("/api/records/" + encodeURIComponent(fieldId) + "/image", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(organizationId ? { "X-Organization-ID": organizationId } : {}),
+    },
+    body: JSON.stringify({ date, layer, analysisId }),
+    signal,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(error.error || "Uydu katmanı alınamadı.", response.status);
+  }
+  const blob = await response.blob();
+  signal?.throwIfAborted();
+  const bounds = JSON.parse(response.headers.get("X-Image-Bounds"));
+  if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite))
+    throw new ApiError("Uydu katmanının sınırları doğrulanamadı.", 502);
+  return {
+    bounds, date, layer,
+    legend: JSON.parse(decodeURIComponent(response.headers.get("X-Image-Legend") || "null")),
+    validPixels: Number(response.headers.get("X-Valid-Pixels")),
+    totalPixels: Number(response.headers.get("X-Total-Pixels")),
+    interval: JSON.parse(response.headers.get("X-Image-Interval") || "null"),
+    url: URL.createObjectURL(blob),
+  };
+}
 /** @param {string} path @param {any} [body] @param {string} [method] @param {{ signal?: AbortSignal, headers?: Record<string,string> }} [options] */
 export async function api(path, body, method, { signal, headers = {} } = {}) {
   const r = await fetch("/api/" + path, {
