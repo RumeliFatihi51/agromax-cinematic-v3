@@ -19,6 +19,7 @@ const money=calculation=>new Intl.NumberFormat('tr-TR',{style:'currency',currenc
 const recordKinds={scenarios:'scenario',economics:'scenario',investigation:'investigation',prescriptions:'prescription',drones:'drone',temporal:'observation'};
 const kindLabels={scenario:'Senaryo',investigation:'Saha incelemesi',prescription:'Reçete taslağı',drone:'Cihaz profili',observation:'Saha gözlemi'};
 const statuses={draft:'Taslak',review_requested:'İnceleme istendi',archived:'Arşivlendi'};
+const sourceStates={configured:'Yapılandırılmış',unconfigured:'Bağlantı gerekli',planned:'Adaptör hazırlığı',catalog:'Katalog erişimi'};
 function download(name,value) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function Notice({children}) {return <div className="px-notice"><Info size={17} aria-hidden="true" /><p>{children}</p></div>;}
 export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,waterBalance,claimsEnabled,canCalculate,offline}) {
@@ -61,6 +62,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
   const workspaceActions=<>
     <button className="secondary" onClick={()=>setReload(n=>n+1)} disabled={busy}><RefreshCw size={16} /> Yenile</button>
     {page!=='platform'&&<button className="secondary" onClick={()=>onNavigate('platform')}><Layers3 size={16} /> Platform merkezi</button>}
+    {page==='platform'&&<button className="primary" onClick={()=>onNavigate('twin')}>Parsel özetini aç <ArrowRight size={17}/></button>}
   </>;
   return <div className="px-workspace" data-page={page}>
     <PageHeading eyebrow={page==='platform'?'AGROMAX PLATFORMU':`${feature?.group==='assure'?'DOĞRULAMA VE RAPOR':feature?.group==='decide'?'KARAR VE UYGULAMA':'GÖZLEM VE ARAZİ'} / ${String(feature?.number||0).padStart(2,'0')}`} title={page==='platform'?'Araziden karara, tek çalışma alanı.':feature?.title} description={page==='platform'?'14 temel yeteneğin araçları, kaynakları ve hazırlık durumu.':feature?.summary}>
@@ -68,21 +70,32 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
     </PageHeading>
     {error&&<div className="error" role="alert">{error}<button className="text-button" onClick={()=>setReload(n=>n+1)}>Yeniden dene</button></div>}
     {page==='platform'?<>
-      <section className="px-intro"><div><span className="px-kicker">BİRBİRİNE BAĞLI 14 YETENEK</span><h2>Önce gözlem.<br />Sonra doğru sorular.</h2><p>Parselden başlayan veriler; inceleme dosyaları, senaryolar ve kaynakları belli raporlarda buluşur.</p><button onClick={()=>onNavigate('twin')}>Parsel özetini aç <ArrowRight size={17}/></button></div><ol>{[['01','Gözlem ve arazi','Uydu, dijital parsel özeti ve zamansal hafıza'],['02','Karar ve uygulama','Senaryo, maliyet, plan ve cihaz hazırlığı'],['03','Doğrulama ve rapor','Kanıt, tutarlılık, saha incelemesi ve izlenebilirlik']].map(([n,title,text])=><li key={n}><span>{n}</span><div><strong>{title}</strong><p>{text}</p></div></li>)}</ol></section>
-      <Notice>Her kartın durumu bugünkü kapsamı gösterir. “Altyapı ve taslak” aşamasındaki araçlar; doğrulanmış tahmin, uzman onayı veya çalıştırılabilir dron görevi üretmez.</Notice>
       <div className="px-catalog-toolbar"><h2>Platform araçları <span>14 yetenek</span></h2><label><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Yetenek ara" aria-label="Platform araçlarında ara"/></label></div>
       <FeatureAtlas features={bootstrap?.features||[]} query={query} onNavigate={onNavigate}/>
       {bootstrap&&!bootstrap.features.some(item=>`${item.title} ${item.summary}`.toLocaleLowerCase('tr-TR').includes(query.toLocaleLowerCase('tr-TR')))&&<p role="status">Aramana uygun yetenek bulunamadı.</p>}
+      <Notice>Altyapı ve taslak aşamasındaki araçların kapsamı hazırlık ve incelemeyle sınırlıdır.</Notice>
     </>:<>
-      <div className="px-context-bar"><span className={`px-stage stage-${feature?.stage}`}>{platformStages[feature?.stage]}</span><span>{feature?.available}</span>{page!=='access'&&<label>Parsel<select aria-label="Platform parseli" value={activeId} onChange={e=>setFieldId(e.target.value)} disabled={!fields.length}>{fields.length?fields.map(item=><option key={item.id} value={item.id}>{item.name}</option>):<option value="">Henüz parsel yok</option>}</select></label>}</div>
+      <div className="px-context-bar workspace-context">
+        {page!=='access'&&<label>Parsel<select aria-label="Platform parseli" value={activeId} onChange={e=>setFieldId(e.target.value)} disabled={!fields.length}>{fields.length?fields.map(item=><option key={item.id} value={item.id}>{item.name}</option>):<option value="">Henüz parsel yok</option>}</select></label>}
+        {context && page !== 'temporal' && <details className="px-field-strip workspace-parcel-details">
+          <summary>Parsel özeti</summary>
+          <div className="workspace-parcel-summary">
+            <ParcelPreview geometry={field.geometry}/>
+            <div><strong>{field.name}</strong><span>{field.crop||'Ürün belirtilmedi'} · {area.format(field.area)}</span></div>
+            <p>{context.history.length} analiz kaydı · {context.issues.length} inceleme işareti</p>
+            <button className="text-button" onClick={()=>onSelect(field)}>Parseli aç <ArrowUpRight size={16}/></button>
+          </div>
+        </details>}
+        <span className={`px-stage stage-${feature?.stage}`}>{platformStages[feature?.stage]}</span>
+        <span className="workspace-context-note">{feature?.available}</span>
+      </div>
       {page==='access'?<><section className="px-surface px-access"><I.MonitorSmartphone size={44}/><h2>Aynı arazi. Her ekranda.</h2><p>Bilgisayar ve mobil tarayıcıda aynı hesabını, parsellerini ve kayıtlarını kullan. Telefonda alt gezinme çubuğu ve menüden tüm araçlara ulaşabilirsin.</p><code>{window.location.origin}</code><button className="primary" onClick={()=>onNavigate('fields')}>Parsellerimi aç <ArrowRight size={17}/></button></section>{offline&&<OfflineTools fields={fields} {...offline}/>}</>:<>
-        {!fields.length&&['satellite','drones'].includes(page)&&<SourceCards sources={(page==='satellite'?bootstrap?.sources:bootstrap?.drones)||[]}/>}
+        {!fields.length&&page==='satellite'&&<SatelliteSources sources={bootstrap?.sources||[]}/>}
+        {!fields.length&&page==='drones'&&<SourceCards sources={bootstrap?.drones||[]}/>}
         {!fields.length?<EmptyState icon={MapPinned} title="Önce bir parsel ekleyelim." description="Yeni araçların tamamı kayıtlı bir tarla üzerinden çalışır."><button className="primary" onClick={()=>onNavigate('fields')}>Parsellere git <ArrowRight size={17}/></button></EmptyState>:!data&&!error?<div className="studio-module-loading" role="status">Parsel kaynakları yükleniyor…</div>:data&&<>
-          {page!=='temporal'&&<section className="px-field-strip"><ParcelPreview geometry={field.geometry}/><div><strong>{field.name}</strong><span>{field.crop||'Ürün belirtilmedi'} · {area.format(field.area)}</span></div><div><small>Analiz geçmişi</small><strong>{context.history.length} kayıt</strong></div><div><small>İnceleme işaretleri</small><strong>{context.issues.length}</strong></div><button className="text-button" onClick={()=>onSelect(field)}>Parseli aç <ArrowUpRight size={16}/></button></section>}
           <div className="px-main-grid" data-workspace={page}><section className="px-content">
             {page==='satellite'&&<>
-              <WorkspaceBand title="Görüntü ve veri kaynakları" detail="Kayıtlı parsel üzerinden uydu kaynaklarının durumunu inceleyin." />
-              <SourceCards sources={bootstrap?.sources||[]}/><Notice>{bootstrap?.ownership==='organization'?'Parsel Analizi ekranında Sentinel-2, Sentinel-1 ve Landsat kaynakları ayrı yöntem ve kalite bilgisiyle gösterilir.':'Sentinel‑2 parsel analizi mevcut bağlantı üzerinden çalışır.'}</Notice><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></>}
+              <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>{bootstrap?.ownership==='organization'?'Parsel Analizi ekranında Sentinel-2, Sentinel-1 ve Landsat kaynakları ayrı yöntem ve kalite bilgisiyle gösterilir.':'Sentinel‑2 parsel analizi mevcut bağlantı üzerinden çalışır.'}</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
             {page==='twin'&&<>
               <section className="px-twin" aria-label="Parsel modeli ve kaynakları">
                 <div className="px-twin-visual">
@@ -106,8 +119,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
               </section>
               <Checks context={context} onNavigate={onNavigate}/>
             </>}
-            {page==='scenarios'&&<WorkspaceBand title="Uygulama seçeneklerini karşılaştırın" detail="Kayıtlı kaynak miktarları, kullanıcı maliyetleri ve varsa su dengesi sonuçlarını birlikte inceleyin." />}
-            {page==='economics'&&<WorkspaceBand title="Kaynaklar ve maliyetler" detail="Senaryo giderlerini kendi para birimindeki ortak ölçekte karşılaştırın." />}
+            {page==='evidence'&&<Evidence context={context}/>}
             {['intelligence','evidence','contradictions','investigation'].includes(page)&&<section className="px-surface observation-context" aria-label="Parsel ve gözlem bağlamı">
               {field.geometry ? <ParcelMap geometry={field.geometry} height="clamp(180px, 23vh, 270px)" compact /> :
                 <p className="px-empty-inline">Haritada gösterilecek kayıtlı sınır yok.</p>}
@@ -124,7 +136,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
             {waterBalance&&['twin','scenarios'].includes(page)&&<WaterBalance key={activeId} fieldId={activeId} canRun={canCalculate&&!!field.geometry}/>}
             {claimsEnabled&&['evidence','contradictions','investigation','intelligence'].includes(page)&&<ClaimsPanel key={activeId} fieldId={activeId} page={page} canWrite={canWrite}/>}
             {['intelligence','contradictions'].includes(page)&&<><section className="px-surface px-section"><h2>{page==='intelligence'?'İncelemeye nereden başlamalı?':'Kayıt hazırlık kontrolleri'}</h2><p>Kontroller: parsel sınırı, ürün bilgisi, güncel geometriye ait sonuç, eski sınırdaki kayıtlar ve son işlem hatası.</p><Checks context={context} onNavigate={onNavigate}/></section><Notice>{page==='intelligence'?'Yapay zekâ anomali modeli bağlı değil. Aşağıdaki işaretler açıklanabilir kayıt kurallarından gelir; hastalık veya neden teşhisi değildir.':'Bu aşama tam uydu–sensör–saha çelişki çözümlemesi değildir. İşaretlerin bulunmaması tarımsal doğruluk veya risksizlik onayı sayılmaz.'}</Notice><div className="px-actions"><button className="primary" onClick={()=>onNavigate('investigation',field.id)}>Saha incelemesi oluştur <Plus size={17}/></button><button className="secondary" onClick={()=>onNavigate('assistant',field.id)}>Filiz’i aç <ArrowUpRight size={16}/></button></div></>}
-            {page==='evidence'&&<><Evidence context={context}/><button className="secondary" disabled={busy} onClick={()=>exportFile()}><Download size={16}/> Kaynak paketini indir</button><Notice>Önceki ve güncel dönemlerin tarih kapsamı, gözlem sayısı ve kalite koşulları eşdeğer olmayabilir. Farklar müdahalenin etkisini kanıtlamaz; kontrol grubu ve saha doğrulaması gerekir.</Notice></>}
+            {page==='evidence'&&<><div className="px-actions"><button className="secondary" disabled={busy} onClick={()=>exportFile()}><Download size={16}/> Kaynak paketini indir</button></div><Notice>Önceki ve güncel dönemlerin tarih kapsamı, gözlem sayısı ve kalite koşulları eşdeğer olmayabilir. Farklar müdahalenin etkisini kanıtlamaz; kontrol grubu ve saha doğrulaması gerekir.</Notice></>}
             {page==='temporal'&&<>
               <TemporalStudio key={activeId} context={context} onHistory={()=>onNavigate('history')} onField={()=>onSelect(field)}/>
               <div className="temporal-links">{workspaceActions}</div>
@@ -152,15 +164,61 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
     {revisions&&<RevisionDialog value={revisions} onClose={()=>setRevisions(null)}/>}
   </div>;
 }
-function WorkspaceBand({ title, detail }) {
-  return <section className="workspace-photo-band">
-    <div><h2>{title}</h2><p>{detail}</p></div>
+function SourceState({ state }) {
+  return <span className={`px-stage ${state === 'configured' ? 'stage-active' : 'stage-foundation'}`}>{sourceStates[state] || state}</span>;
+}
+
+function SatelliteSources({ sources }) {
+  if (!sources.length) return <p className="px-empty-inline">Uydu kaynağı bilgisi alınamadı.</p>;
+  return <section className="satellite-source-register" aria-labelledby="satellite-source-title">
+    <div className="satellite-source-portrait">
+      <span>Yörüngeden tarlaya</span>
+      <strong>{sources.length}</strong>
+      <p>Listelenen kaynak</p>
+    </div>
+    <div className="satellite-source-data">
+    <h2 id="satellite-source-title">Uydu kaynakları</h2>
+    <div className="px-table-wrap">
+      <table aria-labelledby="satellite-source-title">
+        <thead><tr><th scope="col">Kaynak</th><th scope="col">Kapsam</th><th scope="col">Bağlantı</th></tr></thead>
+        <tbody>{sources.map(({ id, name, state, detail, docs }) => <tr key={id}>
+          <th scope="row">{name}{docs && <a href={docs} target="_blank" rel="noreferrer" aria-label={`${name} resmî kaynağı`}>Resmî kaynak <ArrowUpRight size={14} /></a>}</th>
+          <td>{detail}</td><td><SourceState state={state} /></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    </div>
   </section>;
 }
 
-function SourceCards({sources}) {return <section className="px-sources">{sources.map(source=><article className="px-surface" key={source.id}><header><span className={`px-stage ${source.state==='configured'?'stage-active':'stage-foundation'}`}>{({configured:'Yapılandırılmış',unconfigured:'Bağlantı gerekli',planned:'Adaptör hazırlığı',catalog:'Katalog erişimi'})[source.state]||source.state}</span><Layers3 size={20}/></header><h2>{source.name}</h2><p>{source.detail}</p>{source.docs&&<a href={source.docs} target="_blank" rel="noreferrer">Resmî kaynak <ArrowUpRight size={14}/></a>}</article>)}</section>;}
+function SourceCards({sources}) {return <section className="px-sources">{sources.map(source=><article className="px-surface" key={source.id}><header><SourceState state={source.state}/><Layers3 size={20}/></header><h2>{source.name}</h2><p>{source.detail}</p>{source.docs&&<a href={source.docs} target="_blank" rel="noreferrer">Resmî kaynak <ArrowUpRight size={14}/></a>}</article>)}</section>;}
 function Checks({context,onNavigate}) {return <div className="px-checks">{context.issues.length?context.issues.map(issue=><article key={issue.code}><Info size={18}/><div><strong>{issue.title}</strong><p>{issue.detail}</p></div><button aria-label={`${issue.title}: ilgili kaydı aç`} onClick={()=>onNavigate(issue.action,context.field.id)}><ArrowUpRight size={17}/></button></article>):<article><Check size={19}/><div><strong>Bu kayıt kontrollerinde işaret yok.</strong><p>Bu sonuç tarımsal risksizlik veya verilerin uzman tarafından onaylandığı anlamına gelmez.</p></div></article>}</div>;}
-function Evidence({context}) {return <section className="px-surface px-section"><h2>Gözlenen dönem farkları</h2><p>{context.latestAnalysis?`${context.latestAnalysis.source} · ${context.latestAnalysis.observationCount} gözlem · ${date(context.latestAnalysis.fetchedAt)}`:'Güncel parsel sınırına bağlı tamamlanmış analiz yok.'}</p>{context.latestAnalysis&&<p className="px-range">Dönem: {context.latestAnalysis.range?.from?.slice(0,10)||'—'} → {context.latestAnalysis.range?.split?.slice(0,10)||'—'} → {context.latestAnalysis.range?.to?.slice(0,10)||'—'}</p>}{context.comparison.length?<div className="px-table-wrap"><table><thead><tr><th>Gösterge</th><th>Önceki dönem</th><th>Güncel dönem</th><th>İndeks farkı</th></tr></thead><tbody>{context.comparison.map(item=><tr key={item.metric}><th>{item.metric}</th><td>{num(item.previous)}</td><td>{num(item.current)}</td><td>{num(item.delta)}</td></tr>)}</tbody></table></div>:<div className="px-empty-inline">Karşılaştırılabilir iki dönem için yeterli gözlem yok. Eksik değerler sıfır gösterilmez.</div>}</section>;}
+function Evidence({ context }) {
+  const { latestAnalysis, comparison } = context;
+  const plotted = comparison.filter(({ delta }) => Number.isFinite(delta));
+  const extent = plotted.reduce((largest, { delta }) => Math.max(largest, Math.abs(delta)), 0);
+  return <section className="px-surface px-section evidence-register">
+    <h2>Gözlenen dönem farkları</h2>
+    <p>{latestAnalysis ? `${latestAnalysis.source} · ${latestAnalysis.observationCount} gözlem · ${date(latestAnalysis.fetchedAt)}` : 'Güncel parsel sınırına bağlı tamamlanmış analiz yok.'}</p>
+    {latestAnalysis && <p className="px-range">Dönem: {latestAnalysis.range?.from?.slice(0,10) || '—'} → {latestAnalysis.range?.split?.slice(0,10) || '—'} → {latestAnalysis.range?.to?.slice(0,10) || '—'}</p>}
+    {!!extent && <figure className="evidence-change-plot">
+      <figcaption>İndeks farkı <small>Güncel − önceki</small></figcaption>
+      <div className="evidence-plot-axis" aria-hidden="true"><span>−{num(extent)}</span><span>0</span><span>+{num(extent)}</span></div>
+      <ul>{plotted.map(({ metric, delta }) => <li key={metric}>
+        <span>{metric}</span>
+        <span className="evidence-delta" aria-hidden="true"><i data-direction={delta < 0 ? 'negative' : 'positive'} style={{ width: `${Math.abs(delta) / extent * 50}%` }} /></span>
+        <strong>{delta > 0 ? '+' : ''}{num(delta)}</strong>
+      </li>)}</ul>
+    </figure>}
+    {comparison.length ? <div className="px-table-wrap"><table>
+      <thead><tr><th>Gösterge</th><th>Önceki dönem</th><th>Güncel dönem</th><th>İndeks farkı</th></tr></thead>
+      <tbody>{comparison.map(({ metric, previous, current, delta }) => <tr key={metric}>
+        <th scope="row">{metric}</th><td>{num(previous)}</td><td>{num(current)}</td>
+        <td>{num(delta)}</td>
+      </tr>)}</tbody>
+    </table></div> : <div className="px-empty-inline">Karşılaştırılabilir iki dönem için yeterli gözlem yok. Eksik değerler sıfır gösterilmez.</div>}
+  </section>;
+}
 const atlasGroups = [
   ['observe', 'Gözlem ve arazi'],
   ['decide', 'Karar ve uygulama'],
@@ -194,9 +252,10 @@ function ScenarioComparison({records, chart}) {
   const active = records.filter((record) => record.status !== 'archived');
   const currencies = [...new Set(active.map((record) => record.calculation.currency))];
   return <section className="px-surface px-section scenario-comparison">
-    <h2>Seçenekleri aynı masaya koy.</h2>
+    <h2>{chart ? 'Para birimine göre maliyet' : 'Senaryo karşılaştırma tablosu'}</h2>
     <p>Arşivlenmemiş kayıtlar. Miktarlar kullanıcı varsayımlarıdır; gerçekleşmiş tüketim değildir.</p>
-    {chart && currencies.map((currency) => {
+    <div className={chart && active.length ? 'scenario-comparison-layout' : undefined}>
+    {chart && active.length > 0 && <div className="scenario-chart-ledger">{currencies.map((currency) => {
       const group = active.filter((record) => record.calculation.currency === currency);
       const max = Math.max(0, ...group.map((record) => record.calculation.totalMinor));
       return <figure className="scenario-bars" key={currency}>
@@ -208,7 +267,7 @@ function ScenarioComparison({records, chart}) {
         </li>)}</ul>
         <small>Ortak ölçek: {money({currency,totalMinor:0})} – {money({currency,totalMinor:max})}</small>
       </figure>;
-    })}
+    })}</div>}
     {active.length ? <div className="px-table-wrap"><table>
       <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Toplam</th></tr></thead>
       <tbody>{active.map((record) => <tr key={record.id}>
@@ -216,6 +275,7 @@ function ScenarioComparison({records, chart}) {
         <td>{num(record.payload.fertilizerKg)}</td><td>{num(record.payload.laborHours)}</td><td>{money(record.calculation)}</td>
       </tr>)}</tbody>
     </table></div> : <div className="px-empty-inline">İlk senaryonu kaydettiğinde karşılaştırma burada oluşur.</div>}
+    </div>
   </section>;
 }
 function RecordList({records,kind,busy,canWrite,onNew,onEdit,onExport,onReview,onHistory}) {return <section className="px-surface px-section px-records"><header><div><h2>{kindLabels[kind]} dosyaları</h2><p>{records.length} çalışma kaydı · Sürümleri sunucuda saklanır.</p></div><button className="primary" onClick={onNew} disabled={!canWrite}><Plus size={16}/> Yeni {kindLabels[kind]?.toLocaleLowerCase('tr-TR')}</button></header>{records.length?<div className="px-record-list">{records.map(record=><article key={record.id}><div><span className="px-stage stage-foundation">{statuses[record.status]}</span><small>v{record.version} · {date(record.updatedAt)}</small></div><h3>{record.name}</h3><p>{record.kind==='scenario'?`${money(record.calculation)} · ${record.payload.assumptions||'Kullanıcı girdileriyle maliyet hesabı'}`:record.kind==='investigation'?`${({low:'Düşük',normal:'Normal',high:'Yüksek'})[record.payload.priority]} öncelik · ${record.payload.region}`:record.kind==='prescription'?`${num(record.payload.rate)} ${record.payload.unit} · ${record.payload.scope}`:record.kind==='drone'?`${record.payload.vendor.toUpperCase()} · ${record.payload.model}`:record.payload.notes}</p><footer><button onClick={()=>onEdit(record)} disabled={busy||!canWrite}>Düzenle</button><button onClick={()=>onHistory(record)} disabled={busy}>Sürümler</button><button onClick={()=>onExport(record)} disabled={busy}><Download size={14}/> İnceleme dosyası</button>{record.status==='draft'&&canWrite&&<button onClick={()=>onReview(record)} disabled={busy}>İnceleme iste <ArrowUpRight size={14}/></button>}</footer></article>)}</div>:<div className="px-empty-inline">Henüz dosya yok. Yeni kayıt oluştur; alanlar, kaynak parseli ve sürüm bilgisi birlikte saklansın.</div>}</section>;}

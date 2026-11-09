@@ -56,7 +56,11 @@ export default function IntegrationStatus({ status }) {
         </div>
       </section>
       {error && <p className="error">{error}</p>}
-      <div className="integration-grid">
+      <div className="integration-register px-table-wrap" tabIndex={0} role="region" aria-label="Veri sağlayıcıları tablosu">
+        <table>
+          <caption>Veri sağlayıcıları</caption>
+          <thead><tr><th scope="col">Sağlayıcı</th><th scope="col">Kapsam</th><th scope="col">Durum</th></tr></thead>
+          <tbody>
         {[
           [
             Satellite,
@@ -93,15 +97,14 @@ export default function IntegrationStatus({ status }) {
             "Sentinel-1 SAR, Landsat termal ve drone görüntüleri optik Sentinel-2 paketinden ayrı işlenecek.",
           ],
         ].map(([Icon, title, label, text]) => (
-          <article className="panel integration" key={title}>
-            <span className="stat-icon green">
-              <Icon size={21} />
-            </span>
-            <span className="tag">{label}</span>
-            <h2>{title}</h2>
-            <p>{text}</p>
-          </article>
+          <tr key={title}>
+            <th scope="row"><span><Icon size={20} aria-hidden="true" />{title}</span></th>
+            <td>{text}</td>
+            <td><span className="tag">{label}</span></td>
+          </tr>
         ))}
+          </tbody>
+        </table>
       </div>
       <section className="panel integration-catalog nasa-connections">
         <div className="workspace-section-heading">

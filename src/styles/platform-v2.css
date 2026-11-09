@@ -31,9 +31,14 @@ html.agromax-ui .cinematic-shell .studio-main {
   transition: none;
 }
 html.agromax-ui .cinematic-shell .studio-sidebar {
-  background: linear-gradient(150deg,#102019,#203325 76%,#15271f);
+  --sidebar-amber: #efc385;
+  background:
+    url("/visuals/sidebar-contours.svg") right top / 150px auto no-repeat,
+    linear-gradient(180deg, #0b1b16f0, #102019df 32%, #112019c7 55%, #17251a78 73%, #142218d6 87%, #101e17),
+    #14231a url("/visuals/agromax-landscape-editorial-v1.webp") 58% center / cover no-repeat;
   color: #f4f1e5;
-  border-color: #172a20;
+  border-color: #6a60413d;
+  scrollbar-color: #8a8c70 transparent;
   font-family: var(--ag-display);
   gap: 9px;
   padding: 22px 15px 13px;
@@ -48,13 +53,14 @@ html.agromax-ui .cinematic-shell .studio-nav-link {
   min-height: 44px;
   background: transparent;
 }
-html.agromax-ui .cinematic-shell .studio-nav-link.is-active {
-  background: #3d5139;
-  border-inline-start: 3px solid #9dc48d;
-  color: #fffdf0;
+.cinematic-shell .studio-nav-link > span:not(.canopy-nav-icon) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
 }
-html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):hover { background-color: #ffffff12; }
-html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):focus-visible { outline-color: #cfdfad; }
+html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):not(.is-active):hover { background-color: #ffffff12; }
+html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):focus-visible { outline-color: var(--sidebar-amber); }
 .cinematic-shell .platform-nav-group { margin: 0; border: 0; }
 html.agromax-ui .cinematic-shell .platform-nav-group > summary {
   display: flex;
@@ -73,6 +79,7 @@ html.agromax-ui .cinematic-shell .platform-nav-group > summary {
 .cinematic-shell .platform-nav-group .studio-nav-link { min-height: 41px; font-size: 12px; }
 .cinematic-shell .platform-nav-group > summary > span { flex: 1; }
 .cinematic-shell .platform-nav-group[open] > summary { background: #ffffff0d; }
+.cinematic-shell .platform-nav-group[open] > summary > svg:first-child { color: var(--sidebar-amber); }
 .cinematic-shell .platform-nav-group > button { margin-inline-start: 12px; width: calc(100% - 12px); }
 html.agromax-ui .cinematic-shell .studio-filiz {
   background: transparent;
@@ -81,10 +88,34 @@ html.agromax-ui .cinematic-shell .studio-filiz {
   padding: 6px 12px;
   min-height: 44px;
 }
+html.agromax-ui .cinematic-shell .studio-sidebar :is(.studio-nav-link, .studio-filiz).is-active {
+  position: relative;
+  overflow: clip;
+  background: linear-gradient(105deg, #554830, #293a2a 74%);
+  box-shadow: inset 2px 0 var(--sidebar-amber), inset 0 0 0 1px #efc38532;
+  color: #fff7e5;
+}
+html.agromax-ui .cinematic-shell .studio-sidebar :is(.studio-nav-link, .studio-filiz).is-active > svg {
+  color: var(--sidebar-amber);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cinematic-shell .studio-sidebar :is(.studio-nav-link, .studio-filiz).is-active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(112deg, transparent 28%, #ffdc9a2b 50%, transparent 72%);
+    animation: sidebar-tab-light 480ms var(--cinema-ease) both;
+  }
+  @keyframes sidebar-tab-light {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+}
 html.agromax-ui .cinematic-shell .studio-filiz :is(strong, span) { color: inherit; }
 .cinematic-shell .studio-filiz small { display: none; }
 .cinematic-shell .studio-filiz > span { background: transparent; width: 22px; height: 22px; }
-html.agromax-ui .cinematic-shell :is(.studio-workspace,.studio-user) { background: #ffffff0e; color: #f4f0df; border-color: #ffffff1b; }
+html.agromax-ui .cinematic-shell :is(.studio-workspace,.studio-user) { background: #142219c9; color: #f4f0df; border-color: #f0d6a229; }
 html.agromax-ui .cinematic-shell :is(.studio-workspace,.studio-user) :is(strong,small) { color: inherit; }
 html.agromax-ui .cinematic-shell .studio-workspace { margin-block: 2px; }
 .cinematic-sidebar-story {
@@ -92,9 +123,15 @@ html.agromax-ui .cinematic-shell .studio-workspace { margin-block: 2px; }
   display: grid;
   align-content: end;
   gap: 10px;
-  padding: 34px 14px 14px;
-  margin: auto -15px 0;
-  background: linear-gradient(180deg,#1a2d21,transparent 36%,#12231ad9 78%), url("/visuals/agromax-landscape-editorial-v1.webp") center 61% / cover;
+  padding: 34px 0 14px;
+  margin: auto 12px 0;
+  text-shadow: 0 1px 8px #101b12, 0 1px 3px #101b12;
+}
+.cinematic-sidebar-story::before {
+  content: "";
+  width: 42px;
+  height: 1px;
+  background: var(--sidebar-amber);
 }
 html.agromax-ui .cinematic-sidebar-story p {
   font: italic 24px/1.05 var(--font-ui);

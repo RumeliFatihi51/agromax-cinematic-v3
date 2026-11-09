@@ -78,6 +78,11 @@ export default function AnalysisHistory({ focusJob = null, onField }) {
   const filtered = (jobs || []).filter(
     (j) => filter === "all" || j.state === filter,
   );
+  const countByState = new Map();
+  for (const { state } of jobs || []) countByState.set(state, (countByState.get(state) || 0) + 1);
+  const distribution = Object.entries(states).map(([id, label]) => ({ id, label, count: countByState.get(id) || 0 }));
+  const otherCount = (jobs?.length || 0) - distribution.reduce((sum, item) => sum + item.count, 0);
+  if (otherCount) distribution.push({ id: "other", label: "Diğer", count: otherCount });
   return (
     <div className="records-workspace">
       <PageHeading
@@ -90,11 +95,18 @@ export default function AnalysisHistory({ focusJob = null, onField }) {
           Yenile
         </button>
       </PageHeading>
-      <dl className="history-counts" aria-label="Analiz işlemlerinin özeti">
-        {[["all", "Tüm işlemler"], ["completed", "Tamamlanan"], ["running", "İşlenen"], ["queued", "Kuyrukta"], ["failed", "Başarısız"]].map(([id, label]) => (
-          <div key={id}><dt>{label}</dt><dd>{jobs ? jobs.filter((job) => id === "all" || job.state === id).length : "—"}</dd></div>
-        ))}
-      </dl>
+      {jobs && <figure className="history-distribution">
+        <figcaption><span>Kayıtların işlem durumuna göre dağılımı</span><strong>{jobs.length} işlem</strong></figcaption>
+        {jobs.length > 0 && <div className="history-distribution-track" aria-hidden="true">
+          {distribution.filter(({ count }) => count > 0).map(({ id, count }) =>
+            <span key={id} data-state={id} style={{ flexGrow: count }} />)}
+        </div>}
+        <dl className="history-counts" aria-label="Analiz işlemlerinin özeti">
+          {distribution.map(({ id, label, count }) => (
+            <div key={id} data-state={id}><dt>{label}</dt><dd>{count}</dd></div>
+          ))}
+        </dl>
+      </figure>}
       {error && (
         <p className="error" role="alert">
           {error}

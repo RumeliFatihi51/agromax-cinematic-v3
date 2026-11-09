@@ -21,5 +21,7 @@ import "./features/cinema/observation-auth.css";
 import "./features/assistant/filiz-studio.css";
 import "./features/fields/map-dock.css";
 import "./styles/workspace-comfort.css";
+import "./features/cinema/editorial-workspaces.css";
+import "./features/cinema/workspace-stages.css";
 document.documentElement.classList.add("agromax-ui");
 createRoot(document.getElementById("root")).render(<App />);

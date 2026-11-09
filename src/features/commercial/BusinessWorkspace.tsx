@@ -466,6 +466,10 @@ export default function BusinessWorkspace({
       .includes(query.trim().toLocaleLowerCase(locale));
   });
   const operationalLayout = kind !== "cost" && kind !== "soil";
+  const maxNutritionAmount = kind === "nutrition" ? displayed.reduce((max, record) => {
+    const amount = record.data.amountKg;
+    return typeof amount === "number" && Number.isFinite(amount) ? Math.max(max, amount) : max;
+  }, 0) : 0;
   const fieldName = (record: BusinessRecord) => fields.find((field) => field.id === record.fieldId)?.name || record.fieldId;
   const recordActions = (record: BusinessRecord) => {
     if (!canWrite || (workspace.role === "worker" && record.createdBy !== userId)) return null;
@@ -500,7 +504,11 @@ export default function BusinessWorkspace({
           <span>{option(String(value.method))} · {option(String(value.state))}</span>
           <meter min={0} max={maxIrrigation || 1} value={Number(value.volumeM3)} aria-label={t("Kayıtlı su hacmi", "Recorded water volume")} />
         </div>}
-        {kind === "nutrition" && <div className="operation-quantity"><strong>{Number(value.amountKg).toLocaleString(locale)} kg</strong><span>{option(String(value.state))}</span></div>}
+        {kind === "nutrition" && <div className="operation-quantity">
+          <strong>{Number(value.amountKg).toLocaleString(locale)} kg</strong><span>{option(String(value.state))}</span>
+          {maxNutritionAmount > 0 && typeof value.amountKg === "number" && Number.isFinite(value.amountKg) &&
+            <meter min={0} max={maxNutritionAmount} value={value.amountKg} aria-label={t("Gösterilen kayıtlar arasında miktar", "Amount across displayed records")} />}
+        </div>}
         {(kind === "protection" || kind === "evaluation") && <div className="operation-observation">
           <strong>{option(String(value.state))}</strong>
           <p>{String(value.observation || "—")}</p>

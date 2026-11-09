@@ -3,6 +3,8 @@ import SceneFilm from "./SceneFilm";
 import { filmForScene } from "./sceneFilms";
 import useSceneTitle from "./useSceneTitle";
 import RouteCurtain from "./RouteCurtain";
+import { stageForScene } from "./workspaceStages";
+import useWorkspaceEntrance from "./useWorkspaceEntrance";
 
 // Art is editorial context. Measurements, readiness and statuses belong to each workspace.
 const scenes = {
@@ -84,13 +86,15 @@ const art = {
 
 export default function SceneSurface({ id, children, className = "", localTransition = false }) {
   const scene = scenes[id];
+  const stage = stageForScene(id);
   const host = useRef(null);
   useSceneTitle(host, id === "overview" ? null : id, scene?.[1]);
+  useWorkspaceEntrance(host, id, stage);
   if (!scene || id === "overview") return className ? <div className={className}>{children}</div> : children;
   const [drawing, motion, tone] = scene;
   const film = filmForScene(id);
   return (
-    <div ref={host} className={className ? `workspace-scene ${className}` : "workspace-scene"} data-scene={id} data-scene-tone={tone}>
+    <div ref={host} className={className ? `workspace-scene ${className}` : "workspace-scene"} data-scene={id} data-scene-tone={tone} data-stage={stage?.[0]}>
       <div className="workspace-scene-art" data-motion={motion} data-film={film ? "" : undefined} data-composition={film?.composition} key={id} aria-hidden="true">
         {film && <SceneFilm film={film} />}
         <svg viewBox="0 0 540 225" preserveAspectRatio="xMidYMid slice" focusable="false">

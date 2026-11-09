@@ -106,7 +106,7 @@ export default function OfflineTools({ userId, organizationId, fields, tasks }: 
   }
 
   return (
-    <section className="px-surface px-section business-workspace">
+    <section className="px-surface px-section business-workspace offline-tools">
       <h2>Çevrimdışı saha kopyası</h2>
       <p>Bir parsel özetini bu tarayıcıda saklayın. Saha notları yetkili oturumla eşitlenir.</p>
       {!saved?.drafts.length && fields.length > 0 && <form onSubmit={prepare}>

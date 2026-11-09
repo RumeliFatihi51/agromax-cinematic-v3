@@ -1,0 +1,258 @@
+/* Keep the work legible while giving each route its own composition. */
+html.agromax-ui .cinematic-shell .studio-content {
+  .workspace-scene:is([data-scene="satellite"], [data-scene="twin"], [data-scene="drones"], [data-scene="access"], [data-scene="integrations"]) {
+    --work-paper: #edf0e9;
+  }
+  .workspace-scene:is([data-scene="history"], [data-scene="investigation"], [data-scene="finance"], [data-scene="reports"], [data-scene="notifications"]) {
+    --work-paper: #f3ebdb;
+  }
+  .workspace-scene:is([data-scene="temporal"], [data-scene="intelligence"], [data-scene="scenarios"], [data-scene="prescriptions"], [data-scene="mrv"], [data-scene="assistant"]) {
+    --work-paper: #e9eee2;
+  }
+  .workspace-scene:not([data-scene^="weather"]) :is(.px-context-bar, .px-field-strip) {
+    border-inline: 0;
+    border-radius: 0;
+    background: var(--work-paper, #f3eee1);
+    overflow-wrap: anywhere;
+  }
+  .workspace-scene:not([data-scene^="weather"]) .px-context-bar label { min-width: 0; }
+  .workspace-scene:not([data-scene^="weather"]) .px-context-bar select { min-width: 0; }
+  .workspace-scene:not([data-scene^="weather"]) .px-side-panel {
+    border: 0;
+    border-block: 1px solid var(--cinema-border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .workspace-scene:not([data-scene^="weather"]) :is(.px-section, .records-panel, .business-register) {
+    border-radius: 2px;
+  }
+  .workspace-scene:not([data-scene^="weather"]) :is(.px-table-wrap, .business-table-scroll) { max-width: 100%; overflow-x: auto; }
+
+  /* Survey index */
+  .workspace-scene[data-scene="platform"] > .workspace-scene-art { width: min(72%, 950px); }
+  .workspace-scene[data-scene="platform"] .px-intro { border-radius: 2px; background: #e6e9d7; }
+  .workspace-scene[data-scene="platform"] .px-intro > div {
+    background: linear-gradient(90deg, #152b22ed, #152b22b0), url("/visuals/films/tarim2/terraces.webp") center / cover;
+  }
+  .workspace-scene .feature-atlas .px-feature-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .workspace-scene .feature-atlas .px-feature-card {
+    display: grid;
+    grid-template-columns: 60px minmax(120px, 1fr) minmax(150px, 2fr) auto;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 10px 8px;
+    border: 0;
+    border-block-end: 1px solid var(--cinema-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .workspace-scene .feature-atlas .px-feature-card:hover { background: #e7ebdc; }
+  .workspace-scene .px-feature-card > header { grid-row: span 2; margin: 0; flex-direction: column; }
+  .workspace-scene .px-feature-card > header > span { background: transparent; width: auto; height: auto; }
+  .workspace-scene .px-feature-card > .px-stage { grid-column: 2; grid-row: 2; justify-self: start; }
+  .workspace-scene .px-feature-card > h4,
+  .workspace-scene .px-feature-card > p { margin: 0; }
+  .workspace-scene .px-feature-card > :is(p, footer) { grid-row: span 2; }
+  .workspace-scene .px-feature-card > footer { gap: 8px; border: 0; padding: 0; margin: 0; }
+  .workspace-scene .px-feature-card > footer > svg { flex: none; }
+
+  /* Aerial optics, instruments and terrain */
+  .satellite-source-register {
+    background: #e5eeea;
+    padding: clamp(14px, 2vw, 28px);
+    margin-block-end: 12px;
+  }
+  .satellite-source-register ul { list-style: none; padding: 0; margin: 12px 0 0; }
+  .satellite-source-register li {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr) minmax(120px, 1fr);
+    align-items: start;
+    gap: 12px 20px;
+    padding-block: 16px;
+    border-block-start: 1px solid #a5b8b2;
+    overflow-wrap: anywhere;
+  }
+  .satellite-source-register li p { color: #3d534c; margin: 0; }
+  .satellite-source-register li > div { display: grid; justify-items: start; gap: 6px; }
+  .satellite-source-register a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: #285747; text-decoration: underline; }
+  .workspace-scene[data-scene="twin"] .px-twin {
+    background: #20352b;
+    border: 0;
+    border-radius: 2px;
+  }
+  .workspace-scene[data-scene="twin"] .px-twin > div:last-child :is(h2, p, dt, dd, .px-kicker, button) { color: #f3f0df; }
+  .workspace-scene[data-scene="twin"] .px-twin-visual { background: #2f4e3d url("/visuals/sidebar-contours.svg") right top / 75% no-repeat; }
+  .workspace-scene[data-scene="twin"] .px-twin-visual .px-empty-inline { color: #f4eedf; background: transparent; }
+  .workspace-scene[data-scene="prescriptions"] .prescription-map { border: 1px solid #718577; border-radius: 2px; background: #e6eee2; }
+  .workspace-scene[data-scene="prescriptions"] .prescription-map header { border-block-end: 1px solid #a6b6a5; }
+  .workspace-scene[data-scene="drones"] .px-sources { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .workspace-scene[data-scene="drones"] .px-sources article { background: #e4eeef; border-radius: 2px; }
+  .workspace-scene[data-scene="drones"] .px-sources article header > svg { transform: rotate(-12deg); }
+
+  /* Observation filmstrip, comparison sheets and field notes */
+  .workspace-scene[data-scene="temporal"] .temporal-run-list { background: #e2e9dd; border-inline-start: 2px solid #6d8671; }
+  .workspace-scene[data-scene="temporal"] .temporal-run-detail { background: #f5f2e7; }
+  .workspace-scene[data-scene="intelligence"] .px-checks article {
+    border: 0;
+    border-block-end: 1px solid #bac8bc;
+    border-radius: 0;
+    background: #ebefe5;
+  }
+  .workspace-scene[data-scene="contradictions"] .observation-context {
+    background: #efe0d2;
+    border-radius: 2px;
+    border-block-end: 3px solid #9c725a;
+  }
+  .workspace-scene[data-scene="contradictions"] .px-checks article { border-radius: 0; background: #f6efe5; border-inline-start: 2px solid #9c725a; }
+  .workspace-scene[data-scene="evidence"] .evidence-register { background: #f0eee2; border-block-start: 3px double #7d8d70; }
+  .evidence-register th, .evidence-register td { font-variant-numeric: tabular-nums; }
+  .evidence-delta {
+    display: block;
+    min-width: 66px;
+    height: 10px;
+    margin-block-start: 5px;
+    position: relative;
+    background: linear-gradient(90deg, transparent calc(50% - .5px), #7b8477 50%, transparent calc(50% + .5px));
+  }
+  .evidence-delta i { position: absolute; height: 4px; inset-block-start: 3px; }
+  .evidence-delta i[data-direction="negative"] { inset-inline-end: 50%; background: #975839; }
+  .evidence-delta i[data-direction="positive"] { inset-inline-start: 50%; background: #456b54; }
+  .workspace-scene[data-scene="investigation"] .px-records { background: #f4ead7; border-inline-start: 5px double #ac916e; }
+  .workspace-scene[data-scene="investigation"] .px-record-list { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .workspace-scene[data-scene="investigation"] .px-record-list article { border: 0; border-block-end: 1px solid #cfbc9c; border-radius: 0; background: transparent; }
+
+  /* Decision workbench, cost scale and books */
+  .workspace-scene[data-scene="scenarios"] .scenario-comparison { background: #e8eee2; border-block-start: 3px solid #617e65; }
+  .workspace-scene[data-scene="economics"] .scenario-comparison { background: #ece3cf; }
+  .workspace-scene[data-scene="economics"] .scenario-bars { background: #f7f1e4; border-radius: 0; border-inline-start: 3px solid #927343; }
+  .workspace-scene[data-scene="economics"] meter { accent-color: #755a32; }
+  .workspace-scene[data-scene="finance"] .business-register,
+  .workspace-scene[data-scene="history"] .records-panel { background: #f6efe0; }
+  .workspace-scene[data-scene="finance"] .business-money-summary { background: #e7e0ca; }
+  .workspace-scene[data-scene="history"] .records-filter { background: #eee3cc; }
+  .workspace-scene[data-scene="tasks"] .fw-calendar { background: #e8e7d6; border-radius: 2px; }
+  .workspace-scene[data-scene="tasks"] .fw-planner-agenda { background: #f6f0e2; border-radius: 2px; }
+  .workspace-scene[data-scene="tasks"] .fw-planner-stats > div { border: 0; border-block: 1px solid #d4c9b1; background: transparent; border-radius: 0; box-shadow: none; }
+
+  /* Farm operations use the same records with six different reading surfaces. */
+  .workspace-scene[data-scene="operations-seasons"] .operation-register { background: #e8ecdc; }
+  .workspace-scene[data-scene="operations-seasons"] .operation-entry-date { border-inline-end: 2px solid #6f8967; }
+  .workspace-scene[data-scene="operations-irrigation"] .operation-entry article { background: #e1ecea; border-radius: 2px; }
+  .workspace-scene[data-scene="operations-nutrition"] .operation-register > section { border-block-start: 2px solid #74834e; padding: 12px; background: #e9ecd9; }
+  .workspace-scene[data-scene="operations-protection"] .operation-entry article { background: #f2e3d7; border-radius: 2px; }
+  .workspace-scene[data-scene="operations-soil"] .business-table-scroll { background: #f0e4d2; }
+  .workspace-scene[data-scene="operations-evaluations"] .operation-entry article { background: #f5eedc; border-radius: 0; }
+
+  /* Publishing, connection ledger and conversation */
+  .workspace-scene[data-scene="reports"] .report-workbench { background: #e5decc; padding: clamp(8px, 2vw, 20px); }
+  .workspace-scene[data-scene="reports"] .report-paper { border-radius: 0; box-shadow: 0 3px 12px #473c2520; }
+  .workspace-scene[data-scene="mrv"] .px-export { background: #e6ede2; border-radius: 2px; }
+  .workspace-scene[data-scene="mrv"] .mrv-chain > div { border-inline-start: 2px solid #7b967f; padding-inline-start: 12px; }
+  .workspace-scene[data-scene="access"] .px-access {
+    background: linear-gradient(100deg, #e9efe9 38%, #e9efe9b5), url("/visuals/films/tarim2/enterprise.webp") right / cover;
+    border-radius: 2px;
+  }
+  .workspace-scene[data-scene="notifications"] .records-panel { background: #f4eadf; }
+  .workspace-scene[data-scene="notifications"] .notification-list { margin-inline: clamp(4px, 1vw, 16px); border-color: #a9775e; }
+  .workspace-scene[data-scene="integrations"] .integration-grid,
+  .workspace-scene[data-scene="integrations"] .nasa-connection-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .workspace-scene[data-scene="integrations"] .integration {
+    border: 0;
+    border-block-end: 1px solid #abb9b5;
+    border-radius: 0;
+    box-shadow: none;
+    background: #e8eeea;
+  }
+  .workspace-scene[data-scene="assistant"] .filiz-composer { background: #f3f2e8; border-radius: 2px; }
+  .workspace-scene[data-scene="assistant"] .filiz-source-drawer { background: #e3ebdd; border-radius: 2px; }
+  .workspace-scene[data-scene^="settings"] .business-settings-section { background: #f3edde; border-radius: 2px; }
+  .workspace-scene[data-scene="settings-security"] .business-settings-section { background: #f2e8df; }
+  .workspace-scene[data-scene="settings-sessions"] .business-settings-section { background: #e8eeec; }
+  .workspace-scene[data-scene="settings-team"] .business-settings-section { background: #e9ede2; }
+  .workspace-scene[data-scene="fields-list"] .parcel-main-workspace > .panel { background: #f3ecdd; border-radius: 2px; }
+  .workspace-scene[data-scene="fields-map"] .parcel-main-workspace { background: #e1e8dc; }
+  .workspace-scene[data-scene="fields-atlas"] .atlas-workspace { background: #f0ead9; }
+  .workspace-scene[data-scene="field-detail"] .analysis-heading { border-block-end: 1px solid #a6b7a7; }
+
+  @media (max-width: 1000px) {
+    .workspace-scene .feature-atlas .px-feature-card { grid-template-columns: 40px minmax(0, 1fr) auto; }
+    .workspace-scene .px-feature-card > p { grid-column: 2; grid-row: 3; }
+    .workspace-scene .px-feature-card > header { grid-row: span 3; }
+    .workspace-scene .px-feature-card > footer { grid-row: 1 / span 3; grid-column: 3; }
+  }
+  @media (max-width: 600px) {
+    .workspace-scene .feature-atlas .px-feature-card { grid-template-columns: 32px minmax(0, 1fr); }
+    .workspace-scene .px-feature-card > header { grid-row: span 4; }
+    .workspace-scene .px-feature-card > footer { grid-row: 4; grid-column: 2; justify-content: flex-start; }
+    .workspace-scene:not([data-scene^="weather"]) .px-context-bar > span:nth-child(2) { min-width: min(160px, 100%); }
+    .workspace-scene:not([data-scene^="weather"]) .px-context-bar label { margin-inline-start: 0; }
+    .workspace-scene[data-scene="reports"] .report-workbench { padding: 0; }
+    .px-workspace > .workspace-heading { gap: 10px; padding-block-end: 9px; }
+    .px-workspace > .workspace-heading .workspace-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .px-workspace > .workspace-heading .workspace-heading-actions .secondary {
+      width: auto;
+      flex: 0 1 auto;
+      min-height: 44px;
+      padding: 6px 11px;
+      font-size: 12px;
+    }
+    .px-workspace :is(.px-context-bar, .px-field-strip) { padding: 10px 12px; gap: 8px 12px; }
+    .px-workspace .px-field-strip > .parcel-preview { width: 38px; height: 38px; }
+  }
+
+  /* Film stays behind the route heading. The control and data regions remain opaque. */
+  .workspace-scene:is([data-scene="satellite"], [data-scene="twin"], [data-scene="integrations"]) > .workspace-scene-art {
+    width: 100%;
+    height: clamp(110px, 13vw, 178px);
+    border-radius: 2px;
+    mask-image: linear-gradient(90deg, transparent 29%, #0004 51%, #000 100%);
+  }
+  .workspace-scene[data-scene="history"] > .workspace-scene-art {
+    width: min(34%, 390px);
+    border-radius: 0;
+    mask-image: linear-gradient(90deg, transparent, #000 68%);
+  }
+  .workspace-scene[data-scene="temporal"] > .workspace-scene-art {
+    width: min(65%, 860px);
+    mask-image: linear-gradient(90deg, transparent 18%, #000 67%);
+  }
+  .workspace-scene[data-scene="investigation"] .observation-context > div:last-child {
+    background: repeating-linear-gradient(transparent 0 27px, #8d76551f 27px 28px), #f4ebd8;
+  }
+  .workspace-scene[data-scene="intelligence"] .observation-context > div:last-child { background: #e5ece5; }
+  .workspace-scene[data-scene="intelligence"] .px-checks article > svg { color: #386354; }
+  .workspace-scene[data-scene="evidence"] .observation-context > div:last-child { background: #f1eddd; }
+  .workspace-scene[data-scene="evidence"] .observation-context dl { border-block: 1px solid #c0bda8; }
+  .workspace-scene[data-scene="scenarios"] .px-record-list { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .workspace-scene[data-scene="scenarios"] .px-record-list article {
+    border: 0;
+    border-block-start: 1px solid #bac8b6;
+    border-radius: 0;
+    background: transparent;
+  }
+  .workspace-scene[data-scene="economics"] .scenario-bars ul { display: grid; gap: 10px; }
+  .workspace-scene[data-scene="finance"] .business-table tbody tr:nth-child(even) { background: #efe6d3; }
+  .workspace-scene[data-scene="notifications"] .notification-list article { background: transparent; border-radius: 0; }
+  .workspace-scene[data-scene="operations-irrigation"] .operation-quantity meter { accent-color: #3e6b73; }
+  .workspace-scene[data-scene="operations-soil"] .business-table tbody tr:nth-child(even) { background: #e9dcc6; }
+  .workspace-scene[data-scene="operations-evaluations"] .operation-entry article {
+    background: repeating-linear-gradient(transparent 0 29px, #8d76551a 29px 30px), #f5eedc;
+  }
+  .workspace-scene[data-scene="settings"] .account-identity { background: #e6e7d7; }
+  .workspace-scene[data-scene="settings-preferences"] .business-settings-section { background: #e9eee1; }
+  .workspace-scene[data-scene="settings-billing"] .business-settings-section { background: #eee3ce; }
+  @media (min-width: 1024px) {
+    .workspace-scene[data-scene="contradictions"] .observation-context { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+    .workspace-scene[data-scene="investigation"] .observation-context { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+    .workspace-scene[data-scene="evidence"] .observation-context { grid-template-columns: minmax(0, .85fr) minmax(0, 1.5fr); }
+    .workspace-scene[data-scene="drones"] .px-record-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .satellite-source-register li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .workspace-scene:is([data-scene="satellite"], [data-scene="twin"], [data-scene="integrations"]) > .workspace-scene-art {
+      height: 105px;
+      mask-image: linear-gradient(90deg, transparent 45%, #0007 100%);
+    }
+  }
+}

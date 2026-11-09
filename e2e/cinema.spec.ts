@@ -266,6 +266,45 @@ test("every route and subview has a responsive Manrope scene", async ({ page }, 
   expect(errors).toEqual([]);
 });
 
+test("switching modules introduces the working surface and changes the backdrop", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "Checks the desktop entrance and reduced motion in one session.");
+  const cookie = process.env.AGROMAX_BROWSER_UPGRADE_COOKIE;
+  if (!cookie) throw new Error("Missing isolated test account cookie");
+  await page.context().addCookies(cookie.split("; ").map((pair) => {
+    const separator = pair.indexOf("=");
+    return { name: pair.slice(0, separator), value: pair.slice(separator + 1),
+      url: "http://127.0.0.1:5182", httpOnly: true, sameSite: "Lax" as const };
+  }));
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/#platform");
+  await scene(page, "platform");
+  const main = page.locator("main");
+  const atlasBackground = await main.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.matches(".satellite-source-register")) animation.pause();
+      return animation;
+    };
+  });
+  await page.locator(".px-feature-card").filter({ hasText: "Çok kaynaklı uydu" }).click();
+  const sources = page.locator(".satellite-source-register");
+  await expect(sources).toBeVisible();
+  await expect(sources.getByRole("columnheader", { name: "Bağlantı" })).toBeVisible();
+  await expect(main).not.toHaveCSS("background-color", atlasBackground);
+  await expect.poll(() => sources.evaluate((element) => {
+    const backdrop = element.closest(".workspace-scene")?.querySelector(".workspace-scene-art");
+    return (backdrop?.getBoundingClientRect().bottom || 0) - element.getBoundingClientRect().top;
+  })).toBeGreaterThan(100);
+  await expect.poll(() => sources.evaluate((element) => {
+    const entrance = element.getAnimations().find(({ id }) => id === "workspace-entrance");
+    return (entrance?.effect as KeyframeEffect | undefined)?.getKeyframes()[0].transform;
+  })).toBe("translateX(28px)");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(() => sources.evaluate((element) => element.getAnimations().length)).toBe(0);
+});
+
 test("Filiz source reveal and empty workspace are truthful", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop", "One isolated browser fixture for state transitions.");
   const cookie = process.env.AGROMAX_BROWSER_UPGRADE_COOKIE;
