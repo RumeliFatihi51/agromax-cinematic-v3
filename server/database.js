@@ -110,7 +110,9 @@ export async function openDatabase() {
   const databaseDirectory = ephemeralPreview ? "/tmp" : "data";
   mkdirSync(databaseDirectory, { recursive: true });
   const raw = new DatabaseSync(`${databaseDirectory}/agromax.sqlite`);
-  raw.exec("PRAGMA journal_mode=WAL");
+  // Vercel's ephemeral filesystem does not provide the locking guarantees
+  // required by SQLite WAL. The persistent local store keeps WAL enabled.
+  if (!ephemeralPreview) raw.exec("PRAGMA journal_mode=WAL");
   return sqliteDatabase(raw);
 }
 
