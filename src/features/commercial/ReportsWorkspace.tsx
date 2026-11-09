@@ -1,3 +1,4 @@
+import SceneSurface from "../cinema/SceneSurface";
 import { useEffect, useRef, useState } from "react";
 import {
   FileText,
@@ -23,18 +24,22 @@ type Job = { id: string; state: string; createdAt: string };
 export default function ReportsWorkspace({
   fields,
   organizationId,
+  initialFieldId,
   locale,
   canCreate,
   dailyLimit,
+  onNavigate,
 }: {
   fields: Field[];
   organizationId: string;
+  initialFieldId?: string;
   locale: Locale;
   canCreate: boolean;
   dailyLimit?: number;
+  onNavigate: (page: string, fieldId?: string) => void;
 }) {
   const t = (tr: string, en: string) => choose(locale, tr, en);
-  const [fieldId, setFieldId] = useState(fields[0]?.id || ""),
+  const [fieldId, setFieldId] = useState(fields.find((field) => field.id === initialFieldId)?.id || fields[0]?.id || ""),
     [jobs, setJobs] = useState<Job[]>([]),
     [analysisId, setAnalysisId] = useState(""),
     [rows, setRows] = useState<Row[] | null>(null),
@@ -44,6 +49,7 @@ export default function ReportsWorkspace({
     } | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [downloadNotice, setDownloadNotice] = useState(""),
     [reload, setReload] = useState(0);
   const requestKey = useRef<string | null>(null);
   useEffect(() => {
@@ -117,6 +123,7 @@ export default function ReportsWorkspace({
     }
   }
   async function download(id: string) {
+    setDownloadNotice("");
     setBusy(true);
     setError("");
     try {
@@ -132,8 +139,9 @@ export default function ReportsWorkspace({
       const link = URL.createObjectURL(await response.blob());
       const a = document.createElement("a");
       a.href = link;
-      a.download = `agromax-${id}.pdf`;
+      a.download = `agromax-parsel-raporu-${id}.pdf`;
       a.click();
+      setDownloadNotice(t("PDF raporu tarayıcıya gönderildi.", "The PDF report was sent to your browser."));
       setTimeout(() => URL.revokeObjectURL(link), 1000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed");
@@ -177,13 +185,19 @@ export default function ReportsWorkspace({
         </div>
         <FileText size={30} />
       </div>
+      <nav className="report-family-tabs" aria-label={t("Raporlama araçları", "Reporting tools")}>
+        <span aria-current="page"><FileText size={16} /> {t("Rapor arşivi", "Report archive")}</span>
+        <button onClick={() => onNavigate("mrv", fieldId)}>{t("İzlenebilirlik ve MRV", "Traceability and MRV")}</button>
+        <button onClick={() => onNavigate("evidence")}>{t("Kanıt ve doğrulama", "Evidence and verification")}</button>
+      </nav>
+      {downloadNotice && <p className="business-action-status" role="status">{downloadNotice}</p>}
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
       {canCreate && (
-        <section className="business-settings-section">
+        <section className="business-settings-section report-create">
           <h2>{t("Yeni rapor oluştur", "Create a report")}</h2>
           <div className="business-form-grid">
             <label>
@@ -237,7 +251,8 @@ export default function ReportsWorkspace({
           </button>
         </section>
       )}
-      <section className="business-register">
+      <div className="report-workbench">
+      <section className="business-register report-archive">
         <header className="business-toolbar">
           <div>
             <h2>{t("Rapor arşivi", "Report archive")}</h2>
@@ -256,50 +271,22 @@ export default function ReportsWorkspace({
         {rows === null ? (
           <LoaderCircle className="spin" />
         ) : rows.length ? (
-          <div className="business-table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t("Parsel", "Parcel")}</th>
-                  <th>{t("Tarih", "Date")}</th>
-                  <th>{t("Durum", "Status")}</th>
-                  <th>{t("İşlemler", "Actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {fields.find((f) => f.id === r.fieldId)?.name ||
-                        t("Arşiv parseli", "Archived parcel")}
-                    </td>
-                    <td>{date(r.createdAt)}</td>
-                    <td>
-                      <span className="business-state">{state(r.state)}</span>
-                      {r.error && <p>{r.error}</p>}
-                    </td>
-                    <td>
-                      <div className="business-row-actions">
-                        <button
-                          onClick={() => show(r.id)}
-                          aria-label={t("Önizle", "Preview")}
-                        >
-                          <Eye size={17} />
-                        </button>
-                        <button
-                          onClick={() => download(r.id)}
-                          disabled={busy || r.state !== "completed"}
-                          aria-label={t("PDF indir", "Download PDF")}
-                        >
-                          <Download size={17} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="report-file-list">
+            {rows.map((row) => <li key={row.id} className={preview?.id === row.id ? "is-current" : undefined}>
+              <button type="button" aria-label={t("Önizle", "Preview")} aria-pressed={preview?.id === row.id}
+                onClick={() => show(row.id)}>
+                <span className="report-file-mark"><FileText size={20} aria-hidden="true" /></span>
+                <span>
+                  <strong>{fields.find((field) => field.id === row.fieldId)?.name || t("Arşiv parseli", "Archived parcel")}</strong>
+                  <small>{date(row.createdAt)} · {state(row.state)}</small>
+                  {row.error && <small>{row.error}</small>}
+                </span>
+                <Eye size={16} aria-hidden="true" />
+              </button>
+              <button type="button" className="report-file-download" disabled={busy || row.state !== "completed"}
+                onClick={() => download(row.id)} aria-label={t("PDF indir", "Download PDF")}><Download size={17} /></button>
+            </li>)}
+          </ul>
         ) : (
           <div className="business-empty">
             <FileText size={32} />
@@ -313,21 +300,17 @@ export default function ReportsWorkspace({
           </div>
         )}
       </section>
-      {preview && (
-        <section className="business-settings-section">
-          <span className="studio-kicker">
-            {t("RAPOR ÖNİZLEMESİ", "REPORT PREVIEW")}
-          </span>
-          <h2>{preview.snapshot.field.name}</h2>
-          <p>
-            {preview.snapshot.analysis.source} ·{" "}
-            {preview.snapshot.analysis.method}
-          </p>
-          <p>{date(preview.snapshot.createdAt)}</p>
-          <p className="business-muted">
-            {t("Geometri sürümü", "Geometry version")}:{" "}
-            {preview.snapshot.geometryVersion}
-          </p>
+      {preview ? (
+        <SceneSurface id="report-preview"><section className="business-settings-section report-paper">
+          <header className="report-cover">
+            <span className="studio-kicker">{t("RAPOR ÖNİZLEMESİ", "REPORT PREVIEW")}</span>
+            <h2 data-scene-heading>{preview.snapshot.field.name}</h2>
+            <p>{date(preview.snapshot.createdAt)}</p>
+          </header>
+          <dl className="report-provenance">
+            <div><dt>{t("Kaynak ve yöntem", "Source and method")}</dt><dd>{preview.snapshot.analysis.source} · {preview.snapshot.analysis.method}</dd></div>
+            <div><dt>{t("Geometri sürümü", "Geometry version")}</dt><dd>{preview.snapshot.geometryVersion}</dd></div>
+          </dl>
           <div className="business-table-scroll">
             <table className="business-table">
               <thead>
@@ -356,8 +339,13 @@ export default function ReportsWorkspace({
             {t("Saha kaydı sayısı", "Field records")}:{" "}
             {preview.snapshot.records.length}
           </p>
-        </section>
-      )}
+        </section></SceneSurface>
+      ) : <section className="report-preview-empty business-empty">
+        <FileText size={34} aria-hidden="true" />
+        <h2>{t("Rapor önizlemesi", "Report preview")}</h2>
+        <p>{t("Kaynağı, dönemi ve analiz sonuçlarını görmek için arşivden bir rapor aç.", "Open a report from the archive to see its source, period, and analysis results.")}</p>
+      </section>}
+      </div>
       <aside className="business-data-note">
         <ShieldCheck size={18} />
         <p>

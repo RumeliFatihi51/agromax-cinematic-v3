@@ -10,11 +10,12 @@
 }
 @font-face {
   font-family: Manrope;
-  src: url("/fonts/Manrope-Latin-Variable.woff2") format("woff2");
+  src: url("/fonts/Manrope-UI-Variable.woff2") format("woff2");
   font-style: normal;
   font-weight: 200 800;
   font-display: swap;
 }
+:root { --font-ui: Manrope, system-ui, sans-serif; }
 .agromax-logo-mark {
   display: block;
   object-fit: contain;
@@ -32,7 +33,7 @@
 }
 .agromax-lockup .agromax-wordmark {
   display: inline-block;
-  font-family: Manrope, "DM Sans", sans-serif;
+  font-family: var(--font-ui);
   font-size: 28px;
   line-height: 1.1;
   letter-spacing: -1.5px;
@@ -239,7 +240,7 @@
   font-weight: 600;
 }
 .auth-copy h1 {
-  font-family: Manrope, "DM Sans", sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(43px, 4.3vw, 65px);
   line-height: 1.18;
   letter-spacing: -2.3px;

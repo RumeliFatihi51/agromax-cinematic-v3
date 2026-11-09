@@ -14,6 +14,7 @@ import {
 import { api, requestAnalysis } from "../../api";
 import FieldAnalysis from "./FieldAnalysis";
 import { PageHeading } from "../../components/ui/WorkspaceUI";
+import SceneSurface from "../cinema/SceneSurface";
 import { lazy, Suspense } from "react";
 const FieldResearch = lazy(() => import("../commercial/FieldResearch"));
 export default function FieldsWorkspace({
@@ -24,6 +25,11 @@ export default function FieldsWorkspace({
   createRequest = 0,
   onCreateHandled,
   focusField = null,
+  selectedMetric,
+  onSelectField,
+  onSelectMetric,
+  satellite,
+  onConnections,
   analysisMode = false,
   commercial = false,
   locale = "tr",
@@ -32,13 +38,12 @@ export default function FieldsWorkspace({
   canAnalyze = true,
   customAnalysis = true,
 }) {
-  const [view, setView] = useState("atlas"),
+  const [view, setView] = useState(() => window.matchMedia("(max-width: 640px)").matches ? "map" : "atlas"),
     [editing, setEditing] = useState(null),
     [editSession, setEditSession] = useState(0),
     [draftGeometry, setDraftGeometry] = useState(null),
     [drawing, setDrawing] = useState(false),
     [savedNotice, setSavedNotice] = useState(""),
-    [selected, setSelected] = useState(focusField),
     [cache, setCache] = useState({}),
     [error, setError] = useState(""),
     [deleted, setDeleted] = useState(null),
@@ -50,9 +55,7 @@ export default function FieldsWorkspace({
       onCreateHandled?.();
     }
   }, [createRequest]);
-  useEffect(() => {
-    setSelected(focusField || null);
-  }, [focusField]);
+  const setSelected = (id) => onSelectField(id || "");
   useEffect(() => {
     let active = true;
     Promise.all(
@@ -66,7 +69,7 @@ export default function FieldsWorkspace({
       active = false;
     };
   }, [fields]);
-  const field = fields.find((f) => f.id === selected);
+  const field = fields.find((f) => f.id === focusField);
   function startEditing(record = null) {
     setView("map");
     setSelected(null);
@@ -115,14 +118,10 @@ export default function FieldsWorkspace({
     }
   }
   async function bulk() {
+    if (!satellite?.configured || !canAnalyze || bulkBusy) return;
     setBulkBusy(true);
     setError("");
     try {
-      const status = await api("satellite/status");
-      if (!status.configured)
-        throw new Error(
-          "Copernicus client secret eksik. Bağlantı tamamlanmadan uydu değerleri üretilemez.",
-        );
       for (const f of fields.filter((f) => f.geometry)) {
         try {
           const d = await requestAnalysis(f.id);
@@ -140,12 +139,17 @@ export default function FieldsWorkspace({
     }
   }
   return (
-    <div className="fields-workspace">
+    <SceneSurface id={analysisMode ? null : field ? "field-detail" : `fields-${view}`} className="fields-workspace" localTransition>
       {field && (
         <>
           <FieldAnalysis
             key={field.id}
             field={field}
+            selectedMetric={selectedMetric}
+            onSelectMetric={onSelectMetric}
+            satellite={satellite}
+            canAnalyze={canAnalyze}
+            onConnections={onConnections}
             onBack={() => setSelected(null)}
             onEdit={() => startEditing(field)}
             onAnalysis={(id, a) => setCache((c) => ({ ...c, [id]: a }))}
@@ -160,6 +164,8 @@ export default function FieldsWorkspace({
                 favorites={favorites}
                 onFavorites={onFavorites}
                 canAnalyze={canAnalyze}
+                satelliteConfigured={satellite?.configured === true}
+                onConnections={onConnections}
                 customAnalysisEnabled={customAnalysis}
               />
             </Suspense>
@@ -188,6 +194,7 @@ export default function FieldsWorkspace({
             </button>
             <button
               className={view === "map" ? "active" : ""}
+              aria-pressed={view === "map"}
               onClick={() => setView("map")}
             >
               <Map size={17} />
@@ -196,6 +203,7 @@ export default function FieldsWorkspace({
             <button
               disabled={!!editing}
               className={view === "list" ? "active" : ""}
+              aria-pressed={view === "list"}
               onClick={() => setView("list")}
             >
               <LayoutList size={17} />
@@ -208,12 +216,13 @@ export default function FieldsWorkspace({
           </span>
           <button
             className="secondary"
-            disabled={!!editing || bulkBusy || !fields.some((f) => f.geometry)}
+            disabled={!satellite?.configured || !canAnalyze || !!editing || bulkBusy || !fields.some((f) => f.geometry)}
             onClick={bulk}
           >
             <RefreshCw size={16} className={bulkBusy ? "spin" : ""} />
             {bulkBusy ? "Veriler güncelleniyor…" : "Tüm analizleri güncelle"}
           </button>
+          {!satellite?.configured && <button className="secondary" onClick={onConnections}>Veri bağlantılarını aç</button>}
           <button
             className="primary"
             disabled={!!editing}
@@ -242,54 +251,58 @@ export default function FieldsWorkspace({
             {savedNotice}
           </div>
         )}
-        {view === "atlas" && <FieldAtlas fields={fields} onSelect={setSelected} onCreate={() => startEditing()} />}
-        <div hidden={view !== "map"}>
-          <FieldMapPanel
-            fields={fields}
-            onSelect={(f) => setSelected(f.id)}
-            onEdit={startEditing}
-            onDelete={setConfirming}
-            onCreate={() => startEditing()}
-            editing={editing}
-            editSession={editSession}
-            draftGeometry={draftGeometry}
-            onGeometry={setDraftGeometry}
-            drawing={drawing}
-            onDrawing={setDrawing}
-            onCancel={cancelEditing}
-            onSaved={finishEditing}
-          />
-        </div>
-        {view === "list" && (
-          <section className="panel">
-            <div className="panel-head">
-              <div>
-                <h2>Tarlalarınız, bir bakışta</h2>
-                <p>
-                  Bu ayın kısmi dönemi ile geçen ayın tamamı karşılaştırılır.
-                  Değişimler indeks puanıdır.
-                </p>
-              </div>
-              <Satellite size={20} />
+        <div className={view === "atlas" ? "parcel-atlas-layout" : undefined}>
+          {view === "atlas" && <FieldAtlas fields={fields} onSelect={setSelected} onCreate={() => startEditing()} />}
+          <div className="parcel-main-workspace">
+            <div hidden={view === "list"}>
+              <FieldMapPanel
+                fields={fields}
+                atlas={view === "atlas"}
+                onSelect={(f) => setSelected(f.id)}
+                onEdit={startEditing}
+                onDelete={setConfirming}
+                onCreate={() => startEditing()}
+                editing={editing}
+                editSession={editSession}
+                draftGeometry={draftGeometry}
+                onGeometry={setDraftGeometry}
+                drawing={drawing}
+                onDrawing={setDrawing}
+                onCancel={cancelEditing}
+                onSaved={finishEditing}
+              />
             </div>
-            <FieldTable
-              fields={fields}
-              cache={cache}
-              onSelect={setSelected}
-              onEdit={startEditing}
-              onDelete={setConfirming}
-            />
-            {!fields.length && (
-              <div className="empty">
-                <Map size={28} />
-                <h3>Henüz tarla kaydı yok.</h3>
-                <button className="text-button" onClick={() => startEditing()}>
-                  İlk parselinizi çizin
-                </button>
-              </div>
+            {(view === "list" || view === "atlas") && (
+              <section className="panel">
+                <div className="panel-head">
+                  <div>
+                    <h2>Tarlalarınız, bir bakışta</h2>
+                    <p>
+                      Bu ayın kısmi dönemi ile geçen ayın tamamı karşılaştırılır.
+                      Değişimler indeks puanıdır.
+                    </p>
+                  </div>
+                  <Satellite size={20} />
+                </div>
+                {fields.length > 0 ? <FieldTable
+                  fields={fields}
+                  cache={cache}
+                  onSelect={setSelected}
+                  onEdit={startEditing}
+                  onDelete={setConfirming}
+                /> : (
+                  <div className="empty">
+                    <Map size={28} />
+                    <h3>Henüz tarla kaydı yok.</h3>
+                    <button className="text-button" onClick={() => startEditing()}>
+                      İlk parselinizi çizin
+                    </button>
+                  </div>
+                )}
+              </section>
             )}
-          </section>
-        )}
+          </div>
+        </div>
       </div>
       {confirming && (
         <div className="modal-backdrop">
@@ -318,6 +331,6 @@ export default function FieldsWorkspace({
           </section>
         </div>
       )}
-    </div>
+    </SceneSurface>
   );
 }

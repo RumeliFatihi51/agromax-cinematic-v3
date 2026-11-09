@@ -1,0 +1,20 @@
+AgroMax · Görsel kaynakları
+
+Platformdaki editoryal filmler ve fotoğraflar AgroMax tanıtım deposunun
+99dad08144b19ef326a2ddd4678659347c04d45c sürümünden uyarlanmıştır.
+https://github.com/RumeliFatihi51/tarim2/tree/99dad08144b19ef326a2ddd4678659347c04d45c/public/media
+
+“Drone Footage Of Iowa Combine Harvesting Beans” — MrAyrit
+Creative Commons Attribution 3.0
+https://commons.wikimedia.org/wiki/File:Drone_Footage_Of_Iowa_Combine_Harvesting_Beans.webm
+https://creativecommons.org/licenses/by/3.0/
+Uyarlama: AgroMax tanıtım kurgusundan kısa, sessiz ve yeniden kadrajlanmış bölüm.
+
+“ASMR field of wheat - nature” — Coup 53
+Creative Commons Attribution 3.0
+https://commons.wikimedia.org/wiki/File:ASMR_field_of_wheat_-_nature.webm
+https://creativecommons.org/licenses/by/3.0/
+Uyarlama: AgroMax tanıtım kurgusundan kısa, sessiz ve yeniden kadrajlanmış bölüm.
+
+Bu sahneler editoryal görsellerdir. Parsel sınırları, gerçek gözlem ve raster
+sonuçları kendi çalışma alanlarındaki veri bileşenlerinde gösterilir.

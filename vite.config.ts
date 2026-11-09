@@ -3,6 +3,7 @@ import { nitro } from "nitro/vite";
 import { workflow } from "workflow/vite";
 const commercial = process.env.AGROMAX_RUNTIME === "commercial";
 export default defineConfig({
+  server: { watch: { ignored: ["**/data/**", "**/.output/**", "**/dist/**", "**/.agromax-build/**"] } },
   plugins: commercial ? [nitro(), workflow()] : [],
   ...(commercial
     ? {

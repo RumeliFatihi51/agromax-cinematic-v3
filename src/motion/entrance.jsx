@@ -12,13 +12,14 @@ export function useDashboardEntrance(host) {
       media = gsap.matchMedia(host.current);
       media.add("(prefers-reduced-motion: no-preference)", () => {
         played = true;
-        const line = { yPercent: 0, duration: 0.66, stagger: 0.1, clearProps: "transform" };
+        const phone = window.matchMedia("(max-width: 720px)").matches;
+        const line = { yPercent: 0, duration: phone ? 0.26 : 0.66, stagger: phone ? 0.045 : 0.1, clearProps: "transform" };
         const timeline = gsap.timeline({ defaults: { ease: "power3.out" } })
-          .fromTo(".dashboard-hero-media img", { scale: 1.055, y: 10 }, { scale: 1, y: 0, duration: 1.05, clearProps: "transform" }, 0)
-          .fromTo(".dashboard-hero-media", { clipPath: "inset(0 0 9% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.85, clearProps: "clipPath" }, 0)
-          .fromTo(".motion-line > span", { yPercent: 102 }, line, 0.1)
-          .fromTo("[data-enter]", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.43, stagger: 0.04, clearProps: "opacity,transform" }, 0.2);
-        const deadline = setTimeout(() => timeline.progress(1), 1250);
+          .fromTo(".dashboard-hero-media img", { scale: 1.055, y: 10 }, { scale: 1, y: 0, duration: phone ? 0.34 : 1.05, clearProps: "transform" }, 0)
+          .fromTo(".dashboard-hero-media", { clipPath: "inset(0 0 9% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: phone ? 0.3 : 0.85, clearProps: "clipPath" }, 0)
+          .fromTo(".motion-line > span", { yPercent: 118 }, line, phone ? 0.025 : 0.1)
+          .fromTo(".dashboard-greeting [data-enter]", { opacity: 0.55, y: 5 }, { opacity: 1, y: 0, duration: phone ? 0.2 : 0.43, stagger: 0.04, clearProps: "opacity,transform" }, phone ? 0.06 : 0.2);
+        const deadline = setTimeout(() => timeline.progress(1), phone ? 450 : 1250);
         const finishWhenHidden = () => { if (document.hidden) timeline.progress(1); };
         document.addEventListener("visibilitychange", finishWhenHidden);
         return () => {

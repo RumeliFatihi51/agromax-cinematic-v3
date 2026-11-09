@@ -5,7 +5,7 @@
   top: 78px;
   width: 310px;
   max-width: calc(100% - 38px);
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-ui);
 }
 .parcel-map {
   container-type: inline-size;
@@ -36,18 +36,6 @@
   .field-map-stage .map-field-browser {
     top: 151px;
     max-height: calc(100% - 252px);
-  }
-  .field-image .map-place-search {
-    left: 15px;
-    right: 15px;
-    top: 15px;
-    width: auto;
-    max-width: none;
-  }
-  .field-image .basemap-switch {
-    top: auto;
-    bottom: 45px;
-    right: 15px;
   }
 }
 .map-place-search > form {

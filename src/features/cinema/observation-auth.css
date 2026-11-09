@@ -1,0 +1,115 @@
+.observation-auth {
+  --portal-ink: #183126;
+  --portal-paper: #f3f4e9;
+  --portal-line: #789177;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100svh;
+  background: var(--portal-ink);
+  color: var(--portal-paper);
+}
+.observation-auth-bar {
+  grid-column: 1 / -1;
+  min-height: 65px;
+  padding: 12px clamp(20px, 4vw, 62px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #a0aa843b;
+}
+.observation-auth-bar > span:last-child { color: #d8e1c9; font-size: 12px; }
+.observation-auth-scene { position: relative; min-height: min(760px, calc(100svh - 65px)); overflow: hidden; }
+.observation-auth-scene .scene-film { --film-position: 52% 52%; }
+.observation-auth-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #10271deb 6%, #10271d78 44%, transparent 87%);
+  pointer-events: none;
+}
+.observation-auth-inscription { position: absolute; inset: auto clamp(24px, 5vw, 82px) clamp(32px, 10vh, 108px); z-index: 1; }
+.observation-auth-inscription > span { font-size: 11px; letter-spacing: .19em; color: #e4eccb; font-weight: 750; }
+html.agromax-ui .observation-auth-inscription h1 { margin: 24px 0 20px; color: var(--portal-paper); font: 540 clamp(42px, 5.15vw, 82px)/1.02 var(--font-ui); letter-spacing: -.065em; }
+.observation-auth-inscription p { margin: 0; color: #e6eddb; font-size: 15px; }
+.observation-auth-panel {
+  display: grid;
+  align-content: center;
+  padding: clamp(28px, 5vw, 78px) clamp(24px, 6vw, 86px);
+  gap: 24px;
+  min-width: 0;
+}
+.observation-auth-form { width: min(100%, 490px); margin-inline: auto; }
+.observation-auth-tabs { display: flex; gap: 24px; margin-bottom: 32px; border-bottom: 1px solid var(--portal-line); }
+html.agromax-ui .observation-auth-tabs button {
+  min-height: 44px;
+  background: transparent;
+  color: #dce5d3;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 12px 0;
+}
+html.agromax-ui .observation-auth-tabs button.selected { border-bottom-color: #dbe5ba; color: #fff; }
+html.agromax-ui .observation-auth-form h2 { margin: 0 0 25px; color: var(--portal-paper); font: 560 clamp(30px, 3.25vw, 51px)/1.08 var(--font-ui); letter-spacing: -.055em; }
+html.agromax-ui .observation-auth-form h3 { margin-block: 0 14px; color: var(--portal-paper); }
+.observation-auth-form form { display: grid; gap: 17px; }
+html.agromax-ui .observation-auth-form label { display: grid; gap: 7px; color: var(--portal-paper); font-size: 13px; font-weight: 650; }
+html.agromax-ui .observation-auth input {
+  border: 1px solid #99a68d;
+  background: #ffffff09;
+  color: #fff;
+  min-height: 49px;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  padding: 13px 14px;
+  font: inherit;
+}
+.observation-auth input::placeholder { color: #bfccb5; }
+.observation-auth .auth-password-field { position: relative; }
+html.agromax-ui .observation-auth .auth-password-field input { padding-inline-end: 52px; }
+html.agromax-ui .observation-auth .auth-password-toggle {
+  position: absolute; inset: 3px 3px 3px auto; width: 44px; height: auto;
+  display: grid; place-items: center; transform: none;
+  background: transparent; color: #e6eddb; padding: 0;
+}
+html.agromax-ui .observation-auth :is(button, input):focus-visible { outline: 2px solid #dbe5ba; outline-offset: 3px; }
+html.agromax-ui .observation-auth .primary.full {
+  background: #dce5bd; color: #183126; border-radius: 0;
+  border: 1px solid #dce5bd;
+  min-height: 52px; width: 100%; justify-content: space-between; padding: 12px 17px;
+}
+html.agromax-ui .observation-auth .text-button { color: #e6eddb; margin-block: 9px 0; min-height: 44px; padding: 4px 0; }
+.observation-auth .error { background: #492b29; border-color: #ba8070; color: #ffdbce; }
+html.agromax-ui .observation-auth .auth-trust {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 20px 0 0; padding: 16px 0 0; border: 0; border-top: 1px solid #78917770;
+  background: transparent; color: #e4eccb; font-size: 12px;
+}
+html.agromax-ui .observation-auth .auth-trust small, .observation-auth-footer { color: #ced9c2; }
+.observation-auth-footer { font-size: 11px; text-align: center; }
+@media (max-width: 767px) {
+  .observation-auth { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
+  .observation-auth-bar { min-height: 53px; }
+  .observation-auth-scene { min-height: clamp(205px, 35svh, 290px); }
+  .observation-auth-inscription { bottom: 24px; }
+  html.agromax-ui .observation-auth-inscription h1 { margin: 12px 0 0; font-size: clamp(35px, 9vw, 56px); }
+  .observation-auth-inscription p { display: none; }
+  .observation-auth-panel { padding: 23px max(20px, env(safe-area-inset-left)) 30px; align-content: start; }
+  .observation-auth-tabs { margin-bottom: 20px; }
+  html.agromax-ui .observation-auth-form h2 { margin-bottom: 17px; }
+  html.agromax-ui .observation-auth input { font-size: 16px; }
+}
+.observation-auth-scene .scene-film-toggle {
+  position: absolute;
+  z-index: 2;
+  inset: 14px 14px auto auto;
+  min-height: 44px;
+  padding: 6px 11px;
+  background: #183126ef;
+  color: #f3f4e9;
+  border: 1px solid #a6b892;
+  border-radius: 4px;
+  font-size: 12px;
+}

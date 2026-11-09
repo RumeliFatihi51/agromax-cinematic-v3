@@ -1,0 +1,174 @@
+/* The promo site's masked cuts, scaled to the working area of the application. */
+.agromax-ui .cinematic-shell .studio-content { position: relative; }
+.cinema-route-cut {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #dce5bd;
+  background: #183126;
+  border-block: 1px solid #769472;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(101%);
+}
+@media (prefers-reduced-motion: reduce) { .cinema-route-cut { display: none; } }
+.agromax-ui .studio-page-footer a { color: inherit; text-underline-offset: .23em; }
+
+.scene-film > picture,
+.scene-film > picture > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: var(--film-position, center);
+}
+
+.workspace-scene-art[data-composition] {
+  --shot-opacity: .88;
+  --shot-frame: #fcf6dd8f;
+  height: clamp(104px, 10vw, 145px);
+  border-radius: 3px;
+  mask-image: linear-gradient(90deg, transparent, #0003 31%, #000d 60%, #000);
+}
+.workspace-scene-art[data-composition] .scene-film { opacity: var(--shot-opacity); }
+.workspace-scene-art[data-composition] svg { opacity: .42; }
+.workspace-scene-art[data-composition]::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid var(--shot-frame);
+  border-inline-start: 0;
+}
+.workspace-scene-art[data-composition="horizon"] { width: min(68%, 850px); }
+.workspace-scene-art[data-composition="survey"] { width: min(55%, 710px); }
+.workspace-scene-art[data-composition="survey"]::after { inset-inline-start: 22%; }
+.workspace-scene-art[data-composition="optics"] {
+  width: min(60%, 750px);
+  mask-image: linear-gradient(90deg, transparent 5%, #0003 38%, #000 75%);
+}
+.workspace-scene-art[data-composition="optics"] .scene-film { --film-position: center 42%; }
+.workspace-scene-art[data-composition="optics"]::after {
+  inset: 11px;
+  border-block-start-style: dashed;
+}
+.workspace-scene-art[data-composition="botany"] {
+  width: min(57%, 660px);
+  mask-image: linear-gradient(90deg, transparent 6%, #0003 32%, #000 67%);
+}
+.workspace-scene-art[data-composition="botany"] .scene-film { --film-position: 71% 50%; }
+.workspace-scene-art[data-composition="botany"]::after {
+  inset-inline-start: 57%;
+  border-block: 0;
+}
+.workspace-scene-art[data-composition="ground"] {
+  width: min(54%, 690px);
+  --shot-opacity: .83;
+}
+.workspace-scene-art[data-composition="ground"] .scene-film { --film-position: 64% 58%; }
+.workspace-scene-art[data-composition="archive"] {
+  width: min(45%, 565px);
+  --shot-opacity: .72;
+}
+.workspace-scene-art[data-composition="archive"] .scene-film { filter: saturate(.68); }
+.workspace-scene-art[data-composition="archive"]::after { inset-block: 12px; }
+
+.report-cover {
+  background-image: linear-gradient(100deg,#f8f3e5 18%,#f8f3e5a8 55%,transparent),
+    url("/visuals/films/tarim2/archive.webp");
+}
+.account-cover {
+  background-image: linear-gradient(100deg,#f8f3e5 18%,#f8f3e5a8 55%,transparent),
+    url("/visuals/films/tarim2/notebook.webp");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-scene-art[data-composition] .scene-film > picture { animation: shot-open 250ms cubic-bezier(.18,.8,.3,1) backwards; }
+  .workspace-scene-art[data-composition="optics"] .scene-film > picture { animation-name: shot-scan; }
+  .workspace-scene-art[data-composition="survey"] .scene-film > picture { animation-name: shot-diagonal; }
+  .workspace-scene-art[data-composition="archive"] .scene-film > picture { animation-name: shot-fold; }
+  .workspace-scene-art[data-composition="botany"] .scene-film > picture { animation-name: shot-botany; }
+  @keyframes shot-open { from { transform: scale(1.045); clip-path: inset(0 0 18%); } to { clip-path: inset(0); } }
+  @keyframes shot-scan { from { clip-path: inset(0 0 35% 0); } to { clip-path: inset(0); } }
+  @keyframes shot-diagonal {
+    from { clip-path: polygon(12% 0, 100% 0, 100% 80%, 28% 90%); }
+    to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  }
+  @keyframes shot-fold { from { clip-path: inset(28% 0 18%); } to { clip-path: inset(0); } }
+  @keyframes shot-botany { from { transform: translateX(12px); clip-path: inset(0 0 0 26%); } to { clip-path: inset(0); } }
+}
+
+@media (max-width: 720px) {
+  .workspace-scene-art[data-composition] {
+    width: 67%;
+    height: 66px;
+    opacity: 1;
+    mask-image: none;
+    animation: none;
+  }
+  .workspace-scene .workspace-scene-art[data-composition] .scene-film {
+    opacity: 1;
+    filter: none;
+  }
+  .workspace-scene-art[data-composition]::after {
+    inset: 0;
+    border: 0;
+    background: linear-gradient(90deg, var(--desk-paper) 4%, #f4efe5cf 38%, #f4efe559 100%);
+  }
+  .scene-film video { transition: none; }
+  .studio-page-overview .dashboard-hero-media .scene-film { filter: none; }
+  .workspace-scene[data-scene="field-detail"] .workspace-scene-art { height: 100px; }
+  .workspace-scene[data-scene^="operations-"] .workspace-scene-art { top: 56px; }
+  .workspace-scene[data-scene="assistant"] .workspace-scene-art {
+    width: 60%;
+    height: 66px;
+    opacity: 1;
+  }
+  .report-cover {
+    background-image: linear-gradient(100deg,#f8f3e5 18%,#f8f3e5a8 55%,transparent),
+      url("/visuals/films/tarim2/archive-mobile.webp");
+  }
+  .account-cover {
+    background-image: linear-gradient(100deg,#f8f3e5 18%,#f8f3e5a8 55%,transparent),
+      url("/visuals/films/tarim2/notebook-mobile.webp");
+  }
+
+  html.agromax-ui .studio-content :is(.business-operation-tabs, .business-settings > .weather-period-tabs) {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 5px;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #849577 #e9e3d6;
+    padding: 4px;
+  }
+  html.agromax-ui .studio-content .business-operation-tabs { margin-block-end: 10px; }
+  html.agromax-ui .studio-content :is(.business-operation-tabs, .business-settings > .weather-period-tabs) button {
+    flex: 0 0 auto;
+    flex-direction: row;
+    width: auto;
+    min-height: 44px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    scroll-margin-inline: 8px;
+  }
+  html.agromax-ui .studio-content :is(.view-switch, .canopy-weather-tabs) button { min-height: 44px; }
+}
+@media (max-width: 640px) {
+  html.agromax-ui .studio-topbar :is(.studio-mobile-toggle, .studio-global-search, .studio-calendar-button) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  html.agromax-ui .studio-sidebar .studio-nav-link { min-height: 44px; }
+  html.agromax-ui .canopy-mobile-dock {
+    background: #f9f1e1;
+    backdrop-filter: none;
+  }
+  html.agromax-ui .canopy-mobile-dock button { touch-action: manipulation; }
+}

@@ -10,7 +10,7 @@
   --studio-ink: var(--workspace-ink);
   --studio-green: var(--workspace-primary);
   --studio-line: var(--workspace-line);
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
 }
 body,
 .studio-shell,
@@ -18,7 +18,7 @@ button,
 input,
 select,
 textarea {
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
 }
 .studio-shell {
   --sidebar-width: 242px;
@@ -196,7 +196,7 @@ textarea {
 }
 .studio-global-search kbd {
   color: #74816d;
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
 }
 .studio-top-avatar {
   background: #e8efdb;

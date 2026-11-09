@@ -11,8 +11,15 @@ globalThis.fetch = async (input, options) => {
   if (url.hostname === "identity.dataspace.copernicus.eu" && url.pathname.endsWith("/token"))
     return Response.json({ access_token: "explicit-browser-fixture-token", expires_in: 3600 });
   if (url.hostname !== "sh.dataspace.copernicus.eu") return fetchNetwork(input, options);
-  if (url.pathname.endsWith("/catalog/1.0.0/search"))
-    return Response.json({ features: [], context: {} });
+  if (url.pathname.endsWith("/catalog/1.0.0/search")) {
+    const { datetime } = JSON.parse(options.body);
+    const capture = "2026-01-01T09:00:00.000Z";
+    const [start, end] = datetime.split("/");
+    const features = capture >= start && capture < end
+      ? [{ id: "EXPLICIT-PIPELINE-CATALOG-SCENE", properties: { datetime: capture, "eo:cloud_cover": 0 } }]
+      : [];
+    return Response.json({ features, context: {} });
+  }
   if (url.pathname.endsWith("/process")) {
     const png = new PNG({ width: 48, height: 48 });
     for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {

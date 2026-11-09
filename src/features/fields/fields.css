@@ -321,7 +321,7 @@
 }
 .parcel-area strong {
   color: #425f36;
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
   font-size: 23px;
 }
 .parcel-area small {
@@ -353,26 +353,6 @@
 .editor-actions button {
   white-space: nowrap;
 }
-.analysis-heading {
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-  margin: 20px 0 24px;
-  display: flex;
-}
-.analysis-heading h2 {
-  letter-spacing: -0.8px;
-  margin: 7px 0 10px;
-  font-size: 29px;
-}
-.analysis-heading p {
-  font-size: 12px;
-}
-.analysis-heading > div:last-child {
-  flex-wrap: wrap;
-  gap: 10px;
-  display: flex;
-}
 .data-warning {
   color: #8c8351;
   background: #f8f6e7;
@@ -396,28 +376,6 @@
   margin-top: 4px;
   font-size: 11px;
 }
-.analysis-top-grid {
-  grid-template-columns: 1.5fr 1fr;
-  gap: 20px;
-  margin: 24px 0;
-  display: grid;
-}
-.field-image .panel-head {
-  padding-bottom: 18px;
-}
-.field-image .parcel-map {
-  border-top: 1px solid #eaf0df;
-}
-.image-controls {
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px;
-  display: flex;
-}
-.image-controls select {
-  flex: 1;
-  min-width: 100px;
-}
 select {
   font: inherit;
   color: #6c8258;
@@ -427,47 +385,6 @@ select {
   max-width: 100%;
   padding: 9px;
   font-size: 11px;
-}
-.evidence-card {
-  padding: 27px;
-  position: relative;
-}
-.evidence-card .stat-icon {
-  margin-bottom: 20px;
-  position: static;
-}
-.evidence-card h2 {
-  max-width: 230px;
-  font-size: 18px;
-  line-height: 1.6;
-}
-.evidence-card dl {
-  grid-template-columns: 90px 1fr;
-  gap: 12px 9px;
-  margin: 23px 0;
-  font-size: 11px;
-  display: grid;
-}
-.evidence-card dt {
-  color: #9aa68c;
-}
-.evidence-card dd {
-  color: #637952;
-  margin: 0;
-  font-size: 10px;
-  line-height: 1.5;
-}
-.evidence-card > p {
-  border-top: 1px solid #edf1e5;
-  padding-top: 15px;
-  font-size: 10px;
-}
-.evidence-card > small {
-  color: #a3ad97;
-  margin-top: 12px;
-  font-size: 9px;
-  line-height: 1.5;
-  display: block;
 }
 .comparison-panel,
 .metric-detail,
@@ -606,18 +523,6 @@ select {
 .source-needs p {
   margin-top: 7px;
   font-size: 10px;
-}
-.image-legend {
-  padding: 0 15px 15px;
-  font-size: 9px;
-}
-.image-legend span {
-  background: linear-gradient(90deg, #ff0040, #808040, #00ff40);
-  border-radius: 4px;
-  width: 70px;
-  height: 7px;
-  margin-right: 8px;
-  display: inline-block;
 }
 .undo-banner {
   color: #67844c;
@@ -769,24 +674,6 @@ select {
   display: flex;
 }
 @media (width<=1100px) {
-  .analysis-top-grid {
-    grid-template-columns: 1fr;
-  }
-  .evidence-card dl {
-    grid-template-columns: 140px 1fr;
-  }
-  .evidence-card h2 {
-    max-width: none;
-  }
-  .evidence-card .stat-icon {
-    position: absolute;
-    top: 25px;
-    right: 25px;
-  }
-  .analysis-heading {
-    flex-direction: column;
-    align-items: flex-start;
-  }
   .parcel-inputs {
     grid-template-columns: 1fr 1fr;
   }
@@ -862,14 +749,6 @@ select {
   .source-needs {
     grid-template-columns: 1fr;
   }
-  .analysis-heading h2 {
-    font-size: 24px;
-  }
-  .analysis-heading .primary,
-  .analysis-heading .secondary {
-    padding: 10px 12px;
-    font-size: 10px;
-  }
   .comparison-panel .panel-head {
     flex-direction: column;
     align-items: flex-start;
@@ -878,16 +757,6 @@ select {
   .analysis-table td,
   .analysis-table th {
     padding: 13px;
-  }
-  .image-controls .secondary {
-    padding: 10px;
-    font-size: 10px;
-  }
-  .image-controls select {
-    font-size: 10px;
-  }
-  .field-image .panel-head p {
-    font-size: 9px;
   }
   .map-parcel-strip {
     padding: 14px;
@@ -965,4 +834,127 @@ select {
 }
 .metric-checkboxes input {
   accent-color: #7e9b4e;
+}
+
+/* Satellite workspace and source record */
+.agromax-ui .analysis-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 15px 0 22px;
+  padding: 12px 0 20px;
+  border-bottom: 1px solid var(--cinema-border);
+}
+.agromax-ui .analysis-heading h1 {
+  font: 500 clamp(32px, 4vw, 56px)/1.08 var(--font-ui);
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+  margin: 7px 0;
+}
+.agromax-ui .analysis-heading p { color: var(--ag-muted); }
+.analysis-heading > div { min-width: 0; }
+.analysis-heading > div:last-child { display: flex; gap: 8px; flex-wrap: wrap; }
+.analysis-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.15fr) minmax(255px, 1fr);
+  align-items: start;
+  gap: 18px;
+  margin: 20px 0;
+}
+.satellite-scene, .analysis-trend {
+  min-width: 0;
+  background: var(--ag-surface);
+  border: 1px solid var(--cinema-border);
+  border-radius: 15px;
+  color: var(--ag-ink);
+}
+.satellite-scene-head, .satellite-scene-meta, .satellite-scene-dates {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 13px clamp(12px, 2vw, 21px);
+}
+.satellite-scene-head h2 { font: 600 20px/1.2 var(--ag-display); }
+.satellite-scene-head > div, .satellite-scene-meta > div:first-child { flex: 1 1 12rem; }
+.satellite-scene-head label, .satellite-scene-dates label { display: flex; align-items: center; gap: 8px; }
+.agromax-ui .satellite-scene select {
+  min-height: 42px;
+  color: var(--ag-ink);
+  background: var(--ag-surface);
+  border: 1px solid var(--cinema-border);
+}
+.satellite-scene-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--ag-lime);
+}
+.satellite-scene .parcel-map { border-radius: 0; }
+.satellite-scene-meta { font-variant-numeric: tabular-nums; align-items: start; }
+.satellite-scene-meta :is(p, small), .satellite-scene-dates { font-size: 12px; color: var(--ag-muted); }
+.satellite-scene-meta strong { font-size: 14px; }
+.satellite-scene-meta > small, .satellite-scene-error { flex: 0 0 100%; }
+.satellite-scene-error p { color: #903825; }
+.satellite-scene-dates { border-top: 1px solid var(--cinema-border); justify-content: space-between; }
+.satellite-scene-legend { min-width: 8rem; align-self: center; }
+.satellite-scene-legend span { display: block; height: 8px; border-radius: 3px; }
+.agromax-ui .analysis-page .evidence-card {
+  padding: clamp(18px, 2.2vw, 29px);
+  background: var(--cinema-cream);
+  border-color: var(--cinema-border);
+  color: var(--ag-ink);
+}
+.evidence-card .stat-icon { position: static; margin-bottom: 15px; }
+.evidence-card .eyebrow { display: block; }
+.agromax-ui .analysis-page .evidence-card h2 {
+  font: 500 clamp(23px, 2.5vw, 31px)/1.1 var(--font-ui);
+  color: var(--ag-ink);
+  margin-block: 7px 18px;
+}
+.evidence-card dl {
+  display: grid;
+  grid-template-columns: minmax(85px, .7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  margin: 0;
+  font-size: 12px;
+}
+.evidence-card dt, .evidence-card > small { color: var(--ag-muted); }
+.evidence-card dd { margin: 0; overflow-wrap: anywhere; }
+.agromax-ui .analysis-page .evidence-card > p {
+  margin-block: 18px 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cinema-border);
+  font-size: 12px;
+}
+.analysis-trend {
+  display: grid;
+  grid-template-columns: minmax(155px, .8fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 18px;
+  margin-block: 20px;
+  padding: clamp(14px, 2vw, 24px);
+}
+.analysis-trend h2 { margin-block: 6px 9px; font: 500 25px/1.15 var(--font-ui); }
+.analysis-trend p, .observation-plot-empty { color: var(--ag-muted); font-size: 13px; }
+.analysis-trend .observation-plot { margin: 0; }
+.observation-plot-selection { font-weight: 650; font-variant-numeric: tabular-nums; }
+@media (max-width: 980px) {
+  .analysis-top-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .analysis-trend { grid-template-columns: minmax(0, 1fr); }
+  .satellite-scene-head label { margin-inline-start: 0; }
+  .satellite-scene .parcel-map:not(.is-compact) .map-place-search {
+    inset: 15px 15px auto;
+    width: auto;
+    max-width: none;
+  }
+  .satellite-scene .parcel-map:not(.is-compact) .basemap-switch {
+    inset: auto 15px 45px auto;
+  }
 }

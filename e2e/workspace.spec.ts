@@ -143,12 +143,46 @@ test("menus, operation CRUD, sourced guide, confirmed tasks and private PDF down
       },
     )
     .toBe("completed");
+  await navigate(page, "Takvim & görevler");
+  await page.getByRole("button", { name: "Bugüne git" }).click();
+  const day = await page.locator(".fw-calendar-grid button[aria-pressed=true]").getAttribute("aria-label");
+  await page.getByRole("button", { name: "Yeni görev" }).click();
+  const taskEditor = page.getByRole("dialog");
+  const taskDate = await taskEditor.getByLabel("Planlanan tarih").inputValue();
+  expect(new Date(taskDate + "T12:00:00").toLocaleDateString("tr-TR", {
+    day: "numeric", month: "long", year: "numeric",
+  })).toBe(day);
+  await taskEditor.getByLabel("Görev adı").fill("EXPLICIT LINKED TASK " + info.retry);
+  const fieldOption = taskEditor.getByLabel("Parsel (isteğe bağlı)").locator("option").nth(1);
+  const linkedField = await fieldOption.getAttribute("value");
+  const linkedName = await fieldOption.textContent();
+  await taskEditor.getByLabel("Parsel (isteğe bağlı)").selectOption(linkedField!);
+  await taskEditor.getByRole("button", { name: "Görevi planla" }).click();
+  await expect(taskEditor).toHaveCount(0);
+  await page.getByRole("button", { name: linkedName!, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp("field=" + linkedField));
   await navigate(page, "Parseller ve analiz");
   await expect(page.locator(".parcel-map")).toHaveCount(1);
   await page.getByRole("button", { name: "Parsel çiz", exact: true }).click();
   await expect(page.locator(".inline-parcel-editor")).toBeVisible();
   await expect(page.locator(".parcel-map")).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  const drawingLayout = page.locator(".parcel-drawing-layout");
+  const palette = await drawingLayout.locator(".drawing-palette").boundingBox();
+  const map = await drawingLayout.locator(".parcel-map").boundingBox();
+  const editor = await page.locator(".inline-parcel-editor").boundingBox();
+  expect(palette && map && editor && palette.y + palette.height <= map.y + 1 && map.y + map.height <= editor.y + 1).toBe(true);
+  if (info.project.name === "mobile") {
+    const canvas = drawingLayout.locator(".leaflet-container-host");
+    await canvas.scrollIntoViewIfNeeded();
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    for (const [x, y] of [[0.28, 0.32], [0.64, 0.32], [0.64, 0.59], [0.28, 0.59]]) {
+      await page.touchscreen.tap(box!.x + box!.width * x, box!.y + box!.height * y);
+    }
+    await drawingLayout.getByRole("button", { name: "Sınırı tamamla", exact: true }).tap();
+    await expect(page.locator(".inline-parcel-editor .parcel-area strong")).not.toHaveText("Sınır bekleniyor");
+  }
   await page.getByRole("button", { name: "Düzenlemeyi iptal et" }).click();
   await page.screenshot({
     path: `data/browser-results/${info.project.name}-map.png`,

@@ -1,17 +1,4 @@
 /* Screen compositions. No decorative numbers or simulated provider readings. */
-.agromax-ui .analysis-heading h1 {
-  color: var(--ag-ink);
-  font-size: clamp(28px, 2.4vw, 36px);
-  letter-spacing: -1.2px;
-}
-.agromax-ui .analysis-heading p {
-  color: var(--ag-muted);
-  font-size: 13px;
-}
-.agromax-ui .analysis-heading .eyebrow {
-  color: #55735d;
-  font-size: 10px;
-}
 .agromax-ui .analysis-page .panel-head {
   padding: 23px;
   border-color: var(--ag-line);
@@ -20,20 +7,8 @@
   color: var(--ag-ink);
   font-size: 19px;
 }
-.agromax-ui .analysis-page :is(.image-controls, .table-actions) {
+.agromax-ui .analysis-page .table-actions {
   padding: 18px 22px;
-}
-.agromax-ui .analysis-page :is(.image-controls label, .image-legend) {
-  font-size: 12px;
-  color: var(--ag-muted);
-}
-.agromax-ui .analysis-page .evidence-card {
-  background: #eff3e7;
-  border-color: #d8e2cd;
-}
-.agromax-ui .analysis-page .evidence-card p {
-  font-size: 13px;
-  color: #4e674a;
 }
 .agromax-ui .analysis-page .metric-explanation p {
   font-size: 13px;

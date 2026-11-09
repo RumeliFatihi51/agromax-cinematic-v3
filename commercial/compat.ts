@@ -340,6 +340,12 @@ export async function createCompatibility(
             throw new DomainError("INVALID_DATE", "Geçerli tarih girin.");
           data.date = body.date;
           data.done = false;
+          if (body.fieldId) {
+            const parcel = await db.prepare("SELECT body FROM records WHERE id=? AND user_id=? AND kind='field'").get(String(body.fieldId), ctx.organization.id);
+            if (!parcel || JSON.parse(String(parcel.body)).deletedAt)
+              throw new DomainError("NOT_FOUND", "Görev için seçilen parsel bulunamadı.", 404);
+            data.fieldId = body.fieldId;
+          }
         }
         const id = randomBytes(16).toString("hex");
         await db

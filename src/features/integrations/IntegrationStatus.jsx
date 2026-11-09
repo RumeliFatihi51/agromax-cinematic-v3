@@ -15,15 +15,11 @@ import {
   availableMetrics,
   availableQualityBands,
 } from "../../../shared/metrics";
-export default function IntegrationStatus() {
-  const [status, setStatus] = useState(null),
-    [error, setError] = useState(""),
+export default function IntegrationStatus({ status }) {
+  const [error, setError] = useState(""),
     [nasa, setNasa] = useState(null),
     [checking, setChecking] = useState(false);
   useEffect(() => {
-    api("satellite/status")
-      .then(setStatus)
-      .catch((e) => setError(e.message));
     api("nasa/status")
       .then(setNasa)
       .catch((e) => setError(e.message));
@@ -67,7 +63,9 @@ export default function IntegrationStatus() {
             "Copernicus Data Space",
             status === null
               ? "Bağlantı durumu yükleniyor"
-              : status.health?.lastError
+              : status.unavailable
+                ? "Bağlantı durumu alınamadı"
+                : status.health?.lastError
                 ? "Son istek başarısız"
                 : status.health?.lastSuccessAt
                   ? "Gerçek servis yanıtı alındı"

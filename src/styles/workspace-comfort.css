@@ -1,0 +1,92 @@
+/* Leave room for the working surface on every module while keeping the overview layout. */
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) .studio-content {
+  max-width: 1920px;
+  padding-inline: clamp(16px, 2.5vw, 44px);
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading, .analysis-heading) {
+  margin-block-end: clamp(16px, 2vw, 29px);
+}
+.workspace-scene .px-main-grid[data-workspace] { grid-template-columns: minmax(0, 1fr); gap: clamp(15px, 2vw, 27px); }
+.workspace-scene .px-main-grid[data-workspace] .px-side-panel { position: static; }
+.workspace-scene .px-side-panel > summary {
+  cursor: pointer;
+  color: var(--desk-forest);
+  font-weight: 750;
+  padding-block: 4px;
+}
+.workspace-scene .px-side-panel[open] > summary { margin-block-end: 12px; }
+.workspace-scene :is(.px-main-column, .feature-atlas, .report-workbench, .claim-split, .observation-context, .account-profile-layout) {
+  gap: clamp(14px, 1.6vw, 25px);
+}
+.workspace-scene .px-main-grid :is(.px-record-list, .px-sources) { gap: 14px; }
+html.agromax-ui .workspace-scene .px-section { padding: clamp(15px, 2vw, 29px); }
+.workspace-scene .px-twin { grid-template-columns: minmax(0, 1.85fr) minmax(240px, 1fr); }
+.workspace-scene .px-twin-visual { min-height: clamp(275px, 30vw, 440px); }
+.px-twin-visual .parcel-map { height: 100% !important; }
+.workspace-scene .prescription-map .parcel-map { min-height: clamp(260px, 30vw, 410px); }
+.workspace-scene .analysis-top-grid { gap: clamp(13px, 2vw, 24px); }
+.workspace-scene :is(.report-workbench, .account-profile-layout) { grid-template-columns: minmax(230px, 1fr) minmax(0, 2fr); }
+.parcel-atlas-layout { gap: clamp(14px, 1.8vw, 25px); }
+.parcel-atlas-layout .atlas-workspace { padding: clamp(13px, 1.5vw, 21px); }
+.parcel-atlas-layout .atlas-grid { gap: 10px; }
+html.agromax-ui .workspace-scene :is(.analysis-heading h1, .atlas-card-info h2, .px-field-strip strong),
+html.agromax-ui .dashboard-parcel-header h2 { word-break: normal; overflow-wrap: break-word; }
+.dashboard-parcel-header { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.dashboard-parcel-header > button { grid-column: 2; justify-self: start; min-height: 32px; }
+html.agromax-ui .filiz-chat-question p { color: #fff9ec; }
+.fw-task-field { margin-inline-start: 31px; max-width: calc(100% - 31px); text-align: start; }
+.workspace-scene .fw-task-entry { padding-block-end: 10px; }
+
+html.agromax-ui .studio-shell :is(.field-map-stage, .dashboard-editor) > .inline-parcel-editor {
+  position: static;
+  inset: auto;
+  margin-block-start: 15px;
+  width: 100%;
+  max-height: none;
+  border: 1px solid var(--ag-line);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+html.agromax-ui .studio-shell :is(.field-map-stage, .dashboard-editor) > .inline-parcel-editor .parcel-details-form {
+  overflow: visible;
+  padding-block-start: 4px;
+}
+.parcel-map-frame { display: contents; }
+.parcel-drawing-layout { display: grid; min-width: 0; gap: 10px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout > .drawing-palette {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-width: none;
+  transform: none;
+  padding: 12px;
+  background: #f8f5ea;
+  color: #1e3829;
+  border: 1px solid var(--ag-line);
+  box-shadow: none;
+}
+html.agromax-ui .studio-shell .parcel-drawing-layout .palette-label,
+html.agromax-ui .studio-shell .parcel-drawing-layout .drawing-palette p { color: #38533d; min-height: 0; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .palette-tools { display: flex; flex-wrap: wrap; gap: 5px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .palette-tools > :is(button, label) { min-width: 44px; min-height: 44px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .finish-drawing { min-height: 44px; margin-inline-end: 6px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .parcel-map { height: clamp(370px, 55svh, 650px) !important; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .coordinate-jump { bottom: 58px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .map-utilities { bottom: 120px; }
+html.agromax-ui .studio-shell .parcel-drawing-layout .leaflet-control-zoom { margin-bottom: 10px; }
+@media (min-width: 641px) {
+  .cinematic-shell.sidebar-slim :is(.platform-nav-group > summary > span, .studio-nav-link > span:not(.canopy-nav-icon), .studio-nav-link > b) { display: none; }
+  html.agromax-ui .cinematic-shell.sidebar-slim :is(.platform-nav-group > summary, .studio-nav-link) { justify-content: center; gap: 0; padding-inline: 0; margin-inline: 0; width: 100%; }
+}
+@media (min-width: 641px) and (max-width: 850px) {
+  .cinematic-shell :is(.platform-nav-group > summary > span, .studio-nav-link > span:not(.canopy-nav-icon), .studio-nav-link > b) { display: none; }
+  html.agromax-ui .cinematic-shell :is(.platform-nav-group > summary, .studio-nav-link) { justify-content: center; gap: 0; padding-inline: 0; margin-inline: 0; width: 100%; }
+}
+@media (max-width: 760px) {
+  .workspace-scene :is(.report-workbench, .account-profile-layout, .px-twin) { grid-template-columns: minmax(0, 1fr); }
+  html.agromax-ui .studio-shell .parcel-drawing-layout .parcel-map { height: clamp(345px, 53svh, 470px) !important; }
+  html.agromax-ui .studio-shell .parcel-drawing-layout .palette-tools button span:not(.sr-only) { display: none; }
+  html.agromax-ui .studio-shell .parcel-drawing-layout .map-place-search { inset: 10px 10px auto; width: auto; }
+  html.agromax-ui .studio-shell .parcel-drawing-layout .basemap-switch { inset: auto 10px 44px auto; }
+  html.agromax-ui .studio-shell .parcel-drawing-layout .coordinate-jump { inset: auto auto 93px 10px; }
+}

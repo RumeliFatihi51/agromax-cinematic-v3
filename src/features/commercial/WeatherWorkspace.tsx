@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { LoaderCircle, CloudSun, History as HistoryIcon } from "lucide-react";
 import { choose, type Locale } from "./i18n";
 import type { Field } from "./types";
+import SceneSurface from "../cinema/SceneSurface";
 import "./commercial.css";
 const Forecast = lazy(() => import("../weather/WeatherDashboard"));
 const History = lazy(() => import("./HistoricalWeather"));
@@ -40,13 +41,15 @@ export default function WeatherWorkspace({
           </button>
         ))}
       </nav>
-      <Suspense fallback={<LoaderCircle size={24} className="spin" />}>
-        {tab === "forecast" ? (
-          <Forecast fields={fields} onNavigate={onNavigate} />
-        ) : (
-          <History fields={fields} locale={locale} />
-        )}
-      </Suspense>
+      <SceneSurface id={tab === "history" ? "weather-history" : "weather"} localTransition>
+        <Suspense fallback={<LoaderCircle size={24} className="spin" />}>
+          {tab === "forecast" ? (
+            <Forecast fields={fields} onNavigate={onNavigate} />
+          ) : (
+            <History fields={fields} locale={locale} />
+          )}
+        </Suspense>
+      </SceneSurface>
     </div>
   );
 }

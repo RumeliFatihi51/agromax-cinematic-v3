@@ -31,6 +31,8 @@ export default function FieldResearch({
   favorites,
   onFavorites,
   canAnalyze = true,
+  satelliteConfigured = false,
+  onConnections,
   customAnalysisEnabled = true,
 }: {
   fieldId: string;
@@ -39,6 +41,8 @@ export default function FieldResearch({
   favorites: string[];
   onFavorites: (ids: string[]) => Promise<void>;
   canAnalyze?: boolean;
+  satelliteConfigured?: boolean;
+  onConnections?: () => void;
   customAnalysisEnabled?: boolean;
 }) {
   const customRequest = useRef<AbortController | null>(null);
@@ -114,6 +118,7 @@ export default function FieldResearch({
   }
   async function runCustom(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canAnalyze || !satelliteConfigured || analysisBusy) return;
     const data = Object.fromEntries(new FormData(e.currentTarget)) as {
       start: string;
       split: string;
@@ -184,7 +189,7 @@ export default function FieldResearch({
                 />
               </label>
             </div>
-            <button className="primary" disabled={!canAnalyze || analysisBusy}>
+            <button className="primary" disabled={!canAnalyze || !satelliteConfigured || analysisBusy}>
               {analysisBusy ? (
                 <LoaderCircle className="spin" size={16} />
               ) : (
@@ -194,6 +199,7 @@ export default function FieldResearch({
                 ? t("Tüm çıktılar işleniyor…", "Processing all outputs…")
                 : t("Dönemleri analiz et", "Analyze periods")}
             </button>
+            {!satelliteConfigured && onConnections && <button type="button" className="secondary" onClick={onConnections}>{t("Veri bağlantılarını aç", "Open data connections")}</button>}
             {!canAnalyze && (
               <p>
                 {t(

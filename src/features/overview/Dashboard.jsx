@@ -9,6 +9,8 @@ import ParcelMap from "../fields/ParcelMap";
 import FieldEditor from "../fields/FieldEditor";
 import ParcelBrief from "./ParcelBrief";
 import FilizPanel from "./FilizPanel";
+import SceneFilm from "../cinema/SceneFilm";
+import { filmForScene } from "../cinema/sceneFilms";
 import { TextReveal, useDashboardEntrance } from "../../motion/entrance";
 import "./dashboard.css";
 
@@ -75,7 +77,7 @@ export default function Dashboard({
     <div className="dashboard-v3" ref={host}>
       <header className="dashboard-hero">
         <div className="dashboard-hero-media" aria-hidden="true">
-          <img src="/visuals/agromax-landscape-editorial-v1.webp" alt="" fetchPriority="high" />
+          <SceneFilm film={filmForScene("overview")} priority />
         </div>
         <div className="dashboard-greeting">
           <p data-enter>Merhaba, {user.name.split(" ")[0]}</p>
@@ -88,10 +90,9 @@ export default function Dashboard({
       {editing ? (
         <section className="dashboard-editor fw-overview-section" aria-label="Yeni parsel">
           <ParcelMap fields={fields} height={700} editable editSession={createRequest}
-            onChange={setGeometry} onDrawing={setDrawing}>
+            onChange={setGeometry} onDrawing={setDrawing} />
             <FieldEditor field={null} geometry={geometry} drawing={drawing}
               onCancel={() => finish()} onSaved={finish} />
-          </ParcelMap>
         </section>
       ) : (
         <div className="dashboard-grid">
@@ -217,7 +218,7 @@ function ObservationWorkspace({ field, fields, onSelect, onOpen, onNavigate, onC
         <div className="dashboard-indices" role="group" aria-label="Uydu indeksi">
           {indices.map((id) => <button key={id} aria-pressed={metric === id}
             onClick={() => setMetric(id)}>{id}</button>)}
-          <button aria-label="Diğer göstergeler" disabled={!field} onClick={() => onOpen(field)}>···</button>
+          <button aria-label="Tüm göstergeleri parsel detayında aç" title="Tüm göstergeleri parsel detayında aç" disabled={!field} onClick={() => onOpen(field, metric)}>···</button>
         </div>
         {fields.length > 1 && <select aria-label="Haritada parsel seç" value={field.id}
           onChange={(event) => onSelect(fields.find(({ id }) => id === event.target.value))}>
@@ -239,6 +240,6 @@ function ObservationWorkspace({ field, fields, onSelect, onOpen, onNavigate, onC
     </section>
     <ParcelBrief key={fieldId} field={field} analysis={analysis} loaded={loaded} error={current?.error}
       metric={metric} dates={dates} date={date} onDate={(date) => setSelection({ fieldId, date })}
-      onOpen={onOpen} onNavigate={onNavigate} />
+      onOpen={(parcel) => onOpen(parcel, metric)} onNavigate={onNavigate} />
   </>;
 }

@@ -18,6 +18,7 @@ import FieldEditor from "./FieldEditor";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 export default function FieldMapPanel({
   fields,
+  atlas = false,
   onSelect,
   onEdit,
   onDelete,
@@ -50,16 +51,17 @@ export default function FieldMapPanel({
       className={`field-map-stage ${editing ? "has-inline-editor" : ""}`}
     >
       <ParcelMap
+        workbench
         fields={displayedFields}
         geometry={editing?.geometry || null}
         editable={!!editing}
         editSession={editSession}
         onChange={onGeometry}
         onDrawing={onDrawing}
-        height="clamp(540px, calc(100vh - 300px), 1000px)"
+        height={atlas ? "clamp(300px, 40vh, 480px)" : "clamp(450px, calc(100vh - 300px), 1000px)"}
         onSelect={editing ? undefined : onSelect}
       >
-        <div className="map-stage-title" hidden={!!editing}>
+        {!atlas && <><div className="map-stage-title" hidden={!!editing}>
           <span className="map-kicker">
             <Satellite size={14} /> UYDU ÇALIŞMA ALANI
           </span>
@@ -110,7 +112,7 @@ export default function FieldMapPanel({
             />
           </label>
           <div className="map-field-results">
-            {filtered.map((f, i) => (
+            {filtered.map((f) => (
               <article className="map-field-result" key={f.id}>
                 <button onClick={() => onSelect(f)}>
                   <ParcelPreview geometry={f.geometry} />
@@ -168,7 +170,22 @@ export default function FieldMapPanel({
             {areaFormat.format(fields.reduce((s, f) => s + f.area, 0))} kayıtlı
             alan
           </div>
-        </aside>
+        </aside></>}
+        <div className="map-stage-bottom">
+          <span>
+            <i />
+            Kayıtlı parsel sınırı
+          </span>
+          <span>
+            <ScanLine size={14} />
+            {editing
+              ? "Açık haritada çiz; kaydederek tamamla."
+              : fields.length
+                ? "Bir parsele tıklayıp analizlerini aç"
+                : "İlk sınırını haritada çiz"}
+          </span>
+        </div>
+      </ParcelMap>
         {editing && (
           <FieldEditor
             key={editSession}
@@ -179,19 +196,7 @@ export default function FieldMapPanel({
             onSaved={onSaved}
           />
         )}
-        <div className="map-stage-bottom">
-          <span>
-            <i />
-            Kayıtlı parsel sınırı
-          </span>
-          <span>
-            <ScanLine size={14} />
-            {editing
-              ? "Açık haritada çiz; kaydederek tamamla."
-              : "Bir parsele tıklayıp analizlerini aç"}
-          </span>
-        </div>
-      </ParcelMap>
+
     </section>
   );
 }

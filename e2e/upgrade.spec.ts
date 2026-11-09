@@ -44,6 +44,13 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   await expect(balance.getByText("Girilen takvimler arasında en az stres ve suyla: Alternatif.")).toBeVisible();
   await page.reload();
   await expect(balance.getByRole("rowheader", { name: "Alternatif" })).toBeVisible();
+  await expect(balance.getByRole("img", { name: /günlük su açığı/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Parsel modeli ve kaynakları" })).toContainText("FAO-56");
+  await page.screenshot({ path: info.outputPath("twin-1440.png"), animations: "disabled" });
+  await page.goto("/#scenarios");
+  await expect(balance.getByRole("img", { name: /günlük su açığı/ })).toBeVisible();
+  await balance.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("scenarios-1440.png"), animations: "disabled" });
 
   await page.goto("/#evidence");
   await page.getByText(/^NDVI · Dönem farkı/).click();
@@ -77,6 +84,38 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   const notifications = await page.request.get("/api/notifications");
   expect(await notifications.text()).toContain(job.id);
 
+  const revised = await page.request.patch(`/api/records/${pipelineFieldId}`, { data: {
+    version: 1,
+    geometry: { type: "Polygon", coordinates: [[[26.5, 41], [26.502, 41], [26.502, 41.002], [26.5, 41]]] },
+  } });
+  expect(revised.status()).toBe(200);
+  await page.goto("/?temporal=1#temporal");
+  const temporal = page.locator(".temporal-studio");
+  const historicalRaster = page.waitForResponse((response) =>
+    response.url().endsWith(`/api/records/${pipelineFieldId}/image`) && response.request().method() === "POST",
+  );
+  await page.getByLabel("Platform parseli").selectOption(pipelineFieldId);
+  await expect(temporal.getByText("Bu analiz, kaydedildiği eski parsel sınırıyla gösteriliyor.")).toBeVisible();
+  await expect(temporal.getByRole("list", { name: "Kayıtlı analiz işlemleri" })
+    .getByRole("button", { pressed: true })).toContainText("Eski sınır");
+  const archivedResponse = await historicalRaster;
+  expect(archivedResponse.ok()).toBe(true);
+  expect(archivedResponse.request().postDataJSON().analysisId).toBe(job.id);
+  expect(JSON.parse(archivedResponse.headers()["x-image-bounds"]!)[2]).toBeCloseTo(26.501, 5);
+
+  await page.getByLabel("Platform parseli").selectOption("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+  const scene = temporal.getByRole("region", { name: "Uydu gözlem haritası" });
+  await expect(scene.locator(".satellite-scene-meta strong")).toContainText("NDVI");
+  await scene.getByLabel("Uydu görüntü katmanı").selectOption("NDRE");
+  await scene.getByLabel("Çekim tarihi").selectOption("2026-10-28");
+  await expect(scene.locator(".satellite-scene-meta strong")).toContainText("NDRE · 28");
+  await expect(temporal.locator(".observation-plot-selection")).toContainText("2026-10-28");
+  await page.screenshot({ path: info.outputPath("temporal-1440.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+  expect((await scene.locator(".parcel-map").boundingBox())!.y).toBeLessThan(775);
+  await page.screenshot({ path: info.outputPath("temporal-390.png"), animations: "disabled" });
+
   const viewports = [[360, 800], [390, 844], [768, 1024], [1024, 768],
     [1280, 800], [1440, 900], [1600, 900], [1672, 941], [1920, 1080]];
   for (const screen of ["overview", "fields", "assistant"]) {
@@ -86,8 +125,11 @@ test("water-balance persistence, linked evidence, and reference screens", async 
       await page.locator(".view-switch").getByRole("button", { name: "Liste", exact: true }).click();
       await page.locator(".field-comparison-table .metric-link").first().click();
       await expect(page.locator(".analysis-page")).toBeVisible();
+      await expect(page.locator(".analysis-page").getByRole("search", { name: "Haritada yer ara" })).toBeVisible();
     } else {
-      await expect(page.locator(".studio-content h1")).toBeVisible();
+      await expect(page.getByRole("heading", {
+        level: 1, name: screen === "overview" ? "Arazilerinizdeki güncel durum" : "Filiz",
+      })).toBeVisible();
     }
     if (screen === "assistant")
       await expect(page.getByText(/s2-period-change-v1/)).toBeVisible();
@@ -123,10 +165,13 @@ test("water-balance persistence, linked evidence, and reference screens", async 
             return [selector, { x: rect.x, y: rect.y + scrollY, width: rect.width, height: rect.height }];
           }),
         ));
-        expect(Math.abs(layout[".studio-sidebar"]!.width - 261)).toBeLessThan(10);
-        expect(Math.abs(layout[".dashboard-filiz"]!.width - 337)).toBeLessThan(24);
-        expect(Math.abs(layout[".dashboard-stats"]!.y - 235)).toBeLessThan(25);
-        expect(Math.abs(layout[".dashboard-map"]!.y - 362)).toBeLessThan(30);
+        expect(Math.abs(layout[".studio-sidebar"]!.width - 261)).toBeLessThan(6);
+        expect(Math.abs(layout[".dashboard-hero"]!.height - 255)).toBeLessThan(10);
+        expect(Math.abs(layout[".dashboard-filiz"]!.x - 1327)).toBeLessThan(8);
+        expect(Math.abs(layout[".dashboard-filiz"]!.width - 337)).toBeLessThan(8);
+        expect(Math.abs(layout[".dashboard-stats"]!.y - 235)).toBeLessThan(10);
+        expect(Math.abs(layout[".dashboard-map"]!.y - 362)).toBeLessThan(10);
+        expect(Math.abs(layout[".dashboard-modules"]!.y - 753)).toBeLessThan(10);
         await writeFile(info.outputPath("reference-layout-1672.json"), JSON.stringify(layout, null, 2));
       }
     }

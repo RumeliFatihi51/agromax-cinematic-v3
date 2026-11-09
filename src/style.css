@@ -1,5 +1,5 @@
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-ui);
   color: #243d35;
   background: #f7f9f6;
   font-synthesis: none;
@@ -52,7 +52,7 @@ h1,
 h2,
 h3,
 .brand {
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
 }
 small {
   font-size: 12px;
@@ -475,7 +475,7 @@ nav button:hover {
 }
 .stat > strong {
   display: block;
-  font-family: Manrope;
+  font-family: var(--font-ui);
   font-size: 27px;
   letter-spacing: -1px;
   color: #304b38;

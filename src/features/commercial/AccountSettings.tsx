@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import SceneSurface from "../cinema/SceneSurface";
 import {
   CheckCircle2,
   Globe,
@@ -148,7 +149,7 @@ export default function AccountSettings({
         })
       : t("Kayıtlı değil", "Not recorded");
   return (
-    <div className="business-settings">
+    <SceneSurface id={tab === "profile" ? "settings" : `settings-${tab}`} className="business-settings" localTransition>
       <div className="studio-page-title">
         <div>
           <span className="studio-kicker">
@@ -177,6 +178,7 @@ export default function AccountSettings({
         ].map(([key, tr, en]) => (
           <button
             key={key}
+            aria-pressed={tab === key}
             className={tab === key ? "active" : ""}
             onClick={() => setTab(key!)}
           >
@@ -195,6 +197,17 @@ export default function AccountSettings({
         </p>
       )}
       {tab === "profile" && (
+        <div className="account-profile-layout">
+        <aside className="account-identity business-settings-section">
+          <div className="account-cover" aria-hidden="true" />
+          <span className="account-initial" aria-hidden="true">{bootstrap.user.name.trim().slice(0, 1).toLocaleUpperCase(locale)}</span>
+          <strong>{bootstrap.user.name}</strong>
+          <p>{bootstrap.user.email}</p>
+          <dl>
+            <div><dt>{t("İşletme", "Workspace")}</dt><dd>{workspace.name}</dd></div>
+            <div><dt>{t("Saat dilimi", "Time zone")}</dt><dd>{workspace.timezone}</dd></div>
+          </dl>
+        </aside>
         <section className="business-settings-section">
           <h2>{t("Profil bilgilerin", "Your profile")}</h2>
           <form onSubmit={(e) => submit(e, "profile")}>
@@ -252,6 +265,7 @@ export default function AccountSettings({
             </p>
           )}
         </section>
+        </div>
       )}
       {tab === "preferences" && (
         <section className="business-settings-section">
@@ -443,6 +457,6 @@ export default function AccountSettings({
           )}
         </section>
       )}
-    </div>
+    </SceneSurface>
   );
 }

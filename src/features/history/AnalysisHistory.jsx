@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { History, RefreshCw, ArrowUpRight, Ban } from "lucide-react";
 import { api } from "../../api";
 import { PageHeading, EmptyState } from "../../components/ui/WorkspaceUI";
@@ -6,7 +6,7 @@ import FieldAnalysis from "../fields/FieldAnalysis";
 import "./records.css";
 import { states, timestamp } from "./format";
 
-export default function AnalysisHistory({ focusJob = null }) {
+export default function AnalysisHistory({ focusJob = null, onField }) {
   const [jobs, setJobs] = useState(null),
     [error, setError] = useState(""),
     [reload, setReload] = useState(0),
@@ -14,6 +14,8 @@ export default function AnalysisHistory({ focusJob = null }) {
     [selected, setSelected] = useState(null),
     [focused, setFocused] = useState(null),
     [busy, setBusy] = useState(null);
+  const detail = useRef(null);
+  const opener = useRef(null);
   useEffect(() => {
     const controller = new AbortController();
     let timer;
@@ -43,6 +45,9 @@ export default function AnalysisHistory({ focusJob = null }) {
   useEffect(() => {
     if (focusJob) open(focusJob);
   }, [focusJob]);
+  useEffect(() => {
+    if (selected) detail.current?.focus();
+  }, [selected]);
   async function open(jobId) {
     setBusy(jobId);
     setError("");
@@ -70,15 +75,6 @@ export default function AnalysisHistory({ focusJob = null }) {
       setBusy(null);
     }
   }
-  if (selected)
-    return (
-      <FieldAnalysis
-        key={selected.id}
-        field={selected.field}
-        initialAnalysis={selected.analysis}
-        onBack={() => setSelected(null)}
-      />
-    );
   const filtered = (jobs || []).filter(
     (j) => filter === "all" || j.state === filter,
   );
@@ -94,11 +90,21 @@ export default function AnalysisHistory({ focusJob = null }) {
           Yenile
         </button>
       </PageHeading>
+      <dl className="history-counts" aria-label="Analiz işlemlerinin özeti">
+        {[["all", "Tüm işlemler"], ["completed", "Tamamlanan"], ["running", "İşlenen"], ["queued", "Kuyrukta"], ["failed", "Başarısız"]].map(([id, label]) => (
+          <div key={id}><dt>{label}</dt><dd>{jobs ? jobs.filter((job) => id === "all" || job.state === id).length : "—"}</dd></div>
+        ))}
+      </dl>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
+      {selected && <section className="records-inline-detail" ref={detail} tabIndex={-1} aria-label="Açık analiz sonucu">
+        {onField && <button className="text-button" onClick={() => onField(selected.field)}>Güncel parsel kaydını aç</button>}
+        <FieldAnalysis key={selected.id} field={selected.field} initialAnalysis={selected.analysis}
+          archiveId={selected.id} embedded onBack={() => { setSelected(null); opener.current?.focus(); }} />
+      </section>}
       {focused && (
         <section className="panel records-filter" role="status">
           <div>
@@ -173,7 +179,7 @@ export default function AnalysisHistory({ focusJob = null }) {
                         <button
                           className="text-button"
                           disabled={busy === j.id}
-                          onClick={() => open(j.id)}
+                          onClick={(event) => { opener.current = event.currentTarget; open(j.id); }}
                         >
                           Sonucu aç <ArrowUpRight size={15} />
                         </button>

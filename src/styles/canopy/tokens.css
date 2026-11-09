@@ -36,7 +36,7 @@
   --studio-muted: var(--ag-muted);
   --studio-line: var(--ag-line);
   --studio-radius: var(--ag-radius);
-  font-family: Manrope, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 16px;
   color: var(--ag-ink);
   background: var(--ag-paper);

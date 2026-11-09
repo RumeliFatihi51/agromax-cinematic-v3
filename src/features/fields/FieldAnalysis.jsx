@@ -7,10 +7,9 @@ import {
   ShieldCheck,
   Info,
   Download,
-  Image as ImageIcon,
 } from "lucide-react";
 import ObservationPlot from "./ObservationPlot";
-import { api, fetchAnalysisImage, requestAnalysis } from "../../api";
+import { api, requestAnalysis } from "../../api";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 import {
   indices,
@@ -19,7 +18,7 @@ import {
   observationAngles,
   metricAvailability,
 } from "../../../shared/metrics";
-import ParcelMap from "./ParcelMap";
+import SatelliteScene, { sceneDatesFor } from "./SatelliteScene";
 export const number = (value) =>
   Number.isFinite(value)
     ? value.toLocaleString("tr-TR", {
@@ -50,25 +49,29 @@ export default function FieldAnalysis({
   onEdit,
   onAnalysis,
   initialAnalysis = null,
+  archiveId,
+  embedded = false,
+  selectedMetric,
+  onSelectMetric,
+  satellite,
+  canAnalyze = true,
+  onConnections,
 }) {
   const areaFormat = useAreaFormat();
+  const Heading = embedded ? "h2" : "h1";
   const request = useRef(null);
-  const imageRequest = useRef(null);
   const [analysis, setAnalysis] = useState(initialAnalysis),
     [status, setStatus] = useState(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [metricId, setMetricId] = useState("NDVI"),
-    [image, setImage] = useState(null),
-    [imageDate, setImageDate] = useState(""),
-    [layer, setLayer] = useState("RGB"),
-    [imageBusy, setImageBusy] = useState(false),
+    [localMetric, setMetricId] = useState("NDVI"),
+    [selectedDate, setSelectedDate] = useState(""),
+    [mapMetric, setMapMetric] = useState(null),
     [group, setGroup] = useState("Tümü"),
     [job, setJob] = useState(null);
   useEffect(
     () => () => {
       request.current?.abort();
-      imageRequest.current?.abort();
     },
     [],
   );
@@ -96,13 +99,9 @@ export default function FieldAnalysis({
       active = false;
     };
   }, [field.id, initialAnalysis]);
-  useEffect(
-    () => () => {
-      if (image?.url) URL.revokeObjectURL(image.url);
-    },
-    [image],
-  );
+  const connection = satellite === undefined ? status : satellite;
   async function refresh() {
+    if (!connection?.configured || !canAnalyze || busy || !field.geometry) return;
     setBusy(true);
     setError("");
     request.current?.abort();
@@ -121,33 +120,21 @@ export default function FieldAnalysis({
       setBusy(false);
     }
   }
-  async function loadImage() {
-    setImageBusy(true);
-    setError("");
-    imageRequest.current?.abort();
-    const controller = new AbortController();
-    imageRequest.current = controller;
-    try {
-      setImage(await fetchAnalysisImage(field.id, {
-        date: imageDate, layer, analysisId: analysis?.historyId,
-        signal: controller.signal,
-      }));
-    } catch (e) {
-      if (e.name !== "AbortError") setError(e.message);
-    } finally {
-      if (imageRequest.current === controller) setImageBusy(false);
-    }
-  }
-  const sceneDates = [
-    ...new Set(
-      (analysis?.scenes || [])
-        .map((s) => s.properties?.datetime?.slice(0, 10))
-        .filter(Boolean),
-    ),
-  ]
-    .sort()
-    .reverse();
+  const sceneDates = sceneDatesFor(analysis);
+  const imageDate = sceneDates.includes(selectedDate) ? selectedDate : sceneDates[0];
   const catalog = [...metrics, ...observationAngles];
+  const metricId = catalog.some((metric) => metric.id === selectedMetric) ? selectedMetric : localMetric;
+  const provider = analysis?.provider || status?.provider || "cdse";
+  const layers = [
+    { id: "RGB", label: "Doğal renk (RGB)" },
+    ...catalog.filter(({ id }) => !metricAvailability(id, provider))
+      .map(({ id }) => ({ id, label: id })),
+  ];
+  function selectMetric(id) {
+    if (onSelectMetric) onSelectMetric(id);
+    else setMetricId(id);
+    if (layers.some((layer) => layer.id === id)) setMapMetric(id);
+  }
   const metric = catalog.find((m) => m.id === metricId),
     comparison = analysis?.comparison?.[metricId];
   const observations =
@@ -190,10 +177,10 @@ export default function FieldAnalysis({
         <ArrowLeft size={17} />
         {initialAnalysis ? "Analiz geçmişine dön" : "Tarlalara dön"}
       </button>
-      <div className="analysis-heading">
+      <header className="analysis-heading">
         <div>
-          <span className="eyebrow">PARSELİNİZİN HİKÂYESİ</span>
-          <h2>{field.name}</h2>
+          <span className="eyebrow">PARSEL ANALİZİ</span>
+          <Heading>{field.name}</Heading>
           <p>
             {field.crop || "Ürün belirtilmedi"} ·{" "}
             {areaFormat.format(field.area)} ·{" "}
@@ -210,7 +197,7 @@ export default function FieldAnalysis({
             <button
               className="primary"
               onClick={refresh}
-              disabled={busy || !field.geometry}
+              disabled={!connection?.configured || !canAnalyze || busy || !field.geometry}
             >
               <RefreshCw size={17} className={busy ? "spin" : ""} />
               {busy
@@ -221,7 +208,7 @@ export default function FieldAnalysis({
             </button>
           )}
         </div>
-      </div>
+      </header>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -229,7 +216,7 @@ export default function FieldAnalysis({
       )}
       {initialAnalysis && (
         <div className="data-warning">
-          Geçmiş analiz kaydı · {analysis.historyId?.slice(0, 8)} · Bu ekran,
+          Geçmiş analiz kaydı · {(archiveId || analysis.historyId)?.slice(0, 8)} · Bu ekran,
           analizin kaydedildiği parsel sınırını ve sonuç sürümünü gösterir.
         </div>
       )}
@@ -246,92 +233,31 @@ export default function FieldAnalysis({
           “Sınırı düzenle” ile parselinizi çizin.
         </div>
       )}
-      {status && !status.configured && (
+      {!initialAnalysis && connection && !connection.configured && (
         <div className="data-warning">
           <Satellite size={20} />
           <div>
-            <strong>Copernicus bağlantısı tamamlanmayı bekliyor.</strong>
+            <strong>{connection.unavailable ? "Uydu bağlantı durumu alınamadı." : "Copernicus yapılandırması eksik."}</strong>
             <p>
-              Veri kaynağının sunucu yapılandırması eksik. Bağlantı
-              tamamlanmadan uydu sonucu üretilemez.
+              Bağlantı hazır olduğunda yeni bir uydu analizi başlatabilirsin.
             </p>
+            {onConnections && <button className="text-button" onClick={onConnections}>Veri bağlantılarını aç</button>}
           </div>
         </div>
       )}
       <div className="analysis-top-grid">
-        <section className="panel field-image">
-          <div className="panel-head">
-            <div>
-              <h2>Tarlanın görünümü</h2>
-              <p>
-                {image
-                  ? `${image.date} · ${image.layer} · Sentinel-2 L2A`
-                  : "Parsel sınırı ve gerçek harita altlığı"}
-              </p>
-            </div>
-            <ImageIcon size={19} />
-          </div>
-          {field.geometry ? (
-            <ParcelMap
-              key={field.id}
-              geometry={field.geometry}
-              image={image}
-              height={350}
-            />
-          ) : (
-            <div className="empty">Parsel sınırı bekleniyor.</div>
-          )}
-          <div className="image-controls">
-            <select
-              aria-label="Görüntü tarihi"
-              value={imageDate}
-              onChange={(e) => setImageDate(e.target.value)}
-            >
-              <option value="">Çekim tarihi seçin</option>
-              {sceneDates.map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              aria-label="Uydu görüntü katmanı"
-              value={layer}
-              onChange={(e) => setLayer(e.target.value)}
-            >
-              <option value="RGB">Doğal renk (RGB)</option>
-              {catalog
-                .filter(
-                  (m) => !metricAvailability(m.id, status?.provider || "cdse"),
-                )
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.id}
-                  </option>
-                ))}
-            </select>
-            <button
-              className="secondary"
-              disabled={!imageDate || imageBusy}
-              onClick={loadImage}
-            >
-              {imageBusy ? "Yükleniyor…" : "Görüntüyü getir"}
-            </button>
-          </div>
-          {image?.legend && (
-            <p className="image-legend">
-              <span
-                style={{ background: "linear-gradient(90deg,#30668c,#b9df55)" }}
-              />{" "}
-              {number(image.legend.min)} → {number(image.legend.max)} ·{" "}
-              {image.legend.unit}. {image.legend.method} Görüntü SCL 4/5/6 ve
-              CLD&lt;40 maskesiyle gösterilir.
-            </p>
-          )}
-        </section>
-        <section className="panel evidence-card">
+        <SatelliteScene
+          field={field} analysis={analysis} archiveId={archiveId} dates={sceneDates} day={imageDate}
+          onDay={setSelectedDate} layer={layers.some(({ id }) => id === (mapMetric || metricId)) ? (mapMetric || metricId) : "RGB"} layers={layers}
+          onLayer={(id) => id === "RGB" ? setMapMetric(id) : selectMetric(id)}
+          compact={false}
+        />
+        <aside className="panel evidence-card" aria-label="Analiz kaynağı ve yöntem">
           <span className="stat-icon purple">
             <ShieldCheck size={22} />
           </span>
-          <h2>Her değerin arkasında bir kaynak.</h2>
+          <span className="eyebrow">KAYNAK DOSYASI</span>
+          <h2>Ölçümün dayanağı</h2>
           <dl>
             <dt>Kaynak</dt>
             <dd>{analysis?.source || "Henüz veri alınmadı"}</dd>
@@ -373,8 +299,16 @@ export default function FieldAnalysis({
             eksikliği veya toprak nem yüzdesi teşhisi değildir.
           </p>
           {analysis && <small>{analysis.mask}</small>}
-        </section>
+        </aside>
       </div>
+      <section className="analysis-trend" aria-labelledby="analysis-trend-title">
+        <div>
+          <span className="eyebrow">ZAMAN SERİSİ</span>
+          <h2 id="analysis-trend-title">{metric.id} · {metric.label}</h2>
+          <p>Çekim tarihi harita ve grafikte birlikte seçilir. Kapsama eşiğini geçen ölçümler ayrı noktalar olarak görünür.</p>
+        </div>
+        <ObservationPlot observations={observations} metric={metric} selectedDate={imageDate} showEmpty />
+      </section>
       {field.notes && (
         <section className="panel metric-explanation">
           <h2>Tarla notların</h2>
@@ -422,12 +356,13 @@ export default function FieldAnalysis({
                   <tr
                     key={m.id}
                     className={metricId === m.id ? "selected" : ""}
-                    onClick={() => setMetricId(m.id)}
+                    onClick={() => selectMetric(m.id)}
                   >
                     <td>
                       <button
                         className="metric-link"
-                        onClick={() => setMetricId(m.id)}
+                        aria-pressed={metricId === m.id}
+                        onClick={(event) => { event.stopPropagation(); selectMetric(m.id); }}
                       >
                         {m.id}
                       </button>
@@ -515,7 +450,6 @@ export default function FieldAnalysis({
               : "İki dönemde de en az %70 geçerli piksel kapsamına sahip gözlem bulunmadan karşılaştırma üretilemez. Eksik veri sıfır olarak gösterilmez."}
           </p>
         </div>
-        <ObservationPlot observations={observations} metric={metric} />
         {observations.length > 0 ? (
           <div className="analysis-table-wrap">
             <table className="analysis-table">

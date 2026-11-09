@@ -297,6 +297,12 @@ export async function createApplication({
               return reply(400, { error: "Geçerli tarih girin." });
             record.date = body.date;
             record.done = false;
+            if (body.fieldId) {
+              const parcel = await db.prepare("SELECT body FROM records WHERE id=? AND user_id=? AND kind='field'").get(String(body.fieldId), session.id);
+              if (!parcel || JSON.parse(parcel.body).deletedAt)
+                return reply(404, { error: "Görev için seçilen parsel bulunamadı." });
+              record.fieldId = body.fieldId;
+            }
           }
           const id = randomBytes(16).toString("hex");
           await db

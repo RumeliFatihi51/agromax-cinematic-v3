@@ -1,0 +1,87 @@
+/* One dock owns the map controls; the map, list and editor keep their own layers. */
+.map-control-deck { display: contents; }
+html.agromax-ui .map-workbench:not(.is-editable) .map-control-deck {
+  position: absolute;
+  z-index: 900;
+  inset: 14px 14px auto auto;
+  width: min(410px, calc(100% - 28px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .map-control-deck > * {
+  pointer-events: auto;
+  inset: auto;
+  margin: 0;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .basemap-switch {
+  position: static;
+  grid-area: 1 / 1;
+  width: fit-content;
+  padding: 3px;
+  backdrop-filter: none;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .map-utilities {
+  position: static;
+  display: flex;
+  flex-direction: row;
+  grid-area: 1 / 2;
+  gap: 3px;
+  align-items: center;
+  padding: 3px;
+  background: #173127;
+  border: 1px solid #ffffff27;
+  border-radius: 10px;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .map-utilities button {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-radius: 5px;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .map-utilities .north-marker { display: none; }
+html.agromax-ui .map-workbench:not(.is-editable) .map-place-search {
+  position: relative;
+  grid-area: 2 / 1 / auto / -1;
+  justify-self: stretch;
+  width: auto;
+  max-width: none;
+}
+html.agromax-ui .map-workbench:not(.is-editable) .map-place-search > form { min-height: 45px; }
+html.agromax-ui .map-workbench .place-search-dropdown {
+  position: absolute;
+  inset: 100% 0 auto;
+  max-height: min(205px, 38svh);
+  overscroll-behavior: contain;
+}
+
+@container (max-width: 710px) {
+  html.agromax-ui .map-workbench:not(.is-editable) .map-stage-title { display: none; }
+  html.agromax-ui .map-workbench:not(.is-editable) .map-field-browser {
+    top: 124px;
+    max-height: calc(100% - 203px);
+  }
+}
+@container (max-width: 485px) {
+  html.agromax-ui .map-workbench:not(.is-editable) .map-control-deck { inset: 9px 9px auto; width: auto; gap: 5px; }
+  html.agromax-ui .map-workbench:not(.is-editable) :is(.map-utilities, .basemap-switch) { gap: 0; }
+  html.agromax-ui .map-workbench:not(.is-editable) :is(.map-utilities, .basemap-switch) button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 7px;
+  }
+  html.agromax-ui .map-workbench:not(.is-editable) .basemap-switch button svg { display: none; }
+  html.agromax-ui .map-workbench:not(.is-editable) .basemap-switch button:last-child svg { display: block; }
+  html.agromax-ui .map-workbench:not(.is-editable) .map-place-search > form { padding-block: 3px; }
+  html.agromax-ui .map-workbench:not(.is-editable) .place-search-submit { min-height: 40px; }
+}
+@container (max-width: 305px) {
+  html.agromax-ui .map-workbench:not(.is-editable) .map-utilities { grid-area: 2 / 1; justify-self: start; }
+  html.agromax-ui .map-workbench:not(.is-editable) .map-place-search { grid-area: 3 / 1 / auto / -1; }
+  html.agromax-ui .map-workbench:not(.is-editable) .map-field-browser {
+    top: 172px;
+    max-height: calc(100% - 245px);
+  }
+}

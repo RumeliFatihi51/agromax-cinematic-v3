@@ -68,7 +68,7 @@ export default function FieldEditor({
       <form className="parcel-details-form" onSubmit={save}>
         <p className="editor-form-intro">
           {drawing
-            ? "Köşeleri işaretle; ilk köşeye tıklayarak sınırı tamamla."
+            ? "Haritada köşeleri işaretle ve çizimi araç çubuğundan tamamla."
             : "Çizimini tamamlayıp parsel bilgilerini kaydet."}
         </p>
         <div className="parcel-area">

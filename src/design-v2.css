@@ -297,7 +297,7 @@ nav button:last-child {
 .quick-stat strong {
   display: flex;
   align-items: baseline;
-  font-family: Manrope, sans-serif;
+  font-family: var(--font-ui);
   font-size: 30px;
   letter-spacing: -1px;
   font-weight: 700;
@@ -306,7 +306,7 @@ nav button:last-child {
 .quick-stat em {
   font-size: 11px;
   letter-spacing: 0;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-ui);
   font-style: normal;
   font-weight: 450;
   margin-left: 8px;
@@ -608,7 +608,7 @@ nav button:last-child {
   width: 36px;
   height: 36px;
 }
-.parcel-preview polygon {
+.parcel-outline {
   fill: #cddd9f;
   stroke: #8ca85e;
   stroke-width: 1.4;

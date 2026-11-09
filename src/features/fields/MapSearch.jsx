@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Search, MapPin, ArrowUpRight, LoaderCircle, X } from "lucide-react";
 export default function MapSearch({ onSelect, getCenter }) {
+  const resultsId = useId();
   const [query, setQuery] = useState(""),
     [results, setResults] = useState([]),
     [busy, setBusy] = useState(false),
@@ -87,7 +88,7 @@ export default function MapSearch({ onSelect, getCenter }) {
           placeholder="İl, ilçe, köy veya adres ara…"
           aria-label="Haritada yer ara"
           aria-expanded={open}
-          aria-controls="map-place-results"
+          aria-controls={open ? resultsId : undefined}
           autoComplete="off"
           maxLength={200}
           onChange={(e) => {
@@ -147,7 +148,7 @@ export default function MapSearch({ onSelect, getCenter }) {
         </button>
       </form>
       {open && (
-        <div className="place-search-dropdown" id="map-place-results">
+        <div className="place-search-dropdown" id={resultsId}>
           <div className="place-search-status" role="status">
             {busy
               ? "Konumlar aranıyor…"

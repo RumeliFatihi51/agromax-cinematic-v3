@@ -48,8 +48,15 @@ const AnalysisHistory = lazy(
 const Notifications = lazy(
   () => import("./features/notifications/Notifications"),
 );
+const businessOnlyModules = {
+  finance: "Gerçekleşen giderler işletme çalışma alanında tutulur. Kişisel alanda senaryo giderlerini karşılaştırabilirsin.",
+  reports: "PDF rapor arşivi işletme çalışma alanında kullanılabilir. Kişisel alanda parselin JSON kanıt paketini indirebilirsin.",
+  settings: "Profil, ekip ve oturum ayarları işletme çalışma alanında kullanılabilir.",
+  operations: "Sezon ve saha kayıtları işletme çalışma alanında tutulur. Kişisel alanda takvimden görev planlayabilirsin.",
+};
 export default function App() {
-  const [page, setPage] = useWorkspacePage();
+  const [page, setPage, location] = useWorkspacePage();
+  const destinationField = location.field;
   const [user, setUser] = useState(null),
     [loading, setLoading] = useState(true),
     [ready, setReady] = useState(false),
@@ -59,11 +66,11 @@ export default function App() {
     [modal, setModal] = useState(false),
     [saving, setSaving] = useState(false),
     [createRequest, setCreateRequest] = useState(0),
-    [focus, setFocus] = useState(null),
+    [satellite, setSatellite] = useState(null),
     [reload, setReload] = useState(0),
     [notifications, setNotifications] = useState(null),
     [historyFocus, setHistoryFocus] = useState(null),
-    [destinationField, setDestinationField] = useState(""),
+    [taskDate, setTaskDate] = useState(""),
     [commercial, setCommercial] = useState(null),
     [commercialError, setCommercialError] = useState(""),
     [operationPage, setOperationPage] = useState("seasons");
@@ -71,6 +78,15 @@ export default function App() {
     commercial?.organizations.find(
       (o) => o.id === commercial.preferences?.activeOrganizationId,
     ) || commercial?.organizations[0];
+  useEffect(() => {
+    setSatellite(null);
+    if (!user?.id || (user.commercial && !activeWorkspace?.id)) return;
+    const controller = new AbortController();
+    api("satellite/status", undefined, "GET", { signal: controller.signal })
+      .then((status) => { if (!controller.signal.aborted) setSatellite(status); })
+      .catch(() => { if (!controller.signal.aborted) setSatellite({ unavailable: true }); });
+    return () => controller.abort();
+  }, [user?.id, user?.commercial, activeWorkspace?.id]);
   async function reloadWorkspace() {
     const data = await api("v1/bootstrap");
     const selected =
@@ -178,20 +194,16 @@ export default function App() {
     tasks = useMemo(() => records.filter((r) => r.kind === "task"), [records]);
   function navigate(id, fieldId = "") {
     if (operationPages.includes(id)) setOperationPage(id);
-    setPage(canonicalPage(id));
-    setFocus(null);
+    setPage(canonicalPage(id), { field: typeof fieldId === "string" ? fieldId : "" });
     setHistoryFocus(null);
-    setDestinationField(typeof fieldId === "string" ? fieldId : "");
     setError("");
   }
   function create() {
-    setFocus(null);
     if (page !== "overview") setPage("fields");
     setCreateRequest((n) => n + 1);
   }
-  function analyze(field) {
-    setFocus(field.id);
-    setPage("fields");
+  function analyze(field, metric) {
+    setPage("fields", { field: field.id, metric });
   }
   async function saveTask(e) {
     e.preventDefault();
@@ -239,7 +251,8 @@ export default function App() {
     setReady(false);
     setPage("overview");
   }
-  function openTask() {
+  function openTask(date) {
+    setTaskDate(typeof date === "string" ? date : "");
     setError("");
     setModal(true);
   }
@@ -349,7 +362,7 @@ export default function App() {
         : null}
     />;
   else if (page === "history")
-    content = <AnalysisHistory focusJob={historyFocus} />;
+    content = <AnalysisHistory focusJob={historyFocus} onField={analyze} />;
   else if (page === "notifications")
     content = (
       <Notifications
@@ -381,7 +394,12 @@ export default function App() {
         fields={fields}
         createRequest={createRequest}
         onCreateHandled={() => setCreateRequest(0)}
-        focusField={focus}
+        focusField={location.field}
+        selectedMetric={location.metric}
+        onSelectField={(id) => setPage(page, { field: id })}
+        onSelectMetric={(metric) => setPage(page, { field: location.field, metric }, true)}
+        satellite={satellite}
+        onConnections={() => navigate("integrations")}
         analysisMode={page === "satellite"}
         onSaved={(record) =>
           setRecords((v) =>
@@ -397,7 +415,7 @@ export default function App() {
       />
     );
   else if (page === "tasks")
-    content = <TaskBoard tasks={tasks} onToggle={toggle} onCreate={openTask} />;
+    content = <TaskBoard tasks={tasks} fields={fields} onField={analyze} onToggle={toggle} onCreate={openTask} />;
   else if (page === "weather")
     content = activeWorkspace ? (
       <WeatherWorkspace
@@ -444,8 +462,10 @@ export default function App() {
   else if (activeWorkspace && page === "reports")
     content = (
       <ReportsWorkspace
-        key={activeWorkspace.id}
+        key={`${activeWorkspace.id}:${destinationField}`}
         fields={fields}
+        initialFieldId={destinationField}
+        onNavigate={navigate}
         organizationId={activeWorkspace.id}
         dailyLimit={commercial?.capabilities?.reportDailyLimit}
         locale={commercial.preferences?.locale || "tr"}
@@ -455,7 +475,7 @@ export default function App() {
   else if (page === "assistant")
     content = activeWorkspace ? (
       <FilizWorkspace
-        key={activeWorkspace.id}
+        key={`${activeWorkspace.id}:${destinationField}`}
         fields={fields}
         initialFieldId={destinationField}
         workspace={activeWorkspace}
@@ -475,7 +495,7 @@ export default function App() {
             <p>Harita, uydu ve diğer veri kaynaklarını buradan takip et.</p>
           </div>
         </div>
-        <IntegrationStatus />
+        <IntegrationStatus status={satellite} />
       </>
     );
   else
@@ -491,16 +511,12 @@ export default function App() {
           <span>
             <PageIcon size={36} />
           </span>
-          <small>GELİŞTİRME AŞAMASINDA</small>
+          <small>{businessOnlyModules[page] ? "İŞLETME MODÜLÜ" : "GELİŞTİRME AŞAMASINDA"}</small>
           <h2>
-            {page === "weather"
-              ? "Havanın bilgisini, kaynağından alacağız."
-              : "Bu alanın yeni araçları hazırlanıyor."}
+            {businessOnlyModules[page] ? "İşletme çalışma alanı gerekli." : "Bu alanın yeni araçları hazırlanıyor."}
           </h2>
           <p>
-            {page === "weather"
-              ? "Meteoroloji bağlantısı tamamlandığında konuma ait gerçek gözlemler ve tarihli tahminler burada yer alacak."
-              : "Bu modül henüz etkin değil. Gerekli veri bağlantıları ve iş akışları tamamlandığında kullanıma açılacak."}
+            {businessOnlyModules[page] || "Bu modül gerekli bağlantılar tamamlandığında kullanıma açılacak."}
           </p>
           <button
             className="secondary"
@@ -516,6 +532,8 @@ export default function App() {
     <PreferenceProvider preferences={commercial?.preferences}>
       <AppShell
         page={page}
+        scene={page === "fields" || (["weather", "settings"].includes(page) && activeWorkspace) ? null :
+          page === "operations" ? `operations-${operationPage}` : page}
         user={user}
         fields={fields}
         tasks={tasks}
@@ -577,7 +595,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
         {modal && (
-          <TaskModal
+          <TaskModal initialDate={taskDate} fields={fields}
             onClose={() => setModal(false)}
             onSave={saveTask}
             busy={saving}

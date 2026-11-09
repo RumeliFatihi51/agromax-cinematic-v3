@@ -1,0 +1,411 @@
+/* Shared optics, with route-specific artwork and native workspace layouts. */
+.workspace-scene {
+  --scene-ink: #385e46;
+  --scene-wash: #dce5d0;
+  --scene-duration: 220ms;
+  position: relative;
+  min-width: 0;
+}
+.workspace-scene[data-scene-tone="sky"] { --scene-ink: #396273; --scene-wash: #dce7e7; }
+.workspace-scene[data-scene-tone="sand"] { --scene-ink: #776446; --scene-wash: #eae0cb; }
+.workspace-scene[data-scene-tone="clay"] { --scene-ink: #815640; --scene-wash: #eddfd2; }
+.workspace-scene-art {
+  position: absolute;
+  inset: 0 0 auto auto;
+  width: min(62%, 740px);
+  height: clamp(92px, 9vw, 133px);
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 14px;
+  mask-image: linear-gradient(90deg, transparent, #000 40%, #000 94%, #000b);
+  color: var(--scene-ink);
+}
+.workspace-scene > :where(:not(.workspace-scene-art, .cinema-route-cut, .modal-backdrop, dialog)) { position: relative; }
+.scene-film, .scene-film > :is(img, video) { position: absolute; width: 100%; height: 100%; inset: 0; }
+.scene-film { display: block; overflow: hidden; }
+.scene-film > :is(img, video) { display: block; object-fit: cover; object-position: var(--film-position, center); }
+.scene-film video { opacity: 0; }
+.scene-film video.is-playing { opacity: 1; }
+.workspace-scene-art > svg { position: absolute; width: 100%; height: 100%; inset: 0; }
+.workspace-scene-art .scene-film { --film-position: 65% 52%; opacity: .72; }
+.workspace-scene-art[data-film] { mask-image: linear-gradient(90deg, transparent 2%, #0004 37%, #000 77%, #000d); }
+.workspace-scene-art svg { fill: none; stroke: currentColor; stroke-width: 1px; opacity: .58; }
+.scene-contours { opacity: .32; }
+.scene-land { color: #657b42; }
+.scene-signature { opacity: .23; }
+.workspace-scene-art[data-film] svg { opacity: .59; stroke: #f8f6e4; }
+.workspace-scene[data-scene="assistant"] .workspace-scene-art { width: min(53%, 620px); height: clamp(110px, 12vw, 160px); }
+.workspace-scene[data-scene="assistant"] .workspace-scene-art .scene-film { --film-position: 75% 48%; opacity: .9; }
+.workspace-scene[data-scene-tone="sky"] .workspace-scene-art .scene-film { --film-position: 68% 39%; }
+.workspace-scene[data-scene-tone="sand"] .workspace-scene-art .scene-film { --film-position: 60% 62%; opacity: .64; }
+.workspace-scene[data-scene="history"] .workspace-scene-art { width: min(46%, 490px); }
+.workspace-scene[data-scene="field-detail"] .workspace-scene-art { top: 36px; height: 135px; }
+.workspace-scene[data-scene^="operations-"] .workspace-scene-art { top: 73px; }
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading, .analysis-heading, .filiz-hero) {
+  position: relative;
+  min-width: 0;
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading, .analysis-heading, .filiz-hero) :is(h1, h2) {
+  font-family: var(--font-ui);
+  font-weight: 750;
+  letter-spacing: -.046em;
+  overflow-wrap: anywhere;
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading, .analysis-heading) h1 {
+  line-height: 1.06;
+  text-wrap: balance;
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading) p {
+  color: var(--ag-muted);
+  line-height: 1.62;
+}
+html.agromax-ui .studio-shell :is(p, label, summary, td, th, input, select, textarea, button) { font-family: var(--font-ui); }
+.agromax-ui :is(.analysis-table, .business-register, .px-table-wrap, .weather-hero, .fw-calendar, .fw-planner-stats) {
+  font-variant-numeric: tabular-nums;
+}
+.agromax-ui .workspace-scene :is(.studio-page-title, .workspace-heading) > :first-child { min-width: 0; }
+.agromax-ui .workspace-scene :is(.px-side-panel, .px-context-bar, .business-register) {
+  background-color: #f8f4e9;
+  border-color: var(--cinema-border);
+}
+.agromax-ui .workspace-scene :is(.px-section, .px-context-bar, .px-field-strip, .business-register, .records-panel) { border-radius: 13px; }
+.workspace-scene[data-scene="intelligence"] .px-checks article { border-inline-start: 3px solid #779097; }
+.workspace-scene[data-scene="investigation"] .px-record-list article { border-inline-start: 3px solid #aa9369; }
+.workspace-scene[data-scene="satellite"] .px-sources { grid-template-columns: minmax(0, 1fr); }
+.workspace-scene[data-scene="satellite"] .px-sources article { border-inline-start: 4px solid #6c8a8c; }
+.workspace-scene[data-scene="drones"] .px-sources article { border-top: 3px solid #6c8a8c; }
+.workspace-scene[data-scene="mrv"] .px-export dl { border-block: 1px solid var(--ag-line); padding-block: 16px; }
+.workspace-scene[data-scene="history"] .records-panel { border-inline-start: 3px solid #9f8b67; }
+.workspace-scene[data-scene="finance"] .business-money-summary { border-block: 1px solid var(--ag-line); padding-block: 10px; }
+.workspace-scene[data-scene="access"] .px-access { border-inline-start: 3px solid #688896; }
+.workspace-scene[data-scene="integrations"] .integration { border-block-start: 3px solid #729298; }
+.workspace-scene[data-scene="settings"] .business-settings-section { border-inline-start: 3px solid #aa9369; }
+.workspace-scene[data-scene="reports"] .business-register { border-block-start: 3px solid #aa9369; }
+.workspace-scene[data-scene="weather"] .weather-hero {
+  background: linear-gradient(120deg,#173a38,#39605f 64%,#56767a);
+  color: #f7f5e9;
+}
+.workspace-scene[data-scene="weather"] .weather-hero :is(strong, h2, p, small) { color: inherit; }
+@media (max-width: 720px) {
+  .workspace-scene-art { width: 52%; height: 90px; opacity: .40; }
+  .workspace-scene[data-scene^="operations-"] .workspace-scene-art { top: 112px; }
+  .workspace-scene[data-scene="assistant"] .workspace-scene-art { width: 63%; opacity: .4; }
+  .workspace-scene[data-scene="assistant"] .studio-page-title .filiz-brand-avatar {
+    position: absolute;
+    inset: 10px 9px auto auto;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scene-film video { transition: opacity 360ms var(--cinema-ease); }
+  .workspace-scene :is(.px-feature-card, .atlas-card, .report-file-list li) {
+    transition: border-color 180ms var(--cinema-ease), background-color 180ms var(--cinema-ease);
+  }
+  .workspace-scene :is(.px-feature-card, .atlas-card, .report-file-list li):is(:hover, :focus-within) {
+    border-color: #879975;
+  }
+  .workspace-scene-art { animation: scene-settle var(--scene-duration) cubic-bezier(.18,.8,.3,1) both; }
+  .workspace-scene-art[data-motion="trace"] path[pathLength] { stroke-dasharray: 1; animation: scene-trace 250ms ease-out both; }
+  .workspace-scene-art[data-motion="scan"] svg { animation: scene-scan 250ms ease-out both; }
+  .workspace-scene-art[data-motion="drift"] svg { animation: scene-drift 260ms ease-out both; }
+  .workspace-scene-art[data-motion="focus"] svg { animation: scene-focus 200ms ease-out both; transform-origin: 65% 45%; }
+  .workspace-scene-art[data-motion="shift"] svg { animation: scene-shift 220ms ease-out both; }
+  .workspace-scene-art[data-motion="split"] svg { animation: scene-split 230ms ease-out both; }
+  .workspace-scene-art[data-motion="unfold"] svg { animation: scene-unfold 240ms ease-out both; }
+  .workspace-scene-art[data-motion="stack"] svg { animation: scene-stack 220ms ease-out both; }
+  .workspace-scene-art[data-motion="panels"] svg { animation: scene-panels 220ms ease-out both; }
+  .workspace-scene-art[data-motion="scale"] svg { animation: scene-scale 220ms ease-out both; transform-origin: bottom center; }
+  .workspace-scene-art[data-motion="mask"] img { animation: scene-mask 260ms ease-out both; }
+  @keyframes scene-settle { from { opacity: .38; } }
+  @keyframes scene-trace { from { stroke-dashoffset: 1; } }
+  @keyframes scene-scan { from { clip-path: inset(0 0 85%); } to { clip-path: inset(0); } }
+  @keyframes scene-drift { from { transform: translate(12px, -5px); } }
+  @keyframes scene-focus { from { transform: scale(.95); } }
+  @keyframes scene-shift { from { transform: translateX(13px); } }
+  @keyframes scene-split { from { clip-path: inset(0 42%); } to { clip-path: inset(0); } }
+  @keyframes scene-unfold { from { clip-path: inset(0 0 100%); } to { clip-path: inset(0); } }
+  @keyframes scene-stack { from { transform: translateY(12px) skewX(-3deg); } }
+  @keyframes scene-panels { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+  @keyframes scene-scale { from { transform: scaleY(.78); } }
+  @keyframes scene-mask { from { transform: scale(1.05); clip-path: inset(0 0 0 18%); } to { transform: none; clip-path: inset(0); } }
+}
+
+/* Purpose-built surfaces use the same ink, line and typography tokens. */
+.feature-atlas { display: grid; gap: 22px; }
+.feature-atlas-chapter h3 { margin: 0 0 10px; font-size: 15px; font-weight: 760; letter-spacing: -.02em; }
+.feature-atlas .px-feature-card h4 { font-size: clamp(16px, 1.5vw, 22px); line-height: 1.18; margin: 13px 0 8px; }
+.feature-atlas .px-feature-card { border-block-start: 3px solid var(--scene-ink); }
+.feature-atlas-chapter:nth-child(2n) .px-feature-card { border-block-start-color: #a7946e; }
+.claim-split, .filiz-research { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); gap: 14px; align-items: start; }
+.claim-index { display: grid; gap: 5px; list-style: none; padding: 0; margin: 0; max-height: 480px; overflow: auto; }
+.agromax-ui .claim-index button { display: grid; gap: 4px; width: 100%; min-height: 50px; text-align: start; color: var(--ag-ink); background: var(--ag-surface); border: 1px solid var(--ag-line); border-radius: 9px; padding: 9px 11px; }
+.agromax-ui .claim-index button[aria-pressed="true"] { background: var(--scene-wash); border-color: var(--scene-ink); }
+.claim-index span, .claim-periods span { color: var(--ag-muted); font-size: 11px; }
+.claim-source { display: grid; gap: 10px; min-width: 0; border: 1px solid var(--ag-line); border-radius: 12px; background: var(--ag-surface); padding: 14px; }
+.claim-source > button { justify-self: start; }
+.claim-source ul { margin: 0; padding-inline-start: 19px; }
+.claim-periods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.claim-periods > div { display: grid; padding: 9px; border-radius: 8px; background: var(--ag-paper); overflow-wrap: anywhere; }
+.claim-periods strong { font-size: 23px; font-variant-numeric: tabular-nums; }
+.claim-workbench[data-claim-view="contradictions"] .claim-periods > div { border-block-start: 2px solid var(--scene-ink); }
+.claim-warning { color: #7b4431; }
+.claim-investigation { border-inline-start: 3px solid var(--scene-ink); }
+.claim-investigation ol { padding-inline-start: 24px; }
+.filiz-research { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.filiz-research > * { min-width: 0; }
+.filiz-main { display: grid; gap: 14px; }
+.filiz-composer h2 { margin-top: 15px; }
+.filiz-source-drawer summary { cursor: pointer; margin-bottom: 10px; }
+.filiz-source-drawer summary h2 { display: inline; }
+.filiz-source-drawer small, .filiz-answer small { overflow-wrap: anywhere; }
+.filiz-answer { margin-top: 15px; border-inline-start: 3px solid var(--scene-ink); padding-inline-start: 12px; }
+.filiz-answer ol { padding-inline-start: 21px; }
+.filiz-answer li { margin-bottom: 8px; }
+.filiz-answer small { display: block; color: var(--ag-muted); }
+.agromax-ui .filiz-composer .filiz-consent { display: flex; align-items: start; gap: 8px; }
+.agromax-ui .filiz-consent input { width: auto; margin-top: 3px; flex: none; }
+.prescription-map { overflow: hidden; border: 1px solid var(--cinema-border); border-radius: 13px; }
+.prescription-map header { padding: 13px 16px; }
+.prescription-map .parcel-map { border-radius: 0; }
+.scenario-bars { margin: 12px 0; border: 1px solid var(--ag-line); background: var(--ag-surface); border-radius: 10px; padding: 12px; }
+.scenario-bars ul { list-style: none; padding: 0; }
+.scenario-bars li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; padding-block: 5px; }
+.scenario-bars meter { grid-column: 1 / -1; }
+.scenario-bars meter, .operation-quantity meter { width: 100%; accent-color: var(--scene-ink); }
+.scenario-bars figcaption { font-weight: 750; }
+.scenario-bars small { color: var(--ag-muted); }
+.water-balance-grid { display: grid; gap: 14px; align-items: start; }
+.water-balance-grid:has(.water-balance-inputs):has(.water-balance-results) { grid-template-columns: minmax(0, .85fr) minmax(0, 1.55fr); }
+.water-balance-grid > * { min-width: 0; }
+.water-balance-grid .water-balance-inputs { padding: 10px 12px; border: 1px solid var(--ag-line); background: var(--ag-surface); border-radius: 10px; }
+.water-balance-inputs summary { min-height: 31px; cursor: pointer; }
+.water-balance-inputs .business-form-grid { grid-template-columns: 1fr; }
+.water-balance-results { overflow-wrap: anywhere; }
+.records-inline-detail { background: var(--ag-surface); border: 1px solid var(--cinema-border); border-radius: 14px; padding: clamp(12px, 2vw, 23px); margin-bottom: 18px; }
+.agromax-ui .analysis-heading h2 { font-size: clamp(24px, 3vw, 42px); }
+.operation-register { padding: 12px; }
+.operation-register :is(ol, ul) { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.operation-entry { display: grid; grid-template-columns: minmax(82px, .28fr) minmax(0, 2fr); gap: 10px; align-items: stretch; }
+.operation-entry-date { font-variant-numeric: tabular-nums; color: var(--ag-muted); padding: 12px 4px; }
+.operation-entry article { min-width: 0; padding: 12px; border: 1px solid var(--ag-line); border-inline-start: 3px solid var(--scene-ink); background: var(--ag-surface); border-radius: 10px; }
+.operation-entry article > header { display: flex; gap: 10px; align-items: start; justify-content: space-between; }
+.operation-entry h2 { font-size: 17px; margin: 4px 0 8px; overflow-wrap: anywhere; }
+.operation-pairs { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; }
+.operation-pairs dd { margin: 0; }
+.operation-pairs dt, .operation-quantity span { font-size: 12px; color: var(--ag-muted); }
+.operation-quantity { display: grid; gap: 5px; }
+.operation-quantity strong { font-size: 21px; font-variant-numeric: tabular-nums; }
+.operation-observation :is(p, code), .operation-notes { overflow-wrap: anywhere; }
+.operation-notes { margin-top: 7px; }
+[data-record-kind="nutrition"] .operation-register { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-record-kind="nutrition"] .operation-register section:only-child { grid-column: 1 / -1; }
+[data-record-kind="nutrition"] .operation-register h3 { margin-bottom: 8px; }
+[data-record-kind="nutrition"] .operation-entry,
+[data-record-kind="protection"] .operation-entry { grid-template-columns: 1fr; gap: 0; }
+[data-record-kind="protection"] .operation-register > ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-record-kind="evaluation"] .operation-entry article { border-inline-start-style: double; }
+.ledger-row-detail summary { margin-block: 4px; cursor: pointer; color: var(--ag-primary); }
+.ledger-row-detail p { white-space: normal; }
+.report-paper { position: relative; border-inline-start: 4px solid var(--scene-ink); }
+.workspace-scene[data-scene="report-preview"] > .workspace-scene-art { z-index: 1; width: min(36%, 370px); opacity: .48; height: 96px; }
+.workspace-scene[data-scene="notifications"] .notification-list { border-inline-start: 1px solid var(--cinema-border); }
+@media (max-width: 900px) {
+  .water-balance-grid:has(.water-balance-inputs):has(.water-balance-results) { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .claim-split, .filiz-research { grid-template-columns: minmax(0, 1fr); }
+  .claim-index { max-height: 180px; }
+  .operation-entry, [data-record-kind="nutrition"] .operation-register,
+  [data-record-kind="protection"] .operation-register > ol { grid-template-columns: minmax(0, 1fr); }
+  .operation-entry-date { padding-block: 4px; }
+  .fw-planner-layout .fw-planner-agenda { order: -1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .feature-atlas-chapter, .claim-source, .filiz-answer li, .records-inline-detail, .report-paper {
+    animation: scene-content 220ms cubic-bezier(.18,.8,.3,1) both;
+  }
+  .depletion-series { animation: scene-panels 250ms ease-out both; }
+  .px-twin-visual .parcel-outline { stroke-dasharray: 168; animation: parcel-outline-enter 250ms ease-out both; }
+  .parcel-selection { animation: parcel-outline-accent 250ms ease-out both; }
+  @keyframes scene-content { from { opacity: .55; } }
+  @keyframes parcel-outline-enter { from { stroke-dashoffset: 168; } }
+  @keyframes parcel-outline-accent { from { stroke-width: 6px; stroke-opacity: .55; } }
+}
+/* Reference workspaces. The overview retains its own composition and tokens. */
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) {
+  --desk-paper: #f4efe5;
+  --desk-panel: #fcf8ef;
+  --desk-line: #e2d8c7;
+  --desk-forest: #193b2a;
+  --desk-moss: #526945;
+  --desk-selection: #e4ebd1;
+  --desk-radius: 10px;
+}
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) .studio-main { background: var(--desk-paper); }
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) .studio-topbar {
+  background: #f8f3ea;
+  border-color: var(--desk-line);
+  min-height: 58px;
+  height: auto;
+  padding-block: 8px;
+}
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) .studio-content {
+  padding-block-start: clamp(17px, 2vw, 29px);
+}
+html.agromax-ui .cinematic-shell:not(.studio-page-overview) .studio-content :is(
+  .panel, .px-surface, .px-side-panel, .px-context-bar, .px-field-strip,
+  .business-register, .business-settings-section, .business-toolbar, .fw-surface,
+  .weather-trend, .weather-period, .weather-metric, .satellite-scene, .analysis-trend,
+  .temporal-studio, .claim-source, .px-feature-card, .notification-list article
+) {
+  background-color: var(--desk-panel);
+  border-color: var(--desk-line);
+  border-radius: var(--desk-radius);
+  box-shadow: none;
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading) {
+  margin-block: 0 14px;
+  padding-block: 3px 12px;
+  min-height: 86px;
+  border-bottom: 1px solid var(--desk-line);
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading) h1 {
+  margin: 5px 0 6px;
+  color: var(--desk-forest);
+  font-size: clamp(29px, 3vw, 48px);
+}
+html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading) p { margin-block: 0; max-width: 68ch; }
+html.agromax-ui .workspace-scene :is(.px-section > h2, .px-side-panel h2, .business-settings-section h2) {
+  color: var(--desk-forest);
+  font-weight: 740;
+  letter-spacing: -.03em;
+}
+html.agromax-ui .workspace-scene :is(.primary, .view-switch button.active, .weather-period-tabs button.active) {
+  background: #365536;
+  border-color: #365536;
+  color: #fffcf3;
+}
+html.agromax-ui .workspace-scene .primary:hover:not(:disabled) { background: #26442b; }
+html.agromax-ui .workspace-scene :is(.secondary, .report-family-tabs button) {
+  background-color: #faf6eb;
+  border-color: var(--desk-line);
+  color: var(--desk-forest);
+}
+html.agromax-ui .workspace-scene :is(.weather-period-tabs button, .view-switch button) { border-radius: 8px; }
+.workspace-scene :is(.px-context-bar, .px-field-strip) { margin-block-end: 12px; }
+.workspace-scene .px-main-grid { gap: 13px; grid-template-columns: minmax(0, 1fr) minmax(195px, 22%); }
+.workspace-scene .px-main-grid:is([data-workspace="temporal"], [data-workspace="scenarios"]) { grid-template-columns: minmax(0, 1fr); }
+.workspace-scene .px-main-grid[data-workspace="scenarios"] .px-side-panel { position: static; }
+.workspace-scene .px-content { gap: 12px; }
+.workspace-scene .px-side-panel { border-inline-start: 2px solid #bac4a5; }
+.workspace-scene .px-intro { margin-block-end: 14px; }
+.workspace-scene .px-intro > div { padding: clamp(18px, 3vw, 30px); }
+.workspace-scene .feature-atlas .px-feature-card { padding: 14px; border-block-start-width: 1px; }
+.workspace-scene .feature-atlas .px-feature-card > header { margin-block-end: 9px; }
+.workspace-scene .feature-atlas-chapter h3 { border-block-end: 1px solid var(--desk-line); padding-block-end: 7px; }
+.workspace-scene .atlas-rail-title { display: flex; align-items: center; gap: 8px; margin-block-end: 11px; }
+.atlas-rail-title svg { flex: none; color: var(--desk-moss); }
+.agromax-ui .atlas-rail-title h2 { font-size: 18px; font-weight: 740; }
+.parcel-atlas-layout { display: grid; grid-template-columns: minmax(232px, .75fr) minmax(0, 2fr); gap: 13px; align-items: start; }
+.parcel-main-workspace { display: grid; gap: 12px; min-width: 0; }
+.parcel-atlas-layout .atlas-workspace { background: var(--desk-panel); border: 1px solid var(--desk-line); padding: 12px; border-radius: var(--desk-radius); min-width: 0; }
+.parcel-atlas-layout :is(.atlas-search, .fw-atlas-controls) { display: flex; flex-wrap: wrap; margin: 0 0 9px; gap: 5px; }
+.parcel-atlas-layout .atlas-search label { width: 100%; min-width: 0; }
+.parcel-atlas-layout .atlas-search input { width: 100%; min-width: 0; }
+.parcel-atlas-layout .atlas-grid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+html.agromax-ui .parcel-atlas-layout .atlas-card {
+  display: grid; grid-template-columns: 79px minmax(0, 1fr); grid-template-rows: auto auto auto;
+  background: #f9f5eb; gap: 4px 8px; padding: 7px; min-height: 92px; border-radius: 8px;
+}
+html.agromax-ui .parcel-atlas-layout .atlas-card-visual {
+  grid-row: 1 / -1; height: 100%; min-height: 76px; border-radius: 5px;
+  background: #e4e8d7 url("/visuals/dashboard-contours.svg") center / cover;
+}
+.parcel-atlas-layout .atlas-card-visual .parcel-preview { width: 61px; height: 61px; }
+.parcel-atlas-layout :is(.atlas-number, .atlas-card-signal) { display: none; }
+.parcel-atlas-layout :is(.atlas-card-info, .atlas-card-location, .atlas-card footer) { padding: 0; margin: 0; min-width: 0; }
+html.agromax-ui .parcel-atlas-layout .atlas-card-info h2 { font-size: 14px; overflow-wrap: anywhere; }
+.parcel-atlas-layout .atlas-card-info svg { width: 14px; flex: none; }
+.parcel-atlas-layout .atlas-card footer span:last-child { display: none; }
+html.agromax-ui .parcel-atlas-layout .atlas-create { min-height: 70px; padding: 9px; }
+.parcel-atlas-layout .atlas-create :is(p, small) { display: none; }
+.history-counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 13px; padding: 8px; border: 1px solid var(--desk-line); border-radius: var(--desk-radius); background: var(--desk-panel); }
+.history-counts > div { padding: 5px 10px; }
+.history-counts > div + div { border-inline-start: 1px solid var(--desk-line); }
+.history-counts dt, .observation-context dt { font-size: 12px; color: var(--ag-muted); }
+.history-counts dd, .observation-context dd { margin: 0; font-weight: 760; color: var(--desk-forest); font-variant-numeric: tabular-nums; font-size: 23px; }
+.workspace-scene .px-twin { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); border-radius: var(--desk-radius); }
+.workspace-scene .px-twin-visual { display: block; position: relative; min-height: 274px; padding: 0; background: #e3e9d9; }
+.px-twin-visual .parcel-map { position: absolute; inset: 0; }
+.px-twin-visual > span:last-child { position: absolute; z-index: 500; bottom: 27px; left: 10px; border-radius: 6px; padding: 4px 8px; background: #183727; color: #fff8e5; pointer-events: none; }
+html.agromax-ui .workspace-scene .px-twin h2 { font-size: clamp(23px, 2.2vw, 33px); font-weight: 740; }
+.workspace-scene .canopy-map-loading { width: max-content; max-width: calc(100% - 32px); }
+.px-twin-visual .parcel-map, .observation-context .parcel-map { border-radius: 0; }
+.observation-context { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(180px, 1fr); overflow: hidden; }
+.observation-context > div:last-child { min-width: 0; padding: 13px; }
+.observation-context h2 { overflow-wrap: anywhere; }
+.observation-context dl { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-block: 9px; }
+.observation-context p { font-size: 12px; }
+.workspace-photo-band { display: grid; align-items: center; min-height: 112px; border-radius: var(--desk-radius); border: 1px solid var(--desk-line); overflow: hidden; background: linear-gradient(90deg, #faf5e8 36%, #faf5e8d9 61%, #faf5e833), url("/brand/agromax-landscape-v1-768.webp") center 55% / cover; }
+.workspace-photo-band > div { max-width: 65%; padding: 12px 18px; }
+.workspace-photo-band h2 { color: var(--desk-forest); font-size: clamp(17px, 2vw, 23px); font-weight: 740; letter-spacing: -.025em; }
+.workspace-photo-band p { font-size: 13px; }
+.workspace-scene[data-scene="weather"] .weather-hero {
+  background: linear-gradient(115deg, #152d24ee, #1a38289e 60%, #19332762), url("/visuals/agromax-landscape-editorial-v1.webp") center 54% / cover;
+}
+.workspace-scene[data-scene="weather"] .weather-hero :is(.weather-temperature, .weather-hero-time, .weather-hero-top, span) { color: #fff8e4; }
+.report-family-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.report-family-tabs > * { display: inline-flex; min-height: 40px; align-items: center; gap: 6px; border: 1px solid var(--desk-line); padding: 6px 12px; border-radius: 8px; }
+.report-family-tabs > button { width: auto; }
+.report-family-tabs [aria-current] { background: #365536; border-color: #365536; color: #fffcf3; }
+.report-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px 14px; }
+.report-create > h2 { grid-column: 1 / -1; margin: 0; }
+.report-create .business-form-grid { margin: 0; }
+.report-workbench, .account-profile-layout { display: grid; gap: 13px; grid-template-columns: minmax(250px, .8fr) minmax(0, 1.6fr); align-items: start; }
+.report-workbench > *, .account-profile-layout > * { min-width: 0; }
+.report-archive .business-toolbar { margin: 0; }
+.report-file-list { display: grid; gap: 5px; padding: 8px; list-style: none; margin: 0; }
+.report-file-list li { display: flex; align-items: center; border: 1px solid var(--desk-line); border-radius: 8px; min-width: 0; }
+.report-file-list li.is-current { background: var(--desk-selection); border-color: #9aac7b; }
+.agromax-ui .report-file-list li > button:first-child { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 7px; align-items: center; flex: 1; text-align: start; padding: 7px; min-height: 54px; min-width: 0; color: var(--desk-forest); }
+.report-file-list :is(strong, small) { display: block; overflow-wrap: anywhere; }
+.report-file-list small { font-size: 11px; color: var(--ag-muted); }
+.report-file-mark { display: grid; place-items: center; height: 33px; border-radius: 6px; background: #e5ead7; }
+.report-file-download { display: grid; place-items: center; width: 38px; height: 44px; flex: none; color: var(--desk-forest); }
+.report-file-download:disabled { opacity: .4; }
+.report-cover, .account-cover { background: linear-gradient(100deg,#f8f3e5 18%,#f8f3e5a8 55%,transparent),url("/visuals/agromax-landscape-editorial-v1.webp") center 52% / cover; }
+.report-cover { padding: 14px; min-height: 124px; border-radius: 8px; }
+.report-cover h2 { overflow-wrap: anywhere; }
+.report-provenance { display: flex; flex-wrap: wrap; gap: 9px 16px; margin-block: 12px; }
+.report-provenance > div { min-width: 0; }
+.report-provenance dt { font-size: 11px; color: var(--ag-muted); }
+.report-provenance dd { margin: 0; overflow-wrap: anywhere; }
+.workspace-scene[data-scene="report-preview"] > .workspace-scene-art { display: none; }
+.report-preview-empty { background: var(--desk-panel); border: 1px solid var(--desk-line); border-radius: var(--desk-radius); }
+.account-cover { min-height: 100px; border-radius: 8px; }
+.account-identity { overflow-wrap: anywhere; }
+.account-identity dl { display: grid; gap: 6px; }
+.account-identity dt { color: var(--ag-muted); font-size: 12px; }
+.account-identity dd { margin: 0; }
+.account-initial { display: grid; place-items: center; width: 44px; height: 44px; margin: -15px 0 6px 8px; position: relative; border-radius: 50%; border: 2px solid var(--desk-panel); background: #365536; color: #fff; font-weight: 760; }
+.cost-breakdown-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.cost-breakdown figure { margin: 0; min-width: 0; }
+.cost-breakdown figcaption { font-weight: 740; border-bottom: 1px solid var(--desk-line); }
+.cost-breakdown ul { padding: 0; margin: 8px 0 0; list-style: none; }
+.cost-breakdown li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 8px; margin-block: 5px; }
+.cost-breakdown meter { grid-column: 1 / -1; width: 100%; accent-color: var(--desk-moss); }
+@media (max-width: 1000px) {
+  .workspace-scene .px-main-grid { grid-template-columns: minmax(0, 1fr); }
+  .workspace-scene .px-side-panel { position: static; }
+  .report-workbench, .account-profile-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+}
+@media (max-width: 700px) {
+  .report-workbench, .account-profile-layout, .observation-context, .workspace-scene .px-twin, .parcel-atlas-layout { grid-template-columns: minmax(0,1fr); }
+  .report-create { grid-template-columns: minmax(0,1fr); }
+  .parcel-atlas-layout .parcel-main-workspace { grid-row: 1; }
+  .history-counts { grid-template-columns: repeat(3,minmax(0,1fr)); row-gap: 7px; }
+  .history-counts > div { padding: 4px; }
+  .history-counts > div + div { border: 0; }
+  .workspace-photo-band { background-image: linear-gradient(90deg,#faf5e8 28%,#faf5e8de 75%,#faf5e84f), url("/brand/agromax-landscape-v1-768.webp"); }
+  .workspace-photo-band > div { max-width: 100%; padding: 10px; }
+  html.agromax-ui .workspace-scene :is(.workspace-heading, .studio-page-title, .fw-page-heading) { min-height: 0; }
+}

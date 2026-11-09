@@ -6,6 +6,12 @@ import ObservationPlot from "../fields/ObservationPlot";
 import { metrics } from "../../../shared/metrics";
 
 const tabs = ["Durum", "Zaman Serisi", "Analiz", "Öneri"];
+const emptyByTab = {
+  Durum: ["Güncel ölçüm bekleniyor", "Parselin güncel durumunu görmek için ilk uydu gözlemini kaydet.", "Parsel analizini aç"],
+  "Zaman Serisi": ["Zaman serisi için çekim gerekiyor", "Kapsama eşiğini geçen çekimler geldikçe grafikte ayrı noktalar görünür.", "Çekim alanını aç"],
+  Analiz: ["Karşılaştırma hazır değil", "İki dönemden geçerli ölçümler alındığında farklar ve veri kaynakları görünür.", "Analiz ayrıntılarını aç"],
+  Öneri: ["Önce saha kanıtı topla", "İnceleme kaydına gözlemlerini ekle. Ölçüm ve saha kanıtı birlikte yorumlanabilir.", "Saha incelemelerini aç"],
+};
 const value = (number) => Number.isFinite(number)
   ? number.toLocaleString("tr-TR", { maximumFractionDigits: 3 }) : "—";
 
@@ -34,6 +40,7 @@ export default function ParcelBrief({ field, analysis, loaded, error, metric, da
     };
   }, [expanded]);
   const navigate = (action) => { setExpanded(false); action(); };
+  const [emptyTitle, emptyBody, emptyAction] = emptyByTab[tab];
   const detail = (
       <div className="dashboard-parcel-body">
         <div className="dashboard-parcel-tabs" role="group" aria-label="Parsel analizi bölümü">
@@ -42,9 +49,9 @@ export default function ParcelBrief({ field, analysis, loaded, error, metric, da
         {!loaded ? <p role="status" className="dashboard-muted">Parsel analizi yükleniyor…</p>
           : error ? <p role="alert" className="dashboard-muted">{error}</p>
           : !analysis ? <div className="dashboard-parcel-empty">
-            <Leaf size={22} /><strong>Kayıtlı analiz yok</strong>
-            <p>Uydu gözlemleri kaydedildiğinde göstergeler ve kaynaklar burada yer alır.</p>
-            {field && <button className="dashboard-text-action" onClick={() => navigate(() => onOpen(field))}>Analiz çalışma alanını aç <ArrowUpRight size={14} /></button>}
+            <Leaf size={22} /><strong>{emptyTitle}</strong>
+            <p>{emptyBody}</p>
+            {field && <button className="dashboard-text-action" onClick={() => navigate(() => tab === "Öneri" ? onNavigate("investigation", field.id) : onOpen(field))}>{emptyAction} <ArrowUpRight size={14} /></button>}
           </div> : <>
             {tab === "Durum" && <>
               <div className="dashboard-current-index">
@@ -54,7 +61,7 @@ export default function ParcelBrief({ field, analysis, loaded, error, metric, da
                 {!date && Number.isFinite(period?.delta) && <small className="dashboard-delta">{period.delta >= 0 ? "+" : ""}{value(period.delta)}</small>}
                 <p>{currentDate || "Güncel dönem"}{date && !Number.isFinite(mean) && " · Geçerli ölçüm yok"}</p>
               </div>
-              <ObservationPlot compact observations={analysis.observations || []} metric={metrics.find(({ id }) => id === metric)} />
+              <ObservationPlot compact selectedDate={date} observations={analysis.observations || []} metric={metrics.find(({ id }) => id === metric)} />
               </div>
               <dl className="dashboard-index-list">
                 {["NDVI", "NDRE", "NDMI", "NDWI"].filter((id) => id !== metric).map((id) => (
@@ -70,7 +77,7 @@ export default function ParcelBrief({ field, analysis, loaded, error, metric, da
                   {dates.map((day) => <option key={day} value={day}>{day}</option>)}
                 </select>
               </label>}
-              <ObservationPlot observations={analysis.observations || []} metric={metrics.find(({ id }) => id === metric)} />
+              <ObservationPlot selectedDate={date} observations={analysis.observations || []} metric={metrics.find(({ id }) => id === metric)} />
               {!analysis.observations?.some((item) => item.stats?.[metric]?.coverage >= 0.7) &&
                 <p className="dashboard-muted">Grafik için yeterli geçerli gözlem yok.</p>}
             </>}

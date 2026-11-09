@@ -60,6 +60,7 @@ export default function ParcelMap({
   height = 520,
   children,
   compact = false,
+  workbench = false,
   editSession = null,
   activeFieldId = null,
   animateImagery = false,
@@ -82,6 +83,7 @@ export default function ParcelMap({
     [snap, setSnap] = useState(true),
     [version, setVersion] = useState(0),
     [notice, setNotice] = useState(""),
+    [drawingHint, setDrawingHint] = useState(""),
     [tileError, setTileError] = useState(false),
     [tilesLoading, setTilesLoading] = useState(true),
     [tilesSlow, setTilesSlow] = useState(false),
@@ -163,6 +165,7 @@ export default function ParcelMap({
     if (map.pm.globalRotateModeEnabled()) map.pm.disableGlobalRotateMode();
     if (map.pm.globalCutModeEnabled()) map.pm.disableGlobalCutMode();
     setMode("select");
+    setDrawingHint("");
     snapshot();
   }
   function fitInitialFields() {
@@ -224,6 +227,7 @@ export default function ParcelMap({
       bind(e.layer);
       snapshot();
       setMode("select");
+      setDrawingHint("");
     });
     map.on("pm:remove", () => queueMicrotask(snapshot));
     map.on("pm:cut", (e) => {
@@ -338,6 +342,7 @@ export default function ParcelMap({
       const layer = L.geoJSON(field.geometry, {
         pmIgnore: true,
         style: {
+          className: activeFieldId === field.id ? "parcel-selection" : "",
           color: activeFieldId === field.id ? "#fff7d2" : "#dcff69",
           weight: activeFieldId === field.id ? 3 : 2,
           fillColor: "#c6f367",
@@ -494,90 +499,8 @@ export default function ParcelMap({
     [Scissors, "cut", "Alan kes / delik aç"],
     [Trash2, "remove", "Taslak parçayı kaldır"],
   ];
-  return (
-    <div
-      className={`parcel-map aerial-map ${editable ? "is-editable" : ""} ${compact ? "is-compact" : ""}`}
-      style={{ height }}
-    >
-      <div className="leaflet-container-host" ref={element} />
-      {children && <div className="map-overlay-content">{children}</div>}
-      {!compact && (
-        <MapSearch
-          getCenter={() =>
-            instance.current?.getCenter() || { lat: 39, lng: 35 }
-          }
-          onSelect={(place) => {
-            stop();
-            const map = instance.current;
-            if (!map) return;
-            searchMarker.current?.remove();
-            const label = document.createElement("span");
-            label.textContent = place.name;
-            searchMarker.current = L.circleMarker([place.lat, place.lng], {
-              radius: 7,
-              color: "#fff",
-              weight: 3,
-              fillColor: "#a899ed",
-              fillOpacity: 1,
-              pmIgnore: true,
-            })
-              .addTo(map)
-              .bindTooltip(label, { direction: "top", offset: [0, -10] });
-            const leftPadding = Math.min(
-              editable ? 230 : children ? 310 : 40,
-              map.getSize().x / 3,
-            );
-            if (place.bbox) {
-              const [west, south, east, north] = place.bbox;
-              map.fitBounds(
-                [
-                  [south, west],
-                  [north, east],
-                ],
-                {
-                  paddingTopLeft: [leftPadding, 145],
-                  paddingBottomRight: [45, 80],
-                  maxZoom: 17,
-                },
-              );
-            } else map.setView([place.lat, place.lng], 16);
-            searchMarker.current.openTooltip();
-          }}
-        />
-      )}
-      <div className="basemap-switch" aria-label="Harita altlığı">
-        <button
-          type="button"
-          className={base === "satellite" ? "active" : ""}
-          onClick={() => setBase("satellite")}
-          aria-pressed={base === "satellite"}
-        >
-          <Satellite size={16} />
-          Uydu
-        </button>
-        <button
-          type="button"
-          className={base === "road" ? "active" : ""}
-          onClick={() => setBase("road")}
-          aria-pressed={base === "road"}
-        >
-          <MapIcon size={16} />
-          Harita
-        </button>
-        <button
-          type="button"
-          className={labels && base === "satellite" ? "active" : ""}
-          disabled={base !== "satellite"}
-          onClick={() => setLabels(!labels)}
-          title="Yer adlarını göster"
-          aria-label="Yer adlarını göster"
-          aria-pressed={labels && base === "satellite"}
-        >
-          <Layers size={16} />
-        </button>
-      </div>
-      {editable && (
-        <div className="drawing-palette" aria-label="Parsel çizim araçları">
+  const palette = editable && (
+    <div className="drawing-palette" aria-label="Parsel çizim araçları">
           <span className="palette-label">ÇİZİM ATÖLYESİ</span>
           <div className="palette-tools">
             {tools.map(([Icon, id, title]) => (
@@ -643,7 +566,7 @@ export default function ParcelMap({
           </div>
           <p>
             {mode === "polygon"
-              ? "Köşeleri tıklayın. İlk köşeye tıklayarak tamamlayın."
+              ? "Köşeleri sırayla işaretle ve Sınırı tamamla düğmesine bas."
               : mode === "edit"
                 ? "Köşeleri sürükleyin; ara noktaya tıklayarak köşe ekleyin. Sağ tıkla köşe silin."
                 : mode === "cut"
@@ -652,70 +575,162 @@ export default function ParcelMap({
                     ? "Kaldırmak istediğiniz taslak parçaya tıklayın. Kayda geçmesi için kaydedin."
                     : "Çizin, düzenleyin, sonra parselinizi kaydedin."}
           </p>
+          {(mode === "polygon" || mode === "cut") && (
+            <button className="finish-drawing" type="button" onClick={() => {
+              if (!instance.current?.pm.finishDraw())
+                setDrawingHint("Çizimi tamamlamak için kesişmeyen en az üç köşe gerekli.");
+            }}>
+              <Check size={15} /> {mode === "polygon" ? "Sınırı tamamla" : "Kesimi tamamla"}
+            </button>
+          )}
+          {drawingHint && <p role="status">{drawingHint}</p>}
           {mode !== "select" && (
             <button className="finish-drawing" type="button" onClick={stop}>
-              <Check size={15} />
-              Aracı bitir / gezin
+              {["polygon", "rectangle", "cut"].includes(mode) ? "Çizimi bırak" : "Aracı bitir / gezin"}
             </button>
           )}
         </div>
-      )}
-      <div className="map-utilities">
-        <span className="north-marker" title="Kuzey">
-          <Compass size={21} />
-          <b>K</b>
-        </span>
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          aria-label={fullscreen ? "Tam ekrandan çık" : "Haritayı tam ekran aç"}
-          title={fullscreen ? "Tam ekrandan çık" : "Haritayı tam ekran aç"}
-          aria-pressed={fullscreen}
-        >
-          {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-        </button>
-        <button
-          type="button"
-          aria-label="Konumuma git"
-          title="Konumuma git"
-          onClick={() => {
-            if (!navigator.geolocation) {
-              setNotice("Tarayıcı konum özelliğini desteklemiyor.");
-              return;
+  );
+  const mapSurface = (
+    <div
+      className={`parcel-map aerial-map ${editable ? "is-editable" : ""} ${compact ? "is-compact" : ""} ${workbench ? "map-workbench" : ""}`}
+      style={{ height }}
+    >
+      <div className="leaflet-container-host" ref={element} />
+      {children && <div className="map-overlay-content">{children}</div>}
+      <div className="map-control-deck">
+        {!compact && (
+          <MapSearch
+            getCenter={() =>
+              instance.current?.getCenter() || { lat: 39, lng: 35 }
             }
-            navigator.geolocation.getCurrentPosition(
-              (p) =>
-                instance.current.setView(
-                  [p.coords.latitude, p.coords.longitude],
-                  16,
-                ),
-              () =>
-                setNotice(
-                  "Konum alınamadı. Haritayı sürükleyin veya koordinat girin.",
-                ),
-            );
-          }}
-        >
-          <LocateFixed size={18} />
-        </button>
-        <button
-          type="button"
-          aria-label="Parsellere odaklan"
-          title="Parsellere odaklan"
-          onClick={() => {
-            const bounds = L.featureGroup([
-              ...saved.current.getLayers(),
-              ...draft.current.getLayers(),
-            ]).getBounds();
-            if (bounds.isValid())
-              instance.current.fitBounds(bounds, {
-                padding: [40, 40],
-                maxZoom: 18,
-              });
-          }}
-        >
-          <Expand size={18} />
-        </button>
+            onSelect={(place) => {
+              stop();
+              const map = instance.current;
+              if (!map) return;
+              searchMarker.current?.remove();
+              const label = document.createElement("span");
+              label.textContent = place.name;
+              searchMarker.current = L.circleMarker([place.lat, place.lng], {
+                radius: 7,
+                color: "#fff",
+                weight: 3,
+                fillColor: "#a899ed",
+                fillOpacity: 1,
+                pmIgnore: true,
+              })
+                .addTo(map)
+                .bindTooltip(label, { direction: "top", offset: [0, -10] });
+              const leftPadding = Math.min(
+                editable ? 230 : children ? 310 : 40,
+                map.getSize().x / 3,
+              );
+              if (place.bbox) {
+                const [west, south, east, north] = place.bbox;
+                map.fitBounds(
+                  [
+                    [south, west],
+                    [north, east],
+                  ],
+                  {
+                    paddingTopLeft: [leftPadding, 145],
+                    paddingBottomRight: [45, 80],
+                    maxZoom: 17,
+                  },
+                );
+              } else map.setView([place.lat, place.lng], 16);
+              searchMarker.current.openTooltip();
+            }}
+          />
+        )}
+        <div className="basemap-switch" aria-label="Harita altlığı">
+          <button
+            type="button"
+            className={base === "satellite" ? "active" : ""}
+            onClick={() => setBase("satellite")}
+            aria-pressed={base === "satellite"}
+          >
+            <Satellite size={16} />
+            Uydu
+          </button>
+          <button
+            type="button"
+            className={base === "road" ? "active" : ""}
+            onClick={() => setBase("road")}
+            aria-pressed={base === "road"}
+          >
+            <MapIcon size={16} />
+            Harita
+          </button>
+          <button
+            type="button"
+            className={labels && base === "satellite" ? "active" : ""}
+            disabled={base !== "satellite"}
+            onClick={() => setLabels(!labels)}
+            title="Yer adlarını göster"
+            aria-label="Yer adlarını göster"
+            aria-pressed={labels && base === "satellite"}
+          >
+            <Layers size={16} />
+          </button>
+        </div>
+        <div className="map-utilities">
+          <span className="north-marker" title="Kuzey">
+            <Compass size={21} />
+            <b>K</b>
+          </span>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label={fullscreen ? "Tam ekrandan çık" : "Haritayı tam ekran aç"}
+            title={fullscreen ? "Tam ekrandan çık" : "Haritayı tam ekran aç"}
+            aria-pressed={fullscreen}
+          >
+            {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Konumuma git"
+            title="Konumuma git"
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setNotice("Tarayıcı konum özelliğini desteklemiyor.");
+                return;
+              }
+              navigator.geolocation.getCurrentPosition(
+                (p) => {
+                  setNotice("");
+                  instance.current?.setView([p.coords.latitude, p.coords.longitude], 16);
+                },
+                () =>
+                  setNotice(
+                    "Konum alınamadı. Haritayı sürükleyin veya koordinat girin.",
+                  ),
+              );
+            }}
+          >
+            <LocateFixed size={18} />
+          </button>
+          <button
+            type="button"
+            aria-label="Parsellere odaklan"
+            title="Parsellere odaklan"
+            onClick={() => {
+              const bounds = L.featureGroup([
+                ...saved.current.getLayers(),
+                ...draft.current.getLayers(),
+              ]).getBounds();
+              if (!bounds.isValid()) {
+                setNotice("Odaklanmak için önce bir parsel sınırı çizin.");
+                return;
+              }
+              setNotice("");
+              instance.current?.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+            }}
+          >
+            <Expand size={18} />
+          </button>
+        </div>
       </div>
       {editable && (
         <form
@@ -823,4 +838,5 @@ export default function ParcelMap({
       </div>
     </div>
   );
+  return <div className={editable ? "parcel-drawing-layout" : "parcel-map-frame"}>{palette}{mapSurface}</div>;
 }

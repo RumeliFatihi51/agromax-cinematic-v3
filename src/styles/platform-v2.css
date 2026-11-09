@@ -1,11 +1,3 @@
-@font-face {
-  font-family: "Instrument Sans";
-  src: url("/fonts/instrument-sans.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-}
-
 html.agromax-ui {
   --ag-paper: #efecdf;
   --ag-surface: #fffdf7;
@@ -16,23 +8,28 @@ html.agromax-ui {
   --ag-primary: #315a43;
   --ag-primary-hover: #243a2c;
   --ag-lime: #d6dfbc;
-  --ag-display: "Instrument Sans", Manrope, system-ui, sans-serif;
+  --ag-display: var(--font-ui);
   --cinema-forest: #13261c;
   --cinema-cream: #f3efe2;
   --cinema-ink: #202b23;
   --cinema-border: #d7d2c0;
-  --cinema-serif: Georgia, "Times New Roman", serif;
   --cinema-fast: 160ms;
   --cinema-ease: cubic-bezier(.18,.8,.3,1);
 }
 
-html.agromax-ui .studio-shell :is(.studio-page-title, .analysis-heading) :is(h1, h2) {
+html.agromax-ui .studio-shell .studio-page-title :is(h1, h2) {
   font-family: var(--ag-display);
   letter-spacing: -0.035em;
 }
 
 html.agromax-ui .cinematic-shell { --sidebar-width: clamp(225px, 15.6vw, 274px); }
 html.agromax-ui .cinematic-shell.sidebar-slim { --sidebar-width: 74px; }
+html.agromax-ui .cinematic-shell .studio-main {
+  flex: 0 0 calc(100% - var(--sidebar-width));
+  width: calc(100% - var(--sidebar-width));
+  margin: 0 0 0 var(--sidebar-width);
+  transition: none;
+}
 html.agromax-ui .cinematic-shell .studio-sidebar {
   background: linear-gradient(150deg,#102019,#203325 76%,#15271f);
   color: #f4f1e5;
@@ -58,14 +55,22 @@ html.agromax-ui .cinematic-shell .studio-nav-link.is-active {
 }
 html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):hover { background-color: #ffffff12; }
 html.agromax-ui .cinematic-shell .studio-sidebar :is(button, summary):focus-visible { outline-color: #cfdfad; }
+.cinematic-shell .platform-nav-group { margin: 0; border: 0; }
 html.agromax-ui .cinematic-shell .platform-nav-group > summary {
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
   gap: 13px;
+  list-style: none;
+  cursor: pointer;
   padding: 12px 14px;
   min-height: 44px;
   border-radius: 8px;
   font-size: 13px;
 }
+.cinematic-shell .platform-nav-group > summary::-webkit-details-marker { display: none; }
+.cinematic-shell .platform-nav-group[open] > summary > svg:last-child { transform: rotate(90deg); }
+.cinematic-shell .platform-nav-group .studio-nav-link { min-height: 41px; font-size: 12px; }
 .cinematic-shell .platform-nav-group > summary > span { flex: 1; }
 .cinematic-shell .platform-nav-group[open] > summary { background: #ffffff0d; }
 .cinematic-shell .platform-nav-group > button { margin-inline-start: 12px; width: calc(100% - 12px); }
@@ -92,7 +97,7 @@ html.agromax-ui .cinematic-shell .studio-workspace { margin-block: 2px; }
   background: linear-gradient(180deg,#1a2d21,transparent 36%,#12231ad9 78%), url("/visuals/agromax-landscape-editorial-v1.webp") center 61% / cover;
 }
 html.agromax-ui .cinematic-sidebar-story p {
-  font: italic 24px/1.05 var(--cinema-serif);
+  font: italic 24px/1.05 var(--font-ui);
   margin: 0;
   color: #f6f0e0;
 }
@@ -154,7 +159,7 @@ html.agromax-ui .cinematic-shell.studio-page-overview .studio-global-search { mi
   .earth-loader svg path { animation: none; }
 }
 
-html.agromax-ui .studio-shell :is(.analysis-heading, .studio-page-title) {
+html.agromax-ui .studio-shell .studio-page-title {
   padding-block-end: 1rem;
   border-block-end: 1px solid var(--ag-line);
 }

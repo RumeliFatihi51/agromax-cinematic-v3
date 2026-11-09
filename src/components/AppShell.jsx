@@ -16,9 +16,12 @@ import {
 import { availableModules, navigationGroups } from "../features/modules";
 import { I } from "./icons";
 import QuickSearch from "./QuickSearch";
+import SceneSurface from "../features/cinema/SceneSurface";
+import RouteCurtain from "../features/cinema/RouteCurtain";
 const sectionIcons = [Layers3, ChartNoAxesColumn, Box, Waypoints, ClipboardCheck];
 export default function AppShell({
   page,
+  scene = page,
   user,
   fields,
   tasks,
@@ -41,8 +44,7 @@ export default function AppShell({
     }),
     [search, setSearch] = useState(false);
   const menuButton = useRef(null),
-    sidebar = useRef(null),
-    content = useRef(null);
+    sidebar = useRef(null);
   const modules = availableModules(!!workspace);
   const active = modules.find((m) => m[0] === page) || modules[0],
     pending = tasks.filter((t) => !t.done).length;
@@ -52,14 +54,6 @@ export default function AppShell({
     worker: "Ekip üyesi",
     viewer: "Görüntüleme",
   };
-  useEffect(() => {
-    if (page === "overview" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const transition = content.current?.animate(
-      [{ opacity: 0.72, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }],
-      { duration: 220, easing: "cubic-bezier(.18,.8,.3,1)" },
-    );
-    return () => transition?.cancel();
-  }, [page]);
   useEffect(() => {
     const key = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -127,6 +121,7 @@ export default function AppShell({
             key={id}
             className={`studio-nav-link ${page === id ? "is-active" : ""}`}
             title={label}
+            aria-label={label}
             aria-current={page === id ? "page" : undefined}
             onClick={() => navigate(id)}
           >
@@ -313,16 +308,18 @@ export default function AppShell({
             </button>
           </div>
         </header>
-        <main className="studio-content" id="main-content" tabIndex={-1} ref={content}>
-          {children}
+        <main className="studio-content" id="main-content" tabIndex={-1}>
+          <SceneSurface id={scene}>{children}</SceneSurface>
           <footer className="studio-page-footer">
             <span>
               Toprağı anla. <strong>Geleceği yetiştir.</strong>
             </span>
             <small>agromax · Çalışma alanınız</small>
+            <a href="/visuals/films/tarim2/credits.txt" target="_blank" rel="noreferrer">Görsel kaynakları</a>
           </footer>
         </main>
       </div>
+      <RouteCurtain id={`${page}:${scene || ""}`} />
       <nav className="canopy-mobile-dock" aria-label="Hızlı gezinme">
         {[
           ["overview", "Ana ekran"],

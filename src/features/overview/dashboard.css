@@ -19,7 +19,8 @@
   gap: 26px;
 }
 .dashboard-hero-media { position: absolute; z-index: -1; inset: 0; overflow: hidden; background: #354934; }
-.dashboard-hero-media img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 32%; filter: saturate(.84); }
+.dashboard-hero-media { --film-position: 50% 32%; }
+.dashboard-hero-media .scene-film { filter: saturate(.84); }
 .dashboard-hero-media::after {
   content: "";
   position: absolute;
@@ -30,12 +31,12 @@
 }
 .dashboard-greeting { min-width: 0; }
 .agromax-ui .dashboard-greeting h1 {
-  font: 500 clamp(36px, 3.25vw, 64px)/.91 var(--cinema-serif);
-  letter-spacing: -.042em;
+  font: 750 clamp(36px, 3.25vw, 64px)/.91 var(--font-ui);
+  letter-spacing: -.051em;
   margin: 6px 0 13px;
   color: #f5efdc;
 }
-.motion-line { display: block; overflow: clip; padding-block: .035em .08em; }
+.motion-line { display: block; overflow: clip; overflow-clip-margin: .12em; padding-block: .035em .08em; }
 .motion-line > span { display: block; }
 .agromax-ui .dashboard-greeting p { color: #f4f0e3; margin: 0; max-width: 395px; font-size: 15px; }
 .dashboard-weather {
@@ -93,7 +94,7 @@
 }
 .dashboard-kpi:nth-child(3) .dashboard-kpi-icon { color: #983e24; background: #f0e5d4; }
 .dashboard-kpi > span:last-child { min-width: 0; }
-.dashboard-kpi strong { display: block; font: 700 31px/.92 var(--cinema-serif); font-variant-numeric: tabular-nums; }
+.dashboard-kpi strong { display: block; font: 700 31px/.92 var(--font-ui); font-variant-numeric: tabular-nums; }
 .dashboard-kpi small { display: block; color: #53564b; font-size: 11.5px; margin-top: 5px; overflow-wrap: anywhere; }
 .dashboard-observation {
   display: grid;
@@ -168,7 +169,7 @@
 }
 .dashboard-analysis-sheet::backdrop { background: #10271b88; }
 .dashboard-analysis-sheet > header { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.dashboard-analysis-sheet > header h2 { font: 700 24px/1.1 var(--cinema-serif); margin: 4px 0; overflow-wrap: anywhere; }
+.dashboard-analysis-sheet > header h2 { font: 700 24px/1.1 var(--font-ui); margin: 4px 0; overflow-wrap: anywhere; }
 .dashboard-analysis-sheet > header button { min-width: 44px; min-height: 44px; border: 0; border-radius: 50%; background: #e1e7d4; }
 @keyframes sheet-open { from { transform: translateY(24px); opacity: .35; } }
 .dashboard-muted, .dashboard-parcel-empty, .dashboard-source { margin: 17px 0 0; font-size: 13px; }
@@ -179,7 +180,7 @@
 .dashboard-current-index { display: flex; align-items: center; gap: 7px; justify-content: space-between; }
 .dashboard-current-index .observation-plot-mini { padding: 0; width: 43%; margin: 0; border: 0; background: none; }
 .dashboard-index-value > span { display: block; }
-.dashboard-index-value > strong { font: 700 35px/1 var(--cinema-serif); color: #295432; }
+.dashboard-index-value > strong { font: 700 35px/1 var(--font-ui); color: #295432; }
 .dashboard-index-value > p { margin: 3px 0 0; font-size: 11px; }
 .dashboard-delta { background: #dce7ce; border-radius: 6px; margin-left: 8px; padding: 2px 5px; }
 .dashboard-index-list { margin: 0; }
@@ -211,7 +212,7 @@
   background-position: center, right bottom;
 }
 .dashboard-module[data-module=mrv] { background-position: center, 25% 48%; filter: saturate(.68); }
-.dashboard-module strong { font: 700 clamp(16px, 1.2vw, 20px)/1.08 var(--cinema-serif); color: #172019; }
+.dashboard-module strong { font: 700 clamp(16px, 1.2vw, 20px)/1.08 var(--font-ui); color: #172019; }
 .dashboard-module span { font-size: 12px; color: #333e33; max-width: 180px; }
 .module-arrow { position: absolute; right: 10px; top: 12px; opacity: .65; }
 .dashboard-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -235,7 +236,7 @@
     radial-gradient(ellipse at 100% 0%,#8ca37959,transparent 52%);
 }
 .dashboard-filiz > header > span { background: #394e36; color: #f5f3df; border-radius: 50%; }
-.agromax-ui .dashboard-filiz h2 { font: italic 700 27px/.95 var(--cinema-serif); margin: 0; }
+.agromax-ui .dashboard-filiz h2 { font: 760 27px/.95 var(--font-ui); margin: 0; }
 .agromax-ui .dashboard-filiz p { margin: 0; color: #394335; font-size: 13px; overflow-wrap: anywhere; }
 .dashboard-filiz-scroll { min-width: 0; min-height: 0; padding: 0 13px 12px; flex: 1; overflow-y: auto; }
 .dashboard-filiz p.dashboard-question { padding: 12px; margin: 3px 0 14px 12%; color: #fff9e9; background: #3d533b; border-radius: 11px; }
@@ -280,6 +281,13 @@
   .dashboard-kpi-icon { width: 33px; height: 33px; }
   .dashboard-hero { padding-inline-end: 4%; }
 }
+@media (min-width: 1351px) {
+  .dashboard-grid { margin-block-start: -19px; margin-inline-end: 8px; }
+  .dashboard-kpi { min-height: 110px; }
+  .dashboard-hero { padding-block: 28px 34px; }
+  .dashboard-greeting .motion-line { padding-block: .02em .025em; }
+  .agromax-ui .dashboard-greeting p { line-height: 1.45; }
+}
 @media (max-width: 1120px) {
   .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-filiz { display: none; }
@@ -287,7 +295,7 @@
 }
 @media (max-width: 768px) {
   .dashboard-hero { align-items: start; flex-direction: column; padding: 71px 19px 50px; gap: 11px; }
-  .dashboard-hero-media img { object-position: 62% 44%; }
+  .dashboard-hero-media { --film-position: 62% 44%; }
   .dashboard-weather { margin: 0; }
   .dashboard-observation { grid-template-columns: minmax(0, 1fr); }
   .dashboard-parcel { border-left: 1px solid #ded9ca; border-radius: 0 0 14px 14px; }

@@ -465,8 +465,53 @@ export default function BusinessWorkspace({
       .toLocaleLowerCase(locale)
       .includes(query.trim().toLocaleLowerCase(locale));
   });
+  const operationalLayout = kind !== "cost" && kind !== "soil";
+  const fieldName = (record: BusinessRecord) => fields.find((field) => field.id === record.fieldId)?.name || record.fieldId;
+  const recordActions = (record: BusinessRecord) => {
+    if (!canWrite || (workspace.role === "worker" && record.createdBy !== userId)) return null;
+    return <div className="business-row-actions">
+      <button aria-label={t("Kaydı düzenle", "Edit record")} onClick={() => setEditor(record)}><Pencil size={15} /></button>
+      <button aria-label={t("Kaydı kaldır", "Remove record")} disabled={saving} onClick={() => {
+        setError("");
+        setPendingDelete(record);
+      }}><Trash2 size={15} /></button>
+    </div>;
+  };
+  const datedRecords = operationalLayout ? [...displayed].sort((a, b) =>
+    String(b.data.date || b.data.sowingDate || "").localeCompare(String(a.data.date || a.data.sowingDate || "")),
+  ) : [];
+  const maxIrrigation = kind === "irrigation" ? Math.max(0, ...displayed.map((row) => Number(row.data.volumeM3))) : 0;
+  const operationRecord = (record: BusinessRecord) => {
+    const value = record.data;
+    const title = String(value.name || value.product || fieldName(record));
+    return <li className="operation-entry" key={record.id}>
+      <div className="operation-entry-date">{String(value.date || value.sowingDate || "—")}</div>
+      <article>
+        <header>
+          <div><span className="studio-kicker">{fieldName(record)}</span><h2>{title}</h2></div>
+          {recordActions(record)}
+        </header>
+        {kind === "season" && <dl className="operation-pairs">
+          <div><dt>{t("Ürün", "Crop")}</dt><dd>{value.cropName ? String(value.cropName) : option(String(value.crop || "—"))}</dd></div>
+          <div><dt>{t("Hasat tarihi", "Harvest date")}</dt><dd>{String(value.harvestDate || "—")}</dd></div>
+        </dl>}
+        {kind === "irrigation" && <div className="operation-quantity">
+          <strong>{Number(value.volumeM3).toLocaleString(locale)} m³</strong>
+          <span>{option(String(value.method))} · {option(String(value.state))}</span>
+          <meter min={0} max={maxIrrigation || 1} value={Number(value.volumeM3)} aria-label={t("Kayıtlı su hacmi", "Recorded water volume")} />
+        </div>}
+        {kind === "nutrition" && <div className="operation-quantity"><strong>{Number(value.amountKg).toLocaleString(locale)} kg</strong><span>{option(String(value.state))}</span></div>}
+        {(kind === "protection" || kind === "evaluation") && <div className="operation-observation">
+          <strong>{option(String(value.state))}</strong>
+          <p>{String(value.observation || "—")}</p>
+          {typeof value.analysisId === "string" && value.analysisId && <small>{t("Analiz kaydı", "Analysis record")} · <code>{value.analysisId}</code></small>}
+        </div>}
+        {typeof value.notes === "string" && value.notes && <p className="operation-notes">{value.notes}</p>}
+      </article>
+    </li>;
+  };
   return (
-    <div className={`business-workspace business-${definition.color}`}>
+    <div className={`business-workspace business-${definition.color}`} data-record-kind={kind}>
       <div className="studio-page-title">
         <div>
           <span className="studio-kicker">
@@ -521,15 +566,53 @@ export default function BusinessWorkspace({
             <ClipboardList size={22} aria-hidden="true" />
           </span>
           <div>
-            <small>{t("Planlanan işlem", "Planned records")}</small>
+            <small>{kind === "cost" ? t("Para birimi", "Currencies") : t("Planlanan işlem", "Planned records")}</small>
             <strong>
               {loading
                 ? "—"
-                : records.filter((r) => r.data.state === "planned").length}
+                : kind === "cost" ? summary.length : records.filter((r) => r.data.state === "planned").length}
             </strong>
           </div>
         </article>
       </div>
+      {kind === "cost" && summary.length > 0 && (
+        <div className="business-money-summary">
+          {summary.map((s) => (
+            <article key={s.currency}>
+              <small>{s.currency}</small>
+              <strong>{displayMoney(s.amountMinor, s.currency, locale)}</strong>
+              <span>
+                {t("Kayıtlı gider toplamı", "Recorded expense total")}
+              </span>
+            </article>
+          ))}
+        </div>
+      )}
+      {kind === "cost" && summary.length > 0 && (
+        <section className="business-settings-section cost-breakdown">
+          <h2>{t("Gider dağılımı", "Expense breakdown")}</h2>
+          <p>{t("Kategori payları her para birimi için ayrı gösterilir.", "Category shares are shown separately for each currency.")}</p>
+          <div className="cost-breakdown-groups">
+            {summary.map(({ currency, amountMinor }) => {
+              const categories = new Map<string, number>();
+              for (const { data } of records) {
+                if (data.currency !== currency || typeof data.amountMinor !== "number") continue;
+                const category = String(data.category);
+                categories.set(category, (categories.get(category) || 0) + data.amountMinor);
+              }
+              return <figure key={currency}>
+                <figcaption>{currency}</figcaption>
+                <ul>{[...categories].sort((a, b) => b[1] - a[1]).map(([category, amount]) =>
+                  <li key={category}><span>{option(category)}</span>
+                    <strong>{displayMoney(amount, currency, locale)}</strong>
+                    <meter min={0} max={amountMinor || 1} value={amount} aria-label={option(category) + " · " + currency} />
+                  </li>
+                )}</ul>
+              </figure>;
+            })}
+          </div>
+        </section>
+      )}
       <div className="business-toolbar">
         <Icon size={21} />
         <select
@@ -565,19 +648,6 @@ export default function BusinessWorkspace({
           {t("Yenile", "Refresh")}
         </button>
       </div>
-      {kind === "cost" && summary.length > 0 && (
-        <div className="business-money-summary">
-          {summary.map((s) => (
-            <article key={s.currency}>
-              <small>{s.currency}</small>
-              <strong>{displayMoney(s.amountMinor, s.currency, locale)}</strong>
-              <span>
-                {t("Kayıtlı gider toplamı", "Recorded expense total")}
-              </span>
-            </article>
-          ))}
-        </div>
-      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -588,6 +658,13 @@ export default function BusinessWorkspace({
           <div className="business-empty" role="status">
             <LoaderCircle size={27} className="spin" />
             {t("Kayıtlar yükleniyor…", "Loading records…")}
+          </div>
+        ) : displayed.length && operationalLayout ? (
+          <div className="operation-register">
+            {kind === "nutrition" ? ["planned", "applied"].map((group) => {
+              const rows = datedRecords.filter(({ data }) => data.state === group);
+              return rows.length ? <section key={group}><h3>{option(group)}</h3><ul>{rows.map(operationRecord)}</ul></section> : null;
+            }) : <ol>{datedRecords.map(operationRecord)}</ol>}
           </div>
         ) : displayed.length ? (
           <div className="business-table-scroll">
@@ -622,9 +699,19 @@ export default function BusinessWorkspace({
                           r.data.laboratory ||
                           "—",
                       )}
-                      <small>
-                        {t("Kullanıcı kaydı", "User-entered record")}
-                      </small>
+                      {kind === "cost" && <details className="ledger-row-detail">
+                        <summary>{t("Kayıt ayrıntıları", "Record details")}</summary>
+                        <p>{option(String(r.data.category || "—"))}</p>
+                        {typeof r.data.notes === "string" && r.data.notes && <p>{r.data.notes}</p>}
+                      </details>}
+                      {kind === "soil" && <details className="ledger-row-detail">
+                        <summary>{t("Ölçüm sonuçları", "Measurement results")}</summary>
+                        <p>{String(r.data.method)} · {String(r.data.depthCm)} cm</p>
+                        {Array.isArray(r.data.measurements) && <ul>{r.data.measurements.map((item, index) =>
+                          <li key={index}>{String(item.parameter)} · {String(item.value)} {String(item.unit)}</li>,
+                        )}</ul>}
+                      </details>}
+                      <small>{t("Kullanıcı kaydı", "User-entered record")}</small>
                     </td>
                     <td data-label={t("Durum / miktar", "State / amount")}>
                       {kind === "cost"
@@ -642,28 +729,7 @@ export default function BusinessWorkspace({
                               )}
                     </td>
                     <td>
-                      {canWrite &&
-                        (workspace.role !== "worker" ||
-                          r.createdBy === userId) && (
-                          <div className="business-row-actions">
-                            <button
-                              aria-label={t("Kaydı düzenle", "Edit record")}
-                              onClick={() => setEditor(r)}
-                            >
-                              <Pencil size={15} />
-                            </button>
-                            <button
-                              aria-label={t("Kaydı kaldır", "Remove record")}
-                              disabled={saving}
-                              onClick={() => {
-                                setError("");
-                                setPendingDelete(r);
-                              }}
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        )}
+                      {recordActions(r)}
                     </td>
                   </tr>
                 ))}

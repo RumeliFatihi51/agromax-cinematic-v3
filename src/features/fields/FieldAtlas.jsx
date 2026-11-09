@@ -10,6 +10,7 @@ export default function FieldAtlas({ fields, onSelect, onCreate }) {
   const area = useAreaFormat();
   const filtered=fields.filter(f => (filter === "all" || (filter === "mapped" ? !!f.geometry : !f.geometry)) && `${f.name} ${f.crop || ""} ${f.location || ""}`.toLocaleLowerCase("tr-TR").includes(query.toLocaleLowerCase("tr-TR"))).sort((a, b) => sort === "area" ? b.area - a.area : a.name.localeCompare(b.name, "tr"));
   return <section className="atlas-workspace" aria-label="Parsel atlası">
+    <header className="atlas-rail-title"><Layers3 size={20} aria-hidden="true"/><h2>Parsel atlası</h2></header>
     <div className="atlas-search"><label><Search size={18} /><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Parsel, ürün veya konum ara" aria-label="Atlas içinde ara" /></label><span>{filtered.length} / {fields.length} PARSEL</span></div>
     <div className="fw-atlas-controls"><div className="fw-view-tabs" aria-label="Parsel filtresi">{[["all", "Tüm parseller"], ["mapped", "Sınırı kayıtlı"], ["unmapped", "Sınırı eksik"]].map(([id, label]) => <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>)}</div><label>Sıralama<select aria-label="Parsel sıralaması" value={sort} onChange={event => setSort(event.target.value)}><option value="name">Ada göre</option><option value="area">Alana göre</option></select></label></div>
     <div className="atlas-grid">

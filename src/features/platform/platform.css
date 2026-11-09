@@ -1,9 +1,4 @@
 ﻿/* Platform workspaces: one field context, explicit readiness, evidence-led actions. */
-.agromax-ui .platform-nav-group { margin-top:7px; border:0; }
-.agromax-ui .platform-nav-group > summary { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 12px; color:#5a6d5f; cursor:pointer; list-style:none; font-size:11px; font-weight:750; }
-.platform-nav-group > summary::-webkit-details-marker { display:none; }
-.platform-nav-group[open] > summary > svg { transform:rotate(90deg); }
-.agromax-ui .platform-nav-group .studio-nav-link { min-height:41px; font-size:12px; margin:3px 0; }
 .px-workspace { --px-line:#dfe7e1; --px-muted:#637267; --px-forest:#214d3c; color:var(--ag-ink); }
 .px-workspace .workspace-heading h1 { max-width:760px; }
 .px-intro { display:grid; grid-template-columns:1fr 1fr; border:1px solid #d5e0d8; border-radius:18px; overflow:hidden; margin-bottom:22px; background:#f0f4eb; }
@@ -74,17 +69,43 @@
 .agromax-ui .px-sources h2 { font-size:19px; margin:18px 0 10px; }
 .agromax-ui .px-sources p { font-size:12px; line-height:1.8; color:var(--px-muted); }
 .px-sources a { display:inline-flex; align-items:center; gap:5px; margin-top:16px; color:#4c7044; font-size:11px; text-decoration:underline; }
-.px-twin { display:grid; grid-template-columns:1fr 1.3fr; }
-.px-twin-visual { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:25px; background:#eaf0df; padding:30px 15px; min-height:280px; }
-.px-twin-visual > .parcel-preview { width:160px; height:160px; background:transparent; border:0; }
-.px-twin-visual .parcel-preview svg { width:100%; height:100%; }
-.px-twin-visual > span:last-child { font-size:9px; color:#60744d; letter-spacing:.8px; text-align:center; }
-.px-twin > div:last-child { padding:25px; }
-.agromax-ui .px-twin h2 { font-size:23px; font-weight:650; margin:12px 0 20px; }
-.px-twin dl { display:grid; grid-template-columns:1fr 1fr; gap:19px; margin-bottom:22px; }
+.px-twin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  overflow: hidden;
+  background: var(--cinema-cream);
+  border: 1px solid var(--cinema-border);
+  border-radius: 16px;
+}
+.px-twin-visual {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  min-height: 290px;
+  padding: 20px;
+  background: linear-gradient(#10281b95, #10281bd6), var(--cinema-forest) url("/visuals/dashboard-contours.svg") center / cover;
+}
+.px-twin-visual > .parcel-preview {
+  width: clamp(100px, 13vw, 200px);
+  height: auto;
+  aspect-ratio: 1;
+  background: transparent;
+  border: 0;
+}
+.px-twin-visual .parcel-preview svg { width: 100%; height: 100%; }
+.px-twin-visual .parcel-outline { fill: #adc97e50; stroke: #cfdfa2; stroke-width: .55; }
+.px-twin-visual > span:last-child { font-size: 12px; color: var(--ag-lime); text-align: center; }
+.px-twin > div:last-child { padding: clamp(18px, 2.2vw, 30px); min-width: 0; }
+.agromax-ui .px-twin h2 {
+  font: 500 clamp(28px, 3.3vw, 42px)/1.08 var(--font-ui);
+  margin: 8px 0 18px;
+  overflow-wrap: anywhere;
+}
+.px-twin dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 12px; }
+.px-twin dl div { border-top: 1px solid var(--cinema-border); padding-top: 8px; }
 .px-twin dt,.px-export dt { color:var(--px-muted); font-size:11px; margin-bottom:7px; }
 .px-twin dd,.px-export dd { font-size:12px; margin:0; overflow-wrap:anywhere; line-height:1.7; }
-.px-twin small { font-size:10px; color:var(--px-muted); overflow-wrap:anywhere; }
 .px-checks { display:grid; gap:11px; }
 .px-section > .px-checks { margin-top:23px; }
 .px-checks article { display:flex; align-items:start; gap:11px; padding:17px; background:#fafbf7; border:1px solid #e5ecdd; border-radius:9px; }
@@ -110,14 +131,6 @@
 .agromax-ui .px-record-list p { font-size:12px; line-height:1.8; color:var(--px-muted); white-space:pre-wrap; overflow-wrap:anywhere; }
 .px-record-list footer { display:flex; flex-wrap:wrap; gap:14px; padding-top:15px; margin-top:17px; border-top:1px solid #e5ebdd; }
 .agromax-ui .px-record-list button { display:flex; align-items:center; gap:5px; min-height:32px; background:transparent; color:#4e7140; font-size:11px; }
-.px-timeline { list-style:none; margin:23px 0 0; padding:0; }
-.px-timeline li { display:flex; align-items:start; gap:13px; padding:18px 0; border-top:1px solid #e7ecdf; }
-.px-timeline-dot { width:8px; height:8px; background:#b8a378; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.px-timeline-dot.is-complete { background:#83a16b; }
-.px-timeline strong { font-size:13px; }
-.px-timeline p { font-size:12px; margin-top:7px; }
-.px-timeline small { display:block; font-size:10px; line-height:1.8; color:#6b7e5d; margin-top:8px; }
-.px-timeline button { margin-left:auto; flex-shrink:0; }
 .px-export > svg { color:#819b66; margin-bottom:21px; }
 .px-export dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; border-block:1px solid #e4eadb; padding:22px 0; margin:22px 0; }
 .px-export .px-notice { margin-bottom:0; }
@@ -146,7 +159,127 @@
 @media(min-width:1650px) { .px-feature-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media(max-width:1200px) { .px-main-grid { grid-template-columns:minmax(0,1fr); } .px-side-panel { position:static; } .px-side-panel ul { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; } .px-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .px-intro > div { padding:27px; } .px-intro ol { padding:25px; } .px-field-strip > div:not(:first-of-type) { padding-inline:10px; } }
 @media(min-width:641px) and (max-width:850px) { .platform-nav-group summary span { display:none; } .platform-nav-group summary { justify-content:center; } .platform-nav-group summary > svg { margin:auto; } .platform-nav-group .studio-nav-link .canopy-nav-icon { display:grid; } }
-@media(max-width:640px) { .px-intro { grid-template-columns:1fr; border-radius:14px; } .agromax-ui .px-intro h2 { font-size:31px; } .px-intro ol { gap:20px; } .px-feature-grid { grid-template-columns:1fr; gap:14px; } .px-feature-card { padding:22px; } .px-catalog-toolbar { align-items:start; flex-direction:column; gap:17px; } .px-catalog-toolbar label { width:100%; } .agromax-ui .px-catalog-toolbar input { flex:1; width:100%; } .px-context-bar { gap:12px; padding:16px; } .px-context-bar > span:nth-child(2) { min-width:100%; } .px-context-bar label { margin:0; width:100%; } .agromax-ui .px-context-bar select { flex:1; min-width:0; max-width:none; } .px-field-strip { padding:16px; gap:13px; } .px-field-strip > div:first-of-type { min-width:180px; } .px-field-strip > div:not(:first-of-type) { border:0; padding:0; } .px-field-strip > button { margin-left:auto; } .px-twin { grid-template-columns:1fr; } .px-twin-visual { min-height:230px; padding:20px; } .px-sources { grid-template-columns:1fr; } .px-section { padding:20px; } .px-records > header { flex-direction:column; gap:10px; } .px-records > header .primary { min-height:44px; } .px-record-list article { padding:15px; } .px-record-list footer { gap:8px 13px; } .agromax-ui .px-record-list button { min-height:39px; } .px-side-panel ul { display:block; } .px-export dl { grid-template-columns:1fr; } .px-access { padding:35px 20px; } .agromax-ui .px-access h2 { font-size:26px; } .px-editor { padding:22px 18px; max-height:calc(100dvh - 24px); } .px-form-grid { grid-template-columns:1fr; gap:15px; } .agromax-ui .px-editor h2 { font-size:21px; } .px-timeline li { flex-wrap:wrap; } .px-timeline li > div { flex:1; } }
+@media(max-width:640px) { .px-intro { grid-template-columns:1fr; border-radius:14px; } .agromax-ui .px-intro h2 { font-size:31px; } .px-intro ol { gap:20px; } .px-feature-grid { grid-template-columns:1fr; gap:14px; } .px-feature-card { padding:22px; } .px-catalog-toolbar { align-items:start; flex-direction:column; gap:17px; } .px-catalog-toolbar label { width:100%; } .agromax-ui .px-catalog-toolbar input { flex:1; width:100%; } .px-context-bar { gap:12px; padding:16px; } .px-context-bar > span:nth-child(2) { min-width:100%; } .px-context-bar label { margin:0; width:100%; } .agromax-ui .px-context-bar select { flex:1; min-width:0; max-width:none; } .px-field-strip { padding:16px; gap:13px; } .px-field-strip > div:first-of-type { min-width:180px; } .px-field-strip > div:not(:first-of-type) { border:0; padding:0; } .px-field-strip > button { margin-left:auto; } .px-twin { grid-template-columns:1fr; } .px-twin-visual { min-height:230px; padding:20px; } .px-sources { grid-template-columns:1fr; } .px-section { padding:20px; } .px-records > header { flex-direction:column; gap:10px; } .px-records > header .primary { min-height:44px; } .px-record-list article { padding:15px; } .px-record-list footer { gap:8px 13px; } .agromax-ui .px-record-list button { min-height:39px; } .px-side-panel ul { display:block; } .px-export dl { grid-template-columns:1fr; } .px-access { padding:35px 20px; } .agromax-ui .px-access h2 { font-size:26px; } .px-editor { padding:22px 18px; max-height:calc(100dvh - 24px); } .px-form-grid { grid-template-columns:1fr; gap:15px; } .agromax-ui .px-editor h2 { font-size:21px; } }
 .agromax-ui .sidebar-slim .platform-nav-group > summary > span { display:none; }
 .agromax-ui .sidebar-slim .platform-nav-group > summary { justify-content:center; }
 @media(max-width:640px) { .agromax-ui .sidebar-slim .platform-nav-group > summary > span { display:inline; } .agromax-ui .sidebar-slim .platform-nav-group > summary { justify-content:space-between; } }
+
+/* Observation ledger: recorded runs above a map and a dated measure. */
+.px-workspace[data-page="temporal"] .workspace-heading { margin-bottom: 14px; }
+.px-workspace[data-page="temporal"] .px-context-bar { margin-bottom: 14px; padding-block: 10px; }
+.px-main-grid[data-workspace="temporal"] { grid-template-columns: minmax(0, 1fr); }
+.px-main-grid[data-workspace="temporal"] .px-side-panel { position: static; }
+.temporal-studio {
+  min-width: 0;
+  border: 1px solid var(--cinema-border);
+  background: var(--cinema-cream);
+  border-radius: 16px;
+  color: var(--ag-ink);
+}
+.temporal-studio > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: clamp(14px, 2vw, 24px);
+}
+.temporal-studio > header h2 {
+  margin-block: 8px;
+  font: 500 clamp(24px, 3vw, 38px)/1.05 var(--font-ui);
+  letter-spacing: -.03em;
+}
+.temporal-studio .eyebrow { display: inline-flex; align-items: center; gap: 7px; }
+.temporal-links { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.temporal-studio p { color: var(--ag-muted); font-size: 13px; }
+.temporal-run-list {
+  display: flex;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 7px clamp(14px, 2vw, 24px) 14px;
+  overflow-x: auto;
+}
+.temporal-run-list li { flex: 0 0 auto; }
+.agromax-ui .temporal-run-list button {
+  display: grid;
+  gap: 5px;
+  padding: 10px 13px;
+  text-align: left;
+  color: var(--ag-ink);
+  border: 1px solid var(--cinema-border);
+  background: var(--ag-surface);
+  border-radius: 9px;
+  transition: background-color var(--cinema-fast) var(--cinema-ease);
+}
+.agromax-ui .temporal-run-list button:hover { background: var(--ag-paper); }
+.agromax-ui .temporal-run-list button[aria-pressed="true"] {
+  background: var(--ag-lime);
+  border-color: var(--ag-primary);
+}
+.temporal-run-list :is(small, span) { font-size: 11px; color: var(--ag-muted); }
+.temporal-run-detail { padding: 0 clamp(12px, 2vw, 24px) clamp(12px, 2vw, 24px); }
+.temporal-view {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.temporal-observation { padding: 14px 0; min-width: 0; }
+.temporal-observation h3 { font: 500 24px/1.1 var(--font-ui); margin-block: 8px; }
+.temporal-observation dl { margin: 12px 0 0; }
+.temporal-observation dl > div { padding: 9px 0; border-bottom: 1px solid var(--cinema-border); }
+.temporal-observation dt { font-size: 11px; color: var(--ag-muted); }
+.temporal-observation dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 13px; }
+.temporal-empty {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  padding: 20px clamp(14px, 2vw, 24px);
+  border-top: 1px solid var(--cinema-border);
+}
+@media (max-width: 900px) {
+  .temporal-view { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .px-workspace[data-page="temporal"] .px-context-bar > span { display: none; }
+  .px-workspace[data-page="temporal"] .workspace-heading { gap: 10px; }
+  .temporal-studio > header { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agromax-ui .temporal-run-list button { transition: none; }
+}
+
+.depletion-chart {
+  margin: 16px 0;
+  padding: clamp(10px, 1.7vw, 19px);
+  background: var(--ag-surface);
+  border: 1px solid var(--cinema-border);
+  border-radius: 12px;
+}
+.depletion-chart figcaption { font-weight: 650; }
+.depletion-chart figcaption small { display: block; font-weight: 450; color: var(--ag-muted); }
+.depletion-chart svg { display: block; width: 100%; max-height: 230px; overflow: visible; margin: 8px 0; }
+.depletion-chart svg line { stroke: var(--ag-line); }
+.depletion-chart svg text { font: 16px var(--ag-display); fill: var(--ag-muted); }
+.depletion-chart .depletion-threshold { stroke: #905932; stroke-dasharray: 4 5; }
+.depletion-chart .depletion-series {
+  fill: none;
+  stroke: var(--series-color);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.depletion-chart [data-series="0"] { --series-color: #365f40; }
+.depletion-chart [data-series="1"] { --series-color: #355f75; }
+.depletion-chart [data-series="2"] { --series-color: #815832; }
+.depletion-chart ul { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; padding: 0; margin: 0; }
+.depletion-chart li { display: flex; align-items: center; gap: 6px; color: var(--ag-muted); font-size: 12px; }
+.depletion-chart li span { width: 17px; border-top: 2px solid var(--series-color); }
+.depletion-chart li span[data-series="1"] { border-top-style: dashed; }
+.depletion-chart li span[data-series="2"] { border-top-style: dotted; }
+.depletion-chart li .depletion-threshold { border-top: 2px dashed #905932; }
+@media (prefers-reduced-motion: no-preference) {
+  .depletion-chart { animation: depletion-enter 270ms var(--cinema-ease) both; }
+  @keyframes depletion-enter { from { opacity: .68; transform: translateY(4px); } }
+}

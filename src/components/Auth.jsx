@@ -1,17 +1,10 @@
-import Brand from "./Brand";
 import { useEffect, useState } from "react";
 import AccountRecovery from "./AccountRecovery";
-import {
-  ArrowUpRight,
-  ArrowRight,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  Satellite,
-  LandPlot,
-  CalendarDays,
-} from "lucide-react";
+import { ArrowUpRight, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { api } from "../api";
+import SceneFilm from "../features/cinema/SceneFilm";
+import { filmForScene } from "../features/cinema/sceneFilms";
+import RouteCurtain from "../features/cinema/RouteCurtain";
 export default function Auth({ onLogin }) {
   const [register, setRegister] = useState(false),
     [error, setError] = useState(""),
@@ -48,80 +41,23 @@ export default function Auth({ onLogin }) {
     }
   }
   return (
-    <main className="auth">
-      <section className="auth-story">
-        <figure className="auth-brand-art">
-          <picture>
-            <source
-              srcSet="/visuals/agromax-landscape-editorial-v1.webp"
-              sizes="(max-width:640px) 100vw, 50vw"
-              type="image/webp"
-            />
-            <img
-              src="/visuals/agromax-landscape-editorial-v1.png"
-              width="1672"
-              height="941"
-              alt=""
-              fetchPriority="high"
-              decoding="async"
-            />
-          </picture>
-          <figcaption>
-            AgroMax için üretilmiş temsili görsel · Kayıtlı bir parselin görüntüsü değildir.
-          </figcaption>
-        </figure>
-        <a className="brand" aria-label="Agromax">
-          <Brand light size={42} />
-        </a>
-        <div className="auth-copy">
-          <span className="eyebrow">TARIMSAL VERİ VE KARAR PLATFORMU</span>
-          <h1>
-            Arazi verisi.
-            <br />
-            <em>Daha net kararlar.</em>
-          </h1>
-          <p>
-            Parsellerini izle. Gözlemlerini karşılaştır.
-            <br />
-            Bir sonraki adımını verilerinle planla.
-          </p>
-          <div className="auth-capabilities">
-            <span>
-              <LandPlot size={16} />
-              Parsel yönetimi
-            </span>
-            <span>
-              <Satellite size={16} />
-              Uydu analizleri
-            </span>
-            <span>
-              <CalendarDays size={16} />
-              Sezon planı
-            </span>
-          </div>
+    <main className="observation-auth">
+      <RouteCurtain id={recovery || (register ? "register" : "login")} />
+      <header className="observation-auth-bar">
+        <img src="/brand/agromax-logo-light-v1.svg" width="151" height="36" alt="AgroMax" />
+        <span>Hesap alanı</span>
+      </header>
+      <section className="observation-auth-scene">
+        <SceneFilm film={filmForScene("portal")} priority loop />
+        <div className="observation-auth-inscription">
+          <span>AGROMAX / OBSERVATION PORTAL</span>
+          <h1>Gözlem.<br />Bağlam.<br />Yeni bir başlangıç.</h1>
+          <p>Toprağa yakın, veriye bağlı bir bakış.</p>
         </div>
-        <footer>
-          Teknoloji topraktan ilham alsın. <ArrowUpRight size={17} />
-        </footer>
       </section>
-      <section className="auth-form">
-        <div className="form-wrap">
-          <span className="pill">
-            <span className="canopy-status-dot" /> TARLANA AÇILAN PENCERE
-          </span>
-          <h2>
-            {recovery
-              ? "Hesabına geri dön."
-              : register
-                ? "Birlikte büyüyelim."
-                : "Tekrar hoş geldin."}
-          </h2>
-          <p>
-            {register
-              ? "İşletmenizin dijital yolculuğunu başlatın."
-              : "İşletmene giriş yap. Sezonun tamamını bir arada gör."}
-          </p>
-          <div className="auth-tabs">
+      <section className="observation-auth-panel" aria-labelledby="observation-auth-title">
+        <div className="observation-auth-form">
+          <div className="observation-auth-tabs" role="group" aria-label="Hesap işlemi">
             <button
               className={!register ? "selected" : ""}
               aria-pressed={!register}
@@ -147,6 +83,9 @@ export default function Auth({ onLogin }) {
               Hesap oluştur
             </button>
           </div>
+          <h2 id="observation-auth-title">
+            {recovery ? "Erişimini yenile." : register ? "Yeni bir bakış aç." : "Yeniden hoş geldin."}
+          </h2>
           {recovery ? (
             <AccountRecovery
               mode={recovery}
@@ -187,13 +126,13 @@ export default function Auth({ onLogin }) {
                   <input
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    minLength={12}
+                    minLength={register ? 12 : undefined}
                     maxLength={256}
                     required
                     autoComplete={
                       register ? "new-password" : "current-password"
                     }
-                    placeholder="En az 12 karakter"
+                    placeholder={register ? "En az 12 karakter" : "Şifrenizi girin"}
                   />
                   <button
                     type="button"
@@ -235,7 +174,7 @@ export default function Auth({ onLogin }) {
                   : register
                     ? "Hesabımı oluştur"
                     : "Platforma giriş yap"}
-                <ArrowRight size={18} />
+                <ArrowUpRight size={18} />
               </button>
             </form>
           )}
@@ -258,7 +197,7 @@ export default function Auth({ onLogin }) {
             </span>
           </div>
         </div>
-        <small className="local-note">
+        <small className="observation-auth-footer">
           {runtime?.runtime === "commercial"
             ? "Hesap ve işletme çalışma alanı"
             : "Agromax · Parsel ve tarımsal veri çalışma alanı"}
