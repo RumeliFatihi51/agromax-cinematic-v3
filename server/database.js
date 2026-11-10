@@ -1,5 +1,6 @@
 import { Pool } from "@neondatabase/serverless";
 import pg from "pg";
+import { postgresTls } from "./postgres-tls.js";
 
 // SQL and values always travel separately. Application SQL uses ? placeholders.
 function postgresSql(sql) {
@@ -27,6 +28,7 @@ export function postgresDatabase(connectionString) {
   const PoolConstructor = process.env.AGROMAX_POSTGRES_DRIVER === "pg" ? pg.Pool : Pool;
   const pool = new PoolConstructor({
     connectionString,
+    ...(PoolConstructor === pg.Pool ? { ssl: postgresTls() } : {}),
     max: 5,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 15000,

@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { Pool } from "@neondatabase/serverless";
 import pg from "pg";
+import { postgresTls } from "../../server/postgres-tls.js";
 import { drizzle as drizzleLocal } from "drizzle-orm/pglite";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
@@ -40,7 +41,7 @@ export async function createStore(
       idleTimeoutMillis: 10000,
     };
     const pool = process.env.AGROMAX_POSTGRES_DRIVER === "pg"
-      ? new pg.Pool(poolOptions)
+      ? new pg.Pool({ ...poolOptions, ssl: postgresTls() })
       : new Pool(poolOptions);
     pool.on("error", () =>
       console.error("Commercial database idle connection closed."),

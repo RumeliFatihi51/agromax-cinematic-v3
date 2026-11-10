@@ -1,4 +1,5 @@
 import { generateText, Output } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 export const selectionSchema = z
   .object({
@@ -29,11 +30,16 @@ export type ModelAdapter = (input: {
 }>;
 export function configuredAssistantModel(): ModelAdapter | undefined {
   const model = process.env.AGROMAX_FILIZ_MODEL?.trim();
-  if (process.env.AGROMAX_FILIZ_ENABLED === "true" && model)
-    return gatewayAdapter(model);
+  if (process.env.AGROMAX_FILIZ_ENABLED !== "true" || !model) return;
+  if (process.env.AGROMAX_FILIZ_PROVIDER === "gemini") {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
+    if (apiKey) return gatewayAdapter(createGoogleGenerativeAI({ apiKey })(model));
+    return;
+  }
+  return gatewayAdapter(model);
 }
 
-export function gatewayAdapter(model: string): ModelAdapter {
+export function gatewayAdapter(model: Parameters<typeof generateText>[0]["model"]): ModelAdapter {
   return async (input) => {
     const result = await generateText({
       model,
