@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 import { put, get } from "@vercel/blob";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 export interface PrivateObjects {
   put(key: string, content: Uint8Array, contentType: string): Promise<void>;
   get(key: string): Promise<Uint8Array>;
@@ -28,6 +29,33 @@ export function privateObjects(
     if (!target.startsWith(root + sep))
       throw new Error("Private object path escaped its root.");
     return target;
+  }
+  const bucket = process.env.AGROMAX_SUPABASE_BUCKET;
+  if (remote && bucket) {
+    const endpoint = process.env.AGROMAX_SUPABASE_S3_ENDPOINT;
+    const region = process.env.AGROMAX_SUPABASE_S3_REGION;
+    const accessKeyId = process.env.AGROMAX_SUPABASE_S3_KEY_ID;
+    const secretAccessKey = process.env.AGROMAX_SUPABASE_S3_SECRET;
+    if (!endpoint?.startsWith("https://") || !region || !accessKeyId || !secretAccessKey)
+      throw new Error("Private Supabase Storage credentials are required.");
+    const client = new S3Client({ endpoint, region, forcePathStyle: true,
+      credentials: { accessKeyId, secretAccessKey }, maxAttempts: 2 });
+    return {
+      async put(key, content, contentType) {
+        path(key);
+        await client.send(new PutObjectCommand({ Bucket: bucket, Key: key,
+          Body: content, ContentType: contentType }));
+      },
+      async get(key) {
+        path(key);
+        const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        if (!object.Body || object.ContentLength === undefined || object.ContentLength > 20_000_000) {
+          await object.Body?.transformToWebStream().cancel();
+          throw new Error("Private file unavailable.");
+        }
+        return object.Body.transformToByteArray();
+      },
+    };
   }
   if (remote && !token)
     throw new Error("Private Blob credentials are required.");

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import { api } from "../../api";
 import type { runWaterBalance } from "../../../commercial/simulation/water-balance";
+const ScenarioRelief = lazy(() => import("../spatial/ScenarioRelief"));
 
 type SavedBalance = {
   run: {
@@ -75,7 +76,9 @@ function DepletionChart({ result }: { result: ReturnType<typeof runWaterBalance>
   );
 }
 
-export default function WaterBalance({ fieldId, canRun }: { fieldId: string; canRun: boolean }) {
+export default function WaterBalance({ fieldId, canRun, spatialField }: {
+  fieldId: string; canRun: boolean; spatialField?: { id: string; geometry: unknown } | null;
+}) {
   const path = `v1/fields/${fieldId}/water-balance`;
   const [saved, setSaved] = useState<SavedBalance | null>(null);
   const [busy, setBusy] = useState(false);
@@ -170,6 +173,11 @@ export default function WaterBalance({ fieldId, canRun }: { fieldId: string; can
           <p>{run.data.input.weatherSource} · {run.data.input.soilSource}</p>
           {saved.geometryVersion !== run.data.geometryVersion && <p>Bu çalışma önceki parsel sınırına aittir.</p>}
           <DepletionChart key={run.id} result={result} />
+          {spatialField && saved.geometryVersion === run.data.geometryVersion && (
+            <Suspense fallback={<p role="status">3D karşılaştırma hazırlanıyor…</p>}>
+              <ScenarioRelief key={run.id} field={spatialField} result={result} />
+            </Suspense>
+          )}
           <div className="px-table-wrap">
             <table>
               <thead><tr><th>Senaryo</th><th>Stres günü</th><th>Son açık (mm)</th><th>Su (m³)</th><th>Maliyet (₺)</th><th>Kısıt</th></tr></thead>

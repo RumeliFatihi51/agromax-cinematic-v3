@@ -124,7 +124,12 @@ test("every route and subview has a responsive Manrope scene", async ({ page }, 
       await page.goto(`/?scene-audit=${width}#${id}`);
       if (id === "overview") await expect(page.locator(".dashboard-v3 h1")).toBeVisible();
       else await scene(page, id === "fields" ? (width === 390 ? "fields-map" : "fields-atlas") : routeOverrides[id] || id);
-      if (id === "twin") await expect(page.locator(".px-twin-visual .parcel-map")).toBeVisible();
+      if (id === "twin") {
+        const twin = page.locator('[data-spatial="twin"]');
+        await expect(twin.locator(".spatial-stage")).toBeVisible();
+        await twin.getByRole("button", { name: "2D" }).click();
+        await expect(twin.locator(".parcel-map")).toBeVisible();
+      }
       await capture(id, width);
     }
     await page.goto(`/?scene-audit=${width}#operations`);
@@ -284,14 +289,14 @@ test("switching modules introduces the working surface and changes the backdrop"
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args) {
       const animation = animate.apply(this, args);
-      if (this.matches(".satellite-source-register")) animation.pause();
+      if (this.matches(".spatial-workbench")) animation.pause();
       return animation;
     };
   });
   await page.locator(".px-feature-card").filter({ hasText: "Çok kaynaklı uydu" }).click();
-  const sources = page.locator(".satellite-source-register");
+  const sources = page.locator('[data-spatial="satellite"]');
   await expect(sources).toBeVisible();
-  await expect(sources.getByRole("columnheader", { name: "Bağlantı" })).toBeVisible();
+  await expect(page.locator(".satellite-source-register").getByRole("columnheader", { name: "Bağlantı" })).toBeVisible();
   await expect(main).not.toHaveCSS("background-color", atlasBackground);
   await expect.poll(() => sources.evaluate((element) => {
     const backdrop = element.closest(".workspace-scene")?.querySelector(".workspace-scene-art");

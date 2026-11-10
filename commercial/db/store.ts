@@ -1,9 +1,12 @@
 import { PGlite } from "@electric-sql/pglite";
 import { Pool } from "@neondatabase/serverless";
+import pg from "pg";
 import { drizzle as drizzleLocal } from "drizzle-orm/pglite";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { migrate as migrateLocal } from "drizzle-orm/pglite/migrator";
 import { migrate as migrateNeon } from "drizzle-orm/neon-serverless/migrator";
+import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { resolve } from "node:path";
 import * as schema from "./schema";
@@ -30,34 +33,46 @@ export async function createStore(
   const migrationsFolder = resolve("commercial/db/migrations");
   let store: Store;
   if (options.url) {
-    const pool = new Pool({
+    const poolOptions = {
       connectionString: options.url,
       max: 5,
       connectionTimeoutMillis: 15000,
       idleTimeoutMillis: 10000,
-    });
+    };
+    const pool = process.env.AGROMAX_POSTGRES_DRIVER === "pg"
+      ? new pg.Pool(poolOptions)
+      : new Pool(poolOptions);
     pool.on("error", () =>
       console.error("Commercial database idle connection closed."),
     );
-    const db = drizzleNeon(pool, { schema });
+    const connection = pool instanceof pg.Pool
+      ? (() => {
+          const db = drizzlePg(pool, { schema });
+          return { db, migrate: () => migratePg(db, { migrationsFolder }) };
+        })()
+      : (() => {
+          const db = drizzleNeon(pool, { schema });
+          return { db, migrate: () => migrateNeon(db, { migrationsFolder }) };
+        })();
     store = {
-      db: db as unknown as CommercialDb,
+      db: connection.db as unknown as CommercialDb,
       raw: pool as unknown as SqlClient,
       async transaction(callback) {
-        const client = await pool.connect();
+        const connection = await pool.connect();
+        const client = connection as unknown as SqlClient;
         try {
           await client.query("BEGIN");
-          const result = await callback(client as unknown as SqlClient);
+          const result = await callback(client);
           await client.query("COMMIT");
           return result;
         } catch (error) {
           await client.query("ROLLBACK");
           throw error;
         } finally {
-          client.release();
+          connection.release();
         }
       },
-      migrate: () => migrateNeon(db, { migrationsFolder }),
+      migrate: connection.migrate,
       close: () => pool.end(),
     };
   } else {

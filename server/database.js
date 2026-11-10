@@ -1,4 +1,5 @@
 import { Pool } from "@neondatabase/serverless";
+import pg from "pg";
 
 // SQL and values always travel separately. Application SQL uses ? placeholders.
 function postgresSql(sql) {
@@ -23,7 +24,8 @@ function postgresAdapter(client) {
   };
 }
 export function postgresDatabase(connectionString) {
-  const pool = new Pool({
+  const PoolConstructor = process.env.AGROMAX_POSTGRES_DRIVER === "pg" ? pg.Pool : Pool;
+  const pool = new PoolConstructor({
     connectionString,
     max: 5,
     idleTimeoutMillis: 10000,

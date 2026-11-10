@@ -3,6 +3,9 @@ import { platformFeatures, sourceAdapters, droneAdapters } from '../shared/platf
 import { parseDraft, scenarioTotals } from '../shared/platform-contracts.js';
 import { satelliteStatus } from './satellite.js';
 import { geometryHash } from './analysis-jobs.js';
+import { availableMetrics } from '../shared/metrics.js';
+import { validateManagementZones } from './management-zones.js';
+import { containsPoint } from '../shared/spatial.js';
 const fail=(message,status=400)=>Object.assign(new Error(message),{status});
 const stamp=()=>new Date().toISOString();
 const id=()=>randomBytes(16).toString('hex');
@@ -34,6 +37,13 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     if(value.kind==='scenario') scenarioTotals(value.payload);
     return db.transaction(async tx=>{
       const field=await ownField(tx,userId,value.fieldId);
+      if (value.kind === 'prescription') {
+        try { validateManagementZones(value.payload.zones, field.geometry); }
+        catch (error) { throw fail(error.message); }
+      }
+      if (value.kind === 'observation' && value.payload.coordinate &&
+          (!field.geometry || !containsPoint(field.geometry, value.payload.coordinate)))
+        throw fail('Gözlem noktası kayıtlı parsel sınırının içinde olmalı.');
       const existing=recordId?await tx.prepare('SELECT * FROM platform_records WHERE id=? AND user_id=?').get(recordId,userId):null;
       if(recordId&&!existing) throw fail('Dosya bulunamadı.',404);
       if(existing&&(existing.field_id!==value.fieldId||existing.kind!==value.kind)) throw fail('Dosyanın parseli veya türü değiştirilemez.');
@@ -67,6 +77,38 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     const comparison=Object.entries(analysis?.comparison||{}).filter(([,item])=>item&&Number.isFinite(item.current?.mean)&&Number.isFinite(item.previous?.mean)).map(([metric,item])=>({metric,current:item.current.mean,previous:item.previous.mean,delta:item.current.mean-item.previous.mean,currentCoverage:item.current.meanCoverage??null,previousCoverage:item.previous.meanCoverage??null}));
     return {field,geometryHash:hash,generatedAt:stamp(),issues,comparison,latestAnalysis:analysis?{id:latest.id,source:analysis.source,method:analysis.method,range:analysis.range,fetchedAt:analysis.fetchedAt,observationCount:analysis.observations?.length||0,minimumCoverage:analysis.minimumCoverage}:null,history:rows.map(row=>{const value=row.result?JSON.parse(row.result):null;return {id:row.id,state:row.state,createdAt:row.created_at,finishedAt:row.finished_at,geometryHash:row.geometry_hash,comparable:row.geometry_hash===hash,source:value?.source||null,range:value?.range||null,observationCount:value?.observations?.length||0,error:row.error||null};}),limitations:['Parsel özeti, kalibre edilmiş tarımsal simülasyon modeli değildir.','İndeks değişimi gözlemseldir; müdahalenin etkisini veya hastalık nedenini kanıtlamaz.','Eksik ölçümler sıfır kabul edilmez.']};
   }
+  async function spatialCatalog(userId, fieldId) {
+    const field = await ownField(db, userId, fieldId);
+    const hash = geometryHash(field.geometry);
+    const rows = await db.prepare(
+      "SELECT id,result FROM analysis_jobs WHERE user_id=? AND field_id=? AND geometry_hash=? AND state='completed' ORDER BY created_at DESC,id DESC LIMIT 20"
+    ).all(userId, fieldId, hash);
+    const byDate = new Map();
+    for (const row of rows) {
+      if (!row.result) continue;
+      const analysis = JSON.parse(row.result);
+      if (analysis.method !== "s2-l2a-v3" || !["cdse", "sentinelhub"].includes(analysis.provider)) continue;
+      const supported = availableMetrics(analysis.provider);
+      const observations = (analysis.observations || []).map(day => ({
+        from: Date.parse(day.from), to: Date.parse(day.to),
+        metrics: Object.fromEntries(supported
+          .filter(metric => Number.isFinite(day.stats?.[metric.id]?.mean))
+          .map(metric => [metric.id, day.stats[metric.id].mean])),
+      }));
+      for (const scene of analysis.scenes || []) {
+        const timestamp = scene.properties?.datetime;
+        if (typeof timestamp !== "string") continue;
+        const date = timestamp.slice(0, 10), instant = Date.parse(timestamp);
+        if (byDate.has(date)) continue;
+        const day = observations.find(observation => instant >= observation.from && instant < observation.to);
+        if (!day || !Object.keys(day.metrics).length) continue;
+        byDate.set(date, { id: row.id, date, metrics: day.metrics, source: analysis.source,
+          provider: analysis.provider, method: analysis.method });
+      }
+    }
+    return { geometryHash: hash, observations: [...byDate.values()]
+      .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 180) };
+  }
   async function bundle(userId,fieldId) {
     const context=await fieldContext(userId,fieldId),saved=await records(userId,fieldId);
     const revisions=await db.prepare('SELECT r.record_id,r.version,r.created_at FROM platform_revisions r JOIN platform_records p ON p.id=r.record_id WHERE r.user_id=? AND p.user_id=? AND p.field_id=? ORDER BY r.created_at DESC LIMIT 1000').all(userId,userId,fieldId);
@@ -77,6 +119,25 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     const url=new URL(req.url,'http://localhost');
     if(!url.pathname.startsWith('/api/platform/')) return false;
     try {
+      const spatial = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/spatial$/);
+      if (spatial && req.method === "GET") {
+        reply(200, await spatialCatalog(session.id, spatial[1]));
+        return true;
+      }
+      const archive = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/spatial\/earth-search(?:\/(raster))?$/);
+      if (archive && req.method === "GET") {
+        const field = await ownField(db, session.id, archive[1]);
+        const hash = geometryHash(field.geometry);
+        if (!field.geometry) throw fail("Önce parsel sınırını kaydet.", 422);
+        if (hash !== url.searchParams.get("geometry"))
+          throw fail("Parsel sınırı değişti. Çalışma alanını yeniden aç.", 409);
+        const { searchOpenSentinel, readOpenSentinel } = await import("./open-sentinel.js");
+        const data = archive[2]
+          ? await readOpenSentinel(field.geometry, url.searchParams.get("scene"), url.searchParams.get("layer"))
+          : await searchOpenSentinel(field.geometry, url.searchParams.get("month"));
+        reply(200, { ...data, geometryHash: hash });
+        return true;
+      }
       if(url.pathname==='/api/platform/bootstrap'&&req.method==='GET') {
         const counts=await db.prepare('SELECT kind,COUNT(*) AS count FROM platform_records WHERE user_id=? GROUP BY kind').all(session.id);
         const satellite = satelliteStatus();

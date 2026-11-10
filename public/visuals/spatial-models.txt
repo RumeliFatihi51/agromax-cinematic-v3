@@ -1,0 +1,10 @@
+AgroMax crop illustrations
+
+spatial-wheat.glb — Wheat by Quaternius
+https://poly.pizza/m/lPspzfC8Pu
+
+spatial-corn.glb — Corn by Quaternius
+https://poly.pizza/m/IhhB7kGaAQ
+
+Both models are CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
+Their positions, visual sizes and growth stages are illustrative, not field observations.

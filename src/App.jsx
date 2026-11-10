@@ -57,6 +57,7 @@ const businessOnlyModules = {
 export default function App() {
   const [page, setPage, location] = useWorkspacePage();
   const destinationField = location.field;
+  const [spatialSelection, setSpatialSelection] = useState({});
   const [user, setUser] = useState(null),
     [loading, setLoading] = useState(true),
     [ready, setReady] = useState(false),
@@ -349,6 +350,11 @@ export default function App() {
       key={`${activeWorkspace?.id || user.id}:${page}`}
       page={page}
       initialFieldId={destinationField}
+      spatialSelection={spatialSelection[activeWorkspace?.id || user.id] || {}}
+      onSpatialSelection={(fieldId, value) => setSpatialSelection(current => {
+        const scope = activeWorkspace?.id || user.id;
+        return { ...current, [scope]: { ...current[scope], [fieldId]: value } };
+      })}
       fields={fields}
       onNavigate={navigate}
       onSelect={analyze}
@@ -400,6 +406,8 @@ export default function App() {
         onSelectMetric={(metric) => setPage(page, { field: location.field, metric }, true)}
         satellite={satellite}
         onConnections={() => navigate("integrations")}
+        onTwin={(fieldId) => navigate("twin", fieldId)}
+        onSpatial={(fieldId) => navigate("satellite", fieldId)}
         analysisMode={page === "satellite"}
         onSaved={(record) =>
           setRecords((v) =>

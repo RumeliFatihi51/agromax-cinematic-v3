@@ -49,6 +49,9 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   await page.screenshot({ path: info.outputPath("twin-1440.png"), animations: "disabled" });
   await page.goto("/#scenarios");
   await expect(balance.getByRole("img", { name: /günlük su açığı/ })).toBeVisible();
+  await balance.getByRole("button", { name: "3D karşılaştırmayı aç" }).click();
+  await expect(balance.getByRole("region", { name: "Su dengesi senaryolarının 3D karşılaştırması" }))
+    .toContainText("Alternatif");
   await balance.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath("scenarios-1440.png"), animations: "disabled" });
 

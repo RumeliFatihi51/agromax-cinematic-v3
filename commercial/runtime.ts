@@ -3,7 +3,7 @@ import { getStore } from "./db/store";
 import { start } from "workflow/api";
 import { analysisWorkflow } from "../workflows/analysis";
 import { reportWorkflow } from "../workflows/report";
-import { gatewayAdapter } from "./assistant/model";
+import { configuredAssistantModel } from "./assistant/model";
 import { transactionalMail } from "./auth/mail";
 let app: ReturnType<typeof createCommercialApplication> | undefined;
 export function getApplication() {
@@ -23,11 +23,7 @@ export function getApplication() {
       dispatchReport: async (id) => {
         await start(reportWorkflow, [id]);
       },
-      assistantModel:
-        process.env.AGROMAX_FILIZ_ENABLED === "true" &&
-        process.env.AGROMAX_FILIZ_MODEL
-          ? gatewayAdapter(process.env.AGROMAX_FILIZ_MODEL)
-          : undefined,
+      assistantModel: configuredAssistantModel(),
       enforceQuota: process.env.VERCEL
         ? true
         : process.env.AGROMAX_ENFORCE_QUOTAS !== "false",

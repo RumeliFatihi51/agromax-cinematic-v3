@@ -30,6 +30,8 @@ export default function FieldsWorkspace({
   onSelectMetric,
   satellite,
   onConnections,
+  onTwin,
+  onSpatial,
   analysisMode = false,
   commercial = false,
   locale = "tr",
@@ -142,6 +144,10 @@ export default function FieldsWorkspace({
     <SceneSurface id={analysisMode ? null : field ? "field-detail" : `fields-${view}`} className="fields-workspace" localTransition>
       {field && (
         <>
+          {field.geometry && <div className="px-actions">
+            <button type="button" className="secondary" onClick={() => onTwin?.(field.id)}>Dijital ikizi aç</button>
+            <button type="button" className="secondary" onClick={() => onSpatial?.(field.id)}>3D uydu incelemesi</button>
+          </div>}
           <FieldAnalysis
             key={field.id}
             field={field}

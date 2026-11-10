@@ -27,6 +27,12 @@ export type ModelAdapter = (input: {
   inputTokens?: number;
   outputTokens?: number;
 }>;
+export function configuredAssistantModel(): ModelAdapter | undefined {
+  const model = process.env.AGROMAX_FILIZ_MODEL?.trim();
+  if (process.env.AGROMAX_FILIZ_ENABLED === "true" && model)
+    return gatewayAdapter(model);
+}
+
 export function gatewayAdapter(model: string): ModelAdapter {
   return async (input) => {
     const result = await generateText({

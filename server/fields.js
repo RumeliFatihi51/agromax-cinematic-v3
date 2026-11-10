@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { validateGeometry } from "../shared/geometry.js";
-import { satelliteStatus, fetchImage, comparisonRange } from "./satellite.js";
+import { satelliteStatus, fetchImage, fetchSpatialRaster, comparisonRange } from "./satellite.js";
+import { geometryHash } from "./analysis-jobs.js";
 export function prepareField(body, existing = {}) {
   const name = String(body.name ?? existing.name ?? "").trim();
   if (!name || name.length > 150)
@@ -173,6 +174,20 @@ export async function fieldRoutes({
           Date.parse(scene.properties.datetime) >= Date.parse(o.from) &&
           Date.parse(scene.properties.datetime) < Date.parse(o.to),
       );
+      if (body.format === "values") {
+        if (!body.analysisId || geometryHash(geometry) !== geometryHash(field.geometry)) {
+          reply(409, { error: "Sayısal katman güncel parsel sınırına ait olmalı." });
+          return true;
+        }
+        if (!Number.isFinite(day?.stats?.[body.layer]?.mean)) {
+          reply(422, { error: "Bu tarih ve indeks için geçerli gözlem kaydı yok." });
+          return true;
+        }
+        const raster = await fetchSpatialRaster(geometry, body.layer, day);
+        reply(200, { ...raster, geometryHash: geometryHash(geometry), date: body.date,
+          analysisId: body.analysisId, source: analysis.source, analysisMethod: analysis.method });
+        return true;
+      }
       const scale = day?.stats?.[body.layer];
       const { image, bounds, legend, validPixels, totalPixels } =
         await fetchImage(geometry, body.date, body.layer || "RGB", {

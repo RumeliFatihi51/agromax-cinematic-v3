@@ -1,6 +1,7 @@
 import proj4 from "proj4";
 import { PNG } from "pngjs";
 import { isISODate } from "../shared/dates.js";
+import { polygons, project, rasterGrid } from "../shared/spatial.js";
 import { boundedStatistics } from "./statistics-request.js";
 import { meterProvider } from "./provider-meter.js";
 import {
@@ -630,6 +631,70 @@ export function imageScript(metric, scale) {
   return `//VERSION=3
 function setup(){return {input:[{bands:${JSON.stringify([...new Set([...(metric?.bands || ["B02", "B03", "B04"]), "SCL", "CLD", "dataMask"])])}}],output:{bands:4,sampleType:'AUTO'}};}
 function evaluatePixel(s){let mask=s.dataMask&&[4,5,6].indexOf(s.SCL)>=0&&s.CLD<40;if(!mask)return [0,0,0,0];${metric ? `let v=${metric.formula};if(!isFinite(v))return [0,0,0,0];let t=${scale.max === scale.min ? "0.5" : `Math.max(0,Math.min(1,(v-(${scale.min}))/(${scale.max}-(${scale.min}))))`};return [(48+137*t)/255,(102+121*t)/255,(140-55*t)/255,1];` : "return [2.5*s.B04,2.5*s.B03,2.5*s.B02,1];"}}`;
+}
+
+export function spatialRasterScript(metric) {
+  const bands = [...new Set([...metric.bands, "SCL", "CLD", "dataMask"])];
+  return `//VERSION=3
+function setup(){return {input:[{bands:${JSON.stringify(bands)}}],output:{bands:2,sampleType:'FLOAT32'}};}
+function evaluatePixel(s){
+  if(!s.dataMask||[4,5,6].indexOf(s.SCL)<0||!(s.CLD<40))return [0,0];
+  var value=${metric.formula};
+  return isFinite(value)?[value,1]:[0,0];
+}`;
+}
+
+export async function fetchSpatialRaster(geometry, layer, { from, to }) {
+  const metric = availableMetrics(process.env.SENTINEL_PROVIDER).find(item => item.id === layer);
+  if (!metric) throw new ProviderError("Bu indeks desteklenmiyor.", 400);
+  const duration = Date.parse(to) - Date.parse(from);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 86400000)
+    throw new ProviderError("Gözlem aralığı geçersiz.", 422);
+
+  // SCL and CLD are sampled on a 20 m grid. Never request a finer analytical grid.
+  const grid = rasterGrid(geometry, Math.max(metric.resolution, 20));
+  const coordinates = polygons(geometry).map(polygon => polygon.map(ring => ring.map(project)));
+  const raster = await call("/process", {
+    input: {
+      bounds: { bbox: grid.bounds, geometry: {
+        type: geometry.type,
+        coordinates: geometry.type === "Polygon" ? coordinates[0] : coordinates,
+      }, properties: {
+        crs: "http://www.opengis.net/def/crs/EPSG/0/3857",
+      } },
+      data: [{
+        type: "sentinel-2-l2a",
+        dataFilter: { timeRange: { from, to }, mosaickingOrder: "mostRecent" },
+        processing: { upsampling: "NEAREST", downsampling: "NEAREST" },
+      }],
+    },
+    output: { width: grid.width, height: grid.height, responses: [
+      { identifier: "default", format: { type: "image/tiff" } },
+    ] },
+    evalscript: spatialRasterScript(metric),
+  }, true);
+  let values;
+  try {
+    if (raster.length > 1_000_000) throw new Error("Unexpected TIFF size");
+    const { fromArrayBuffer } = await import("geotiff");
+    const tiff = await fromArrayBuffer(Uint8Array.from(raster).buffer);
+    const image = await tiff.getImage();
+    if (image.getWidth() !== grid.width || image.getHeight() !== grid.height ||
+        image.getSamplesPerPixel() !== 2 || image.getGeoKeys()?.ProjectedCSTypeGeoKey !== 3857 ||
+        image.getBoundingBox().some((value, index) => Math.abs(value - grid.bounds[index]) > 0.01))
+      throw new Error("Unexpected grid");
+    const [numbers, mask] = await image.readRasters();
+    if (!(numbers instanceof Float32Array) || !(mask instanceof Float32Array))
+      throw new Error("Unexpected raster samples");
+    values = Array.from(numbers, (value, index) =>
+      mask[index] === 1 && Number.isFinite(value) ? value : null);
+  } catch {
+    throw new ProviderError("Sağlayıcının sayısal raster biçimi doğrulanamadı.");
+  }
+  if (!values.some(Number.isFinite))
+    throw new ProviderError("Bu gözlemde geçerli açık piksel bulunamadı.", 422);
+  return { ...grid, values, metric: metric.id, unit: metric.unit, interval: { from, to },
+    provider: process.env.SENTINEL_PROVIDER, method: "s2-l2a-spatial-v1" };
 }
 export async function fetchImage(
   geometry,

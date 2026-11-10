@@ -13,6 +13,7 @@ import { accountRequest } from "./account";
 import { recordRoutes } from "../records/api";
 import { reportRoutes } from "../reports/api";
 import { assistantRoutes } from "../assistant/api";
+import { configuredAssistantModel } from "../assistant/model";
 import { historicalWeather } from "../weather/service";
 import { searchObservations } from "../analyses/observations";
 import { privateObjects, type PrivateObjects } from "../files/private-store";
@@ -46,6 +47,7 @@ export async function createProductionWorkspace(config: {
     baseURL: "",
     secret: config.secret,
     enforceQuota: false,
+    assistantModel: configuredAssistantModel(),
     reportDailyLimit: 10,
     dispatchReport: async (id: string) => {
       objects ||= privateObjects();
