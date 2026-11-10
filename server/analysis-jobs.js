@@ -13,6 +13,7 @@ export async function createAnalysisService(
   {
     execute = fetchParcelAnalysis,
     configured = () => parcelSatelliteStatus().configured,
+    enrich,
     maxWorkMs = 230000,
   } = {},
 ) {
@@ -132,6 +133,11 @@ export async function createAnalysisService(
             "İşlem geçerli bir analiz sonucu döndürmedi; kaydedilmedi.",
             502,
           );
+        const report = enrich && analysis.range && analysis.comparison
+          ? await enrich(analysis, snapshot.field.geometry,
+            AbortSignal.any([controller.signal, AbortSignal.timeout(Math.max(1, deadline - Date.now() - 1800))]))
+          : undefined;
+        controller.signal.throwIfAborted();
         await db.transaction(async (tx) => {
           // Geometry, cancellation, result cache and history change atomically.
           const current = await tx
@@ -154,7 +160,7 @@ export async function createAnalysisService(
               "Parsel sınırı değişti veya kaldırıldı; eski geometri için sonuç kaydedilmedi.",
               409,
             );
-          const serialized = JSON.stringify({ ...analysis, historyId: row.id });
+          const serialized = JSON.stringify({ ...analysis, report, historyId: row.id });
           await tx
             .prepare(
               "INSERT INTO analyses(field_id,geometry_hash,body) VALUES(?,?,?) ON CONFLICT(field_id) DO UPDATE SET geometry_hash=excluded.geometry_hash,body=excluded.body",

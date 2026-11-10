@@ -7,6 +7,8 @@ import { unproject } from "../shared/spatial.js";
 const archiveEnabled = () => process.env.AGROMAX_SENTINEL_OPEN_ANALYSIS === "true";
 const archiveHealth = { lastSuccessAt: null, lastError: null };
 const ids = openSentinelMetrics.map(metric => metric.id);
+const opticalIds = openSentinelMetrics.filter(metric => metric.resolution < 60).map(metric => metric.id);
+const coarseIds = openSentinelMetrics.filter(metric => metric.resolution === 60).map(metric => metric.id);
 const dayMs = 86400000;
 const failure = (message, status) => Object.assign(new Error(message), { status });
 
@@ -14,7 +16,7 @@ export function parcelSatelliteStatus() {
   const oauth = satelliteStatus();
   if (oauth.configured || !archiveEnabled()) return oauth;
   return { ...oauth, configured: true, provider: openSentinelProvider, source: openSentinelSource,
-    metrics: ids.length, indices: ids.length, qualityBands: ["SCL"], health: archiveHealth };
+    metrics: ids.length, indices: openSentinelMetrics.filter(metric => !metric.id.startsWith("B")).length, qualityBands: ["SCL"], health: archiveHealth };
 }
 
 async function archiveAnalysis(geometry, signal) {
@@ -32,7 +34,11 @@ async function archiveAnalysis(geometry, signal) {
     for (const scene of candidates.sort(byCloud).slice(0, 5)) {
       signal?.throwIfAborted();
       try {
-        const layers = await readOpenSentinelLayers(geometry, scene.id, ids, signal);
+        const [optical, coarse] = await Promise.all([
+          readOpenSentinelLayers(geometry, scene.id, opticalIds, signal),
+          readOpenSentinelLayers(geometry, scene.id, coarseIds, signal),
+        ]);
+        const layers = { ...optical, ...coarse };
         const outputs = {};
         for (const [id, raster] of Object.entries(layers)) {
           const values = raster.values.filter(Number.isFinite);
@@ -62,7 +68,7 @@ async function archiveAnalysis(geometry, signal) {
   return {
     ...summarize({ data: days }, range), range, fetchedAt: new Date().toISOString(),
     source: openSentinelSource, provider: openSentinelProvider, method: openSentinelMethod,
-    resolution: 20, nativeResolution: "10 / 20 m; analiz en az 20 m yer örneklemesi kullanır",
+    resolution: 20, nativeResolution: "10 / 20 / 60 m · B01 ve B09 en az 60 m, diğer katmanlar en az 20 m",
     minimumCoverage: 0.7, mask: "SCL 4/5/6 ve bant NoData", availableMetrics: ids, qualityBands: ["SCL"],
     aggregation: "Dönem başına en az bulutlu en fazla 5 sahne adayından ilk 2 yeterli gözlem. En az %70 parsel kapsamlı gözlemler geçerli piksel sayısına göre ağırlıklandırılır.",
     scenes: days.map(({ scene }) => ({ id: scene.id, properties: { datetime: scene.instant, "eo:cloud_cover": scene.cloud } })),

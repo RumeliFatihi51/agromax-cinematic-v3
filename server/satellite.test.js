@@ -70,9 +70,9 @@ test("the split instant belongs to the second period regardless of ISO precision
 test("every declared metric is emitted and nonfinite calculations are masked", () => {
   const script = statisticsScript("cdse");
   const available = availableMetrics("cdse");
-  assert.equal(indices.length, 23);
-  assert.equal(metrics.length, 37);
-  assert.equal(available.length, 40);
+  assert.equal(indices.length, 24);
+  assert.equal(metrics.length, 38);
+  assert.equal(available.length, 41);
   for (const m of available) assert.ok(script.includes(`out.${m.id}=`));
   for (const id of ["WVP", "CLP", "CLM"])
     assert.ok(!script.includes(`\"${id}\"`));

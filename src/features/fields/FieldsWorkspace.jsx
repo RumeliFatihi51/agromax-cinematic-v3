@@ -30,6 +30,7 @@ export default function FieldsWorkspace({
   onSelectMetric,
   satellite,
   onConnections,
+  onAssistant,
   onTwin,
   onSpatial,
   analysisMode = false,
@@ -157,6 +158,7 @@ export default function FieldsWorkspace({
             satellite={satellite}
             canAnalyze={canAnalyze}
             onConnections={onConnections}
+            onAssistant={onAssistant}
             onBack={() => setSelected(null)}
             onEdit={() => startEditing(field)}
             onAnalysis={(id, a) => setCache((c) => ({ ...c, [id]: a }))}

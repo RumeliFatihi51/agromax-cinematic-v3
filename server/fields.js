@@ -185,7 +185,7 @@ export async function fieldRoutes({
           reply(422, { error: "Bu tarih ve indeks için geçerli gözlem kaydı yok." });
           return true;
         }
-        openRaster = await readOpenSentinel(geometry, scene.id, layer);
+        openRaster = await readOpenSentinel(geometry, scene.id, layer, analysis.resolution);
       }
       if (body.format === "values") {
         if (!body.analysisId || geometryHash(geometry) !== geometryHash(field.geometry)) {

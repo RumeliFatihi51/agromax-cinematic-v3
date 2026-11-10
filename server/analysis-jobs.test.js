@@ -46,8 +46,9 @@ test("analysis queue persists actual transitions, immutable result and one termi
     configured: () => true,
     execute: async () => {
       requests++;
-      return fixtureResult();
+      return { ...fixtureResult(), range: {}, comparison: {} };
     },
+    enrich: async () => ({ interpretation: { overview: "Isolated report fixture" } }),
   });
   const first = await service.enqueue("owner-a", "field-a");
   assert.equal(first.state, "queued");
@@ -59,6 +60,7 @@ test("analysis queue persists actual transitions, immutable result and one termi
   assert.ok(done.finishedAt);
   assert.equal(requests, 1);
   assert.equal(done.analysis.historyId, first.id);
+  assert.equal(done.analysis.report.interpretation.overview, "Isolated report fixture");
   assert.equal(
     db.prepare("SELECT COUNT(*) AS n FROM notifications").get().n,
     1,

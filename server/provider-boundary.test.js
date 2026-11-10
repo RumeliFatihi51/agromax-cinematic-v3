@@ -123,8 +123,8 @@ async function harness(
 test("transport merges every supported metric group without manufacturing missing data", async (t) => {
   const h = await harness(t);
   const a = await h.satellite.fetchAnalysis(geometry);
-  assert.equal(h.requests(), 5);
-  assert.equal(a.availableMetrics.length, 40);
+  assert.equal(h.requests(), 6);
+  assert.equal(a.availableMetrics.length, 41);
   assert.equal(a.observations.length, 1);
   assert.equal(a.observations[0].stats.NDVI.mean, 0.25);
   assert.equal(a.observations[0].stats.WVP, null);

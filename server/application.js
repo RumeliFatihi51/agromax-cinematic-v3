@@ -12,6 +12,7 @@ import {
 } from "node:crypto";
 import { openDatabase, initializeDatabase } from "./database.js";
 import { createPlatformService } from "./platform.js";
+import { enrichAnalysis } from "./analysis-report.js";
 
 /** @param {{db?:any, background?:(work:Promise<unknown>)=>void,workspace?:any}} [options] */
 export async function createApplication({
@@ -21,7 +22,9 @@ export async function createApplication({
 } = {}) {
   db ??= await openDatabase();
   await initializeDatabase(db);
-  const analysisService = await createAnalysisService(db);
+  const analysisService = await createAnalysisService(db, {
+    enrich: process.env.AGROMAX_WORKSPACE_ENABLED === "true" ? enrichAnalysis : undefined,
+  });
   const platformService = await createPlatformService(db);
   const nasaService = await createNasaService(db);
   const weatherService = await createWeatherService(db);

@@ -142,19 +142,20 @@ export default function FilizWorkspace({
   async function ask(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const submittedQuestion = question.trim();
-    if (!submittedQuestion || !fieldId || busy) return;
+    if (!submittedQuestion || busy) return;
     setBusy(true);
     setPendingQuestion(submittedQuestion);
     setError("");
     const form = Object.fromEntries(new FormData(e.currentTarget));
     try {
       const result = await api(
-        "v1/assistant/ask",
+        fieldId ? "v1/assistant/ask" : "v1/assistant/help",
         {
           question: submittedQuestion,
-          fieldId,
+          ...(fieldId ? { fieldId } : {}),
           locale,
           consent: form.consent === "on",
+          conversation: answers.slice(-4).map(({ question, introduction }) => ({ question, answer: introduction })),
         },
         "POST",
         { headers: { "Idempotency-Key": crypto.randomUUID() } },
@@ -193,11 +194,11 @@ export default function FilizWorkspace({
       )}
       <div className="filiz-research">
         <section className="business-settings-section filiz-composer" aria-labelledby="filiz-composer-heading">
-          <header className="filiz-section-heading"><span>01 / {t("SORU ALANI", "COMPOSER")}</span><h2 id="filiz-composer-heading">{t("Filiz'e sor", "Ask Filiz")}</h2></header>
+          <header className="filiz-section-heading"><h2 id="filiz-composer-heading">{t("Sohbet ve yardım", "Chat and help")}</h2></header>
           <label>
             {t("Hangi parsele bakalım?", "Which parcel shall we review?")}
             <select value={fieldId} disabled={busy} onChange={(e) => setFieldId(e.target.value)}>
-              <option value="">{t("Parsel seç", "Select parcel")}</option>
+              <option value="">{t("Genel sohbet ve uygulama yardımı", "General chat and app help")}</option>
               {fields.map((field) => <option key={field.id} value={field.id}>{field.name}</option>)}
             </select>
           </label>
@@ -222,19 +223,20 @@ export default function FilizWorkspace({
                   required maxLength={1000} rows={3} />
               </label>
               <div className="filiz-query-starters" aria-label={t("Soru önerileri", "Suggested questions")}>
-                {[t("Son gözlemleri özetle", "Summarize recent observations"), t("Hangi kaynaklar var?", "What sources are available?")].map((prompt) =>
+                {[t("Son gözlemleri özetle", "Summarize recent observations"), t("Analiz sonuçlarını nerede görebilirim?", "Where can I view analysis results?")].map((prompt) =>
                   <button key={prompt} type="button" onClick={() => { setQuestion(prompt); questionInput.current?.focus(); }}>
                     {prompt}<ArrowUpRight size={14} aria-hidden="true" />
                   </button>)}
               </div>
               <label className="filiz-consent">
                 <input type="checkbox" name="consent" required />
-                {t("Seçili parselin sınırlı kayıtlarının model hizmetine gönderilmesini onaylıyorum.",
-                  "I consent to sending limited records for this parcel to the model service.")}
+                {fieldId ? t("Sorunun ve seçili parselin sınırlı kayıtlarının Filiz’e gönderilmesini onaylıyorum.",
+                  "I agree to send my question and limited parcel records to Filiz.")
+                  : t("Sohbet mesajlarının Filiz’e gönderilmesini onaylıyorum.", "I agree to send the conversation to Filiz.")}
               </label>
-              <button className="primary" disabled={busy || !fieldId || !question.trim()}>
+              <button className="primary" disabled={busy || !question.trim()}>
                 <Send size={16} aria-hidden="true" />
-                {busy ? t("İstek işleniyor…", "Processing request…") : t("Kaynaklı yanıt al", "Get a sourced answer")}
+                {busy ? t("İstek işleniyor…", "Processing request…") : t("Gönder", "Send")}
               </button>
             </form>
             </>
@@ -243,7 +245,7 @@ export default function FilizWorkspace({
               "The language model connection is on hold. The guide displays saved records directly.")
             : t("Filiz bağlantısı kontrol ediliyor…", "Checking Filiz availability…")}</p>}
         </section>
-        <details className="business-settings-section filiz-source-drawer" open>
+        <details className="business-settings-section filiz-source-drawer">
           <summary>
             <div className="filiz-section-heading"><span>02 / {t("KAYNAKLAR", "SOURCES")}</span><h2>{t("Parselin kayıt rehberi", "Parcel record guide")}</h2></div>
             <ChevronDown size={19} aria-hidden="true" />

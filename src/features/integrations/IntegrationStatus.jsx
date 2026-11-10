@@ -77,7 +77,7 @@ export default function IntegrationStatus({ status }) {
                     ? status.provider === "earth-search" ? "Açık arşiv · Parsel analizine hazır" : "Yapılandırıldı · Bu oturumda istek bekleniyor"
                     : "Sunucu yapılandırması eksik",
             status?.provider === "earth-search"
-              ? "Sentinel‑2 açık arşivinden NDVI, NDRE, NDMI, NDWI, EVI ve WDRVI. Sonuçlar parselin analiz geçmişine kaydedilir."
+              ? "Sentinel‑2 açık arşivinden optik indeksler ve yüzey yansıtımı. Sonuçlar parselin analiz geçmişine kaydedilir."
               : `${indices.length} optik indeks, 12 spektral bant, AOT ve dört gözlem açısı. CDSE bu koleksiyonda WVP/CLP/CLM sağlamaz; desteklenmeyen ürünlerden sonuç üretilmez. ${status?.health?.lastSuccessAt ? "Son başarılı servis yanıtı: " + new Date(status.health.lastSuccessAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" }) : "Kimlik bilgilerinin varlığı tek başına canlı erişim kanıtı değildir."}`,
           ],
           [

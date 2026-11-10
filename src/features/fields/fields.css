@@ -958,3 +958,13 @@ select {
     inset: auto 15px 45px auto;
   }
 }
+.parcel-analysis-report { display: grid; gap: 1rem; min-width: 0; padding: clamp(16px, 3vw, 32px); }
+.parcel-analysis-report :is(h2, h3, p, ul) { margin-block: 0; }
+.parcel-analysis-report li + li { margin-top: 0.45rem; }
+.parcel-analysis-report .table-wrap { overflow-x: auto; }
+.parcel-analysis-report table { width: 100%; min-width: 24rem; border-collapse: collapse; }
+.parcel-analysis-report :is(th, td) { padding: 0.65rem; text-align: start; border-bottom: 1px solid #b7c3b6; }
+.parcel-analysis-report caption { text-align: start; padding: 0.4rem; font-weight: 700; }
+.parcel-analysis-report button { justify-self: start; }
+.parcel-report-details { margin-block: 0.8rem; min-width: 0; }
+.parcel-report-details > summary { padding: 0.8rem 1rem; cursor: pointer; font-weight: 700; }

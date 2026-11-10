@@ -408,6 +408,7 @@ export default function App() {
         onSelectMetric={(metric) => setPage(page, { field: location.field, metric }, true)}
         satellite={satellite}
         onConnections={() => navigate("integrations")}
+        onAssistant={(fieldId) => navigate("assistant", fieldId)}
         onTwin={(fieldId) => navigate("twin", fieldId)}
         onSpatial={(fieldId) => navigate("satellite", fieldId)}
         analysisMode={page === "satellite"}

@@ -1,4 +1,4 @@
-import { and, eq, desc, isNull } from "drizzle-orm";
+import { and, eq, desc, isNull, gte, count } from "drizzle-orm";
 import { z } from "zod";
 import { ownField } from "../records/service";
 import type { Context } from "../organizations/service";
@@ -99,7 +99,7 @@ export async function fieldFacts(
     .where(eq(farmAnalyses.fieldId, fieldId));
   if (cached && cached.geometryHash === geometryHash(field.geometry)) {
     const analysis = JSON.parse(cached.body);
-    for (const metric of ["NDVI", "NDMI", "NDWI", "NDRE"]) {
+    for (const metric of ["NDVI", "NDMI", "NDWI", "NDRE", "EVI", "WDRVI"]) {
       const v = analysis.comparison?.[metric];
       if (
         typeof v?.current?.mean === "number" &&
@@ -114,6 +114,18 @@ export async function fieldFacts(
           methodVersion: analysis.method,
           geometryVersion: cached.geometryHash,
         });
+    }
+    for (const [kind, source] of Object.entries(analysis.report?.supplementary || {})) {
+      const measurement = z.object({ source: z.string(), date: z.string(), sceneId: z.string(),
+        metrics: z.record(z.string(), z.object({ mean: z.number(), unit: z.string() })) }).safeParse(source);
+      if (!measurement.success) continue;
+      const value = measurement.data;
+      facts.push({
+        id: "satellite-" + kind,
+        text: Object.entries(value.metrics).map(([name, stat]) => name + " " + stat.mean.toFixed(3) + " " + stat.unit).join(" · "),
+        source: value.source + " · " + value.sceneId,
+        kind: "calculated", observedAt: value.date, geometryVersion: cached.geometryHash,
+      });
     }
   }
   const version = geometryHash(field.geometry);
@@ -134,6 +146,37 @@ export async function fieldFacts(
   }
   return facts;
 }
+const conversation = z.array(z.object({
+  question: z.string().max(1000), answer: z.string().max(1800),
+})).max(4).optional();
+
+export async function answerHelp(db: CommercialDb, ctx: Context, input: unknown, model?: ModelAdapter) {
+  const data = z.object({
+    question: z.string().trim().min(1).max(1000),
+    locale: z.enum(["tr", "en"]).default("tr"),
+    consent: z.literal(true), conversation,
+  }).strict().parse(input);
+  requirePermission(ctx, "read");
+  if (!model) throw new DomainError("MODEL_UNAVAILABLE", "Filiz şu anda kullanılamıyor.", 503);
+  await db.transaction(async tx => {
+    await tx.select({ id: organizations.id }).from(organizations)
+      .where(eq(organizations.id, ctx.organization.id)).for("update");
+    const [used] = await tx.select({ total: count() }).from(auditLog).where(and(
+      eq(auditLog.organizationId, ctx.organization.id), eq(auditLog.action, "assistant.help"),
+      gte(auditLog.createdAt, new Date(Date.now() - 86400000)),
+    ));
+    if ((used?.total ?? 0) >= 12) throw new DomainError("HELP_LIMIT", "Günlük genel sohbet sınırına ulaştın.", 429);
+    await tx.insert(auditLog).values({ id: uid(), organizationId: ctx.organization.id,
+      actorId: ctx.actor.id, action: "assistant.help" });
+  });
+  try {
+    const response = await model({ ...data, facts: [] });
+    return { introduction: response.selection.reply || (data.locale === "tr" ? "Sorunu biraz daha açabilir misin?" : "Could you tell me a bit more?"), facts: [] };
+  } catch {
+    throw new DomainError("MODEL_REQUEST_FAILED", "Filiz yanıt veremedi. Biraz sonra tekrar dene.", 502);
+  }
+}
+
 export async function answerQuestion(
   db: CommercialDb,
   ctx: Context,
@@ -148,6 +191,7 @@ export async function answerQuestion(
       fieldId: identifier,
       locale: z.enum(["tr", "en"]).default("tr"),
       consent: z.literal(true),
+      conversation,
     })
     .strict()
     .parse(input);
@@ -226,6 +270,7 @@ export async function answerQuestion(
       question: data.question,
       facts,
       locale: data.locale,
+      conversation: data.conversation,
     });
     const selection = selectionSchema.parse(response.selection);
     if (selection.factIds.some((id) => !facts.some((fact) => fact.id === id)))
@@ -238,7 +283,8 @@ export async function answerQuestion(
     const answer = {
       model: response.model,
       topic: selection.topic,
-      introduction:
+      introduction: selection.reply ||
+        (
         selection.topic === "agronomy"
           ? t(
               "Bu soru için doğrulanmış yöntem, ürün/bölge ve yeterli saha girdileri gerekir. Mevcut kayıtlarını aşağıda inceleyebilirsin.",
@@ -252,7 +298,7 @@ export async function answerQuestion(
             : t(
                 "Seçili parselin kaynaklı kayıtları:",
                 "Sourced records for the selected parcel:",
-              ),
+              )),
       facts: selection.factIds.map((id) => facts.find((f) => f.id === id)!),
       suggestedAction: selection.suggestedAction,
       limitations: t(

@@ -331,7 +331,7 @@ test("Filiz source reveal and empty workspace are truthful", async ({ page }, in
   await expect(page.getByRole("textbox", { name: "Sorun" })).toBeFocused();
   await page.getByRole("textbox", { name: "Sorun" }).fill("Çiğ ölçümü var mı?");
   await page.locator("input[name=consent]").check();
-  await page.getByRole("button", { name: "Kaynaklı yanıt al" }).click();
+  await page.getByRole("button", { name: "Gönder", exact: true }).click();
   const conversation = page.getByRole("log", { name: "Filiz sohbeti" });
   await expect(conversation.locator(".filiz-chat-question")).toContainText("Çiğ ölçümü var mı?");
   await expect(conversation.locator(".filiz-answer")).toContainText("record:explicit-browser-fixture");
@@ -341,17 +341,25 @@ test("Filiz source reveal and empty workspace are truthful", async ({ page }, in
     status: 503, json: { error: "EXPLICIT SOURCE LOAD ERROR" },
   }));
   await page.goto("/?source-error=1#assistant");
+  await page.locator(".filiz-source-drawer summary").click();
   await expect(page.locator(".filiz-source-drawer").getByRole("alert")).toContainText("EXPLICIT SOURCE LOAD ERROR");
   await expect(page.getByText("Kaynaklar yükleniyor…")).toHaveCount(0);
   await page.unroute("**/api/v1/assistant/facts?*");
 
   await page.route("**/api/satellite/status", (route) => route.fulfill({ json: { configured: false, provider: "cdse" } }));
+  const parcelAnalysis = /\/api\/records\/[a-f0-9]{32}\/analysis$/;
+  await page.route(parcelAnalysis, async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), status: { configured: false, provider: "cdse" } } });
+  });
   await page.goto("/?provider-test=1#fields");
   await expect(page.getByRole("button", { name: "Tüm analizleri güncelle" })).toBeDisabled();
   await page.locator(".field-comparison-table .metric-link").first().click();
   const fieldURL = new URL(page.url());
   expect(new URLSearchParams(fieldURL.hash.split("?")[1]).get("field")).toBeTruthy();
   await expect(page.getByRole("button", { name: "Uydu verilerini güncelle" })).toBeDisabled();
+  const technical = page.locator(".analysis-page > .parcel-report-details");
+  if ((await technical.getAttribute("open")) === null) await technical.locator("summary").click();
   await page.getByRole("button", { name: "NDMI", exact: true }).click();
   await expect(page).toHaveURL(/metric=NDMI/);
   await page.reload();
@@ -359,6 +367,7 @@ test("Filiz source reveal and empty workspace are truthful", async ({ page }, in
   await page.goBack();
   await expect(page.getByRole("heading", { name: "Parsellerim", exact: true })).toBeVisible();
   await page.unroute("**/api/satellite/status");
+  await page.unroute(parcelAnalysis);
 
   const longName = "ÇiğÖlçümüŞubat".repeat(9);
   await page.route("**/api/records", async (route) => {

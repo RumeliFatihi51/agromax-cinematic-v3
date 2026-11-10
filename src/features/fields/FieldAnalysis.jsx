@@ -19,6 +19,7 @@ import {
   metricAvailability,
 } from "../../../shared/metrics";
 import SatelliteScene, { sceneDatesFor } from "./SatelliteScene";
+import AnalysisReport from "./AnalysisReport";
 import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
 export const number = (value) =>
   Number.isFinite(value)
@@ -57,6 +58,7 @@ export default function FieldAnalysis({
   satellite,
   canAnalyze = true,
   onConnections,
+  onAssistant,
 }) {
   const areaFormat = useAreaFormat();
   const Heading = embedded ? "h2" : "h1";
@@ -136,9 +138,10 @@ export default function FieldAnalysis({
   const metricId = catalog.some((metric) => metric.id === selectedMetric) ? selectedMetric : localMetric;
   const provider = analysis?.provider || status?.provider || "cdse";
   const availability = (id) => provider === openSentinelProvider
-    ? openSentinelMetrics.some(metric => metric.id === id) ? null : "Bu katman açık Sentinel-2 arşivi analizinde yok."
+    ? analysis?.availableMetrics && !analysis.availableMetrics.includes(id) ? "Bu kayıt bu katmanı içermiyor."
+      : openSentinelMetrics.some(metric => metric.id === id) ? null : "Bu katman açık Sentinel-2 arşivi analizinde yok."
     : metricAvailability(id, provider);
-  const layers = provider === openSentinelProvider ? openSentinelMetrics.map(({ id }) => ({ id, label: id })) : [
+  const layers = provider === openSentinelProvider ? openSentinelMetrics.filter(({ id }) => !availability(id)).map(({ id }) => ({ id, label: id })) : [
     { id: "RGB", label: "Doğal renk (RGB)" },
     ...catalog.filter(({ id }) => !availability(id))
       .map(({ id }) => ({ id, label: id })),
@@ -309,7 +312,7 @@ export default function FieldAnalysis({
             <dt>Analiz ızgarası</dt>
             <dd>
               {analysis
-                ? "20 m UTM · bantların doğal çözünürlüğü 10/20/60 m"
+                ? `${analysis.resolution ?? 20} m · ${analysis.nativeResolution || "bant çözünürlüğü 10/20/60 m"}`
                 : "—"}
             </dd>
             <dt>Yöntem</dt>
@@ -326,6 +329,9 @@ export default function FieldAnalysis({
           {analysis && <small>{analysis.mask}</small>}
         </aside>
       </div>
+      {analysis && <AnalysisReport analysis={analysis} onAssistant={onAssistant && (() => onAssistant(field.id))} />}
+      <details className="parcel-report-details" open={selectedMetric ? true : undefined}>
+      <summary>İndeks grafikleri, çekimler ve teknik ayrıntılar</summary>
       <section className="analysis-trend" aria-labelledby="analysis-trend-title">
         <div>
           <span className="eyebrow">ZAMAN SERİSİ</span>
@@ -597,6 +603,7 @@ export default function FieldAnalysis({
           )}
         </section>
       )}
+      </details>
     </div>
   );
 }

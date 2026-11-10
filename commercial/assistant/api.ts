@@ -2,6 +2,7 @@ import { z } from "zod";
 import { identifier } from "../../shared/contracts/commercial";
 import {
   answerQuestion,
+  answerHelp,
   fieldFacts,
   createProposal,
   decideProposal,
@@ -17,6 +18,8 @@ export async function assistantRoutes({
   path,
   method,
 }: WorkspaceRequest): Promise<Response | undefined> {
+  if (path === "/api/v1/assistant/help" && method === "POST")
+    return Response.json(await answerHelp(db, context, body, options.assistantModel));
   if (path === "/api/v1/assistant/status" && method === "GET")
     return Response.json({
       modelAvailable: !!options.assistantModel,

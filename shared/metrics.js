@@ -31,6 +31,11 @@ export const indices = [
     10,
   ),
   metric(
+    "WDRVI", "Geniş dinamik aralıklı bitki indeksi", "Bitki gelişimi",
+    "(0.1*s.B08-s.B04)/(0.1*s.B08+s.B04)",
+    "Yoğun örtüde bitki gelişimindeki değişimleri izlemek için NIR ağırlığı 0,1 kullanılır.", 10,
+  ),
+  metric(
     "EVI",
     "Geliştirilmiş bitki indeksi",
     "Bitki gelişimi",
