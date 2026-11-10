@@ -51,9 +51,11 @@ export async function interpretSatelliteEvidence(evidence: unknown, signal: Abor
   if (!model) return null;
   const result = await generateText({
     model,
-    maxOutputTokens: 1900,
-    maxRetries: 0,
-    abortSignal: AbortSignal.any([signal, AbortSignal.timeout(24_000)]),
+    maxOutputTokens: 3200,
+    maxRetries: 1,
+    abortSignal: AbortSignal.any([signal, AbortSignal.timeout(35_000)]),
+    ...(process.env.AGROMAX_FILIZ_PROVIDER === "gemini" && process.env.AGROMAX_FILIZ_MODEL?.startsWith("gemini-2.5-flash")
+      ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } } : {}),
     output: Output.object({ schema: z.object({
       overview: z.string().max(1400),
       findings: z.array(z.object({ indicators: z.array(z.string()).min(1).max(6), explanation: z.string().max(650) })).max(7),

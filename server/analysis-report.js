@@ -11,7 +11,8 @@ export async function enrichAnalysis(analysis, geometry, signal) {
   const supplementary = Object.fromEntries(extra);
   const measurements = Object.fromEntries(Object.entries(analysis.comparison).flatMap(([id, periods]) => {
     if (!periods.current && !periods.previous) return [];
-    return [["Sentinel-2 " + id, { current: periods.current, previous: periods.previous, delta: periods.delta }]];
+    const period = stats => stats && { mean: stats.mean, observations: stats.observations, coverage: stats.meanCoverage };
+    return [["Sentinel-2 " + id, { current: period(periods.current), previous: period(periods.previous), delta: periods.delta }]];
   }));
   let interpretation;
   try {
@@ -27,7 +28,8 @@ export async function enrichAnalysis(analysis, geometry, signal) {
       interpretation = { ...model, findings: model.findings.filter(item =>
         item.indicators.every(id => validIds.has(id))) };
     }
-  } catch {
+  } catch (error) {
+    console.warn("Satellite interpretation unavailable", { error: error?.name, status: error?.statusCode });
     // Measurements remain usable when the model service is unavailable.
   }
   return { supplementary, interpretation };
