@@ -98,21 +98,20 @@ export async function openDatabase() {
   if (process.env.DATABASE_URL)
     return postgresDatabase(process.env.DATABASE_URL);
   // A preview can be demonstrated before its managed Postgres instance is
-  // provisioned. This opt-in store lives only in the function's writable
-  // temporary directory and must never be enabled for a production workspace.
+  // provisioned. This opt-in store lasts only for the function instance
+  // and must never be enabled for a production workspace.
   const ephemeralPreview =
     process.env.VERCEL &&
+    process.env.VERCEL_ENV === "preview" &&
     process.env.AGROMAX_EPHEMERAL_PREVIEW_DATABASE === "true";
   if (process.env.VERCEL && !ephemeralPreview)
     throw new Error("Persistent DATABASE_URL is required on Vercel.");
   const { DatabaseSync } = await import("node:sqlite");
+  if (ephemeralPreview) return sqliteDatabase(new DatabaseSync(":memory:"));
   const { mkdirSync } = await import("node:fs");
-  const databaseDirectory = ephemeralPreview ? "/tmp" : "data";
-  mkdirSync(databaseDirectory, { recursive: true });
-  const raw = new DatabaseSync(`${databaseDirectory}/agromax.sqlite`);
-  // Vercel's ephemeral filesystem does not provide the locking guarantees
-  // required by SQLite WAL. The persistent local store keeps WAL enabled.
-  if (!ephemeralPreview) raw.exec("PRAGMA journal_mode=WAL");
+  mkdirSync("data", { recursive: true });
+  const raw = new DatabaseSync("data/agromax.sqlite");
+  raw.exec("PRAGMA journal_mode=WAL");
   return sqliteDatabase(raw);
 }
 
