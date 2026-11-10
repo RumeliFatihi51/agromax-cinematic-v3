@@ -1,4 +1,5 @@
 import proj4 from "proj4";
+import { setTimeout as delay } from "node:timers/promises";
 import { containsPoint, geometryBounds, pixelBounds, rasterGrid, unproject } from "../shared/spatial.js";
 import { openSentinelMethod, openSentinelMetrics, openSentinelProvider, openSentinelSource } from "../shared/open-sentinel.js";
 
@@ -26,10 +27,16 @@ async function limited(work) {
 
 async function stac(path, signal) {
   let response;
-  try {
-    response = await fetch(endpoint + path, { signal, redirect: "error", headers: { accept: "application/geo+json, application/json" } });
-  } catch {
-    throw fail("Earth Search kataloğuna ulaşılamadı.");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetch(endpoint + path, { signal, redirect: "error", headers: { accept: "application/geo+json, application/json" } });
+    } catch {
+      if (signal.aborted || attempt) throw fail("Earth Search kataloğuna ulaşılamadı.");
+    }
+    if (response && (response.status < 500 && response.status !== 429 || attempt)) break;
+    if (response?.body) await response.body.cancel();
+    response = undefined;
+    await delay(500, undefined, { signal });
   }
   if (!response.ok) throw fail("Earth Search isteği tamamlanamadı.", response.status === 404 ? 404 : response.status === 429 ? 429 : 502);
   try { return await response.json(); }
@@ -55,7 +62,7 @@ function overlap(left, right) {
     Math.max(0, Math.min(left[3], right[3]) - Math.max(left[1], right[1]));
 }
 
-export async function searchOpenSentinel(geometry, month) {
+export async function searchOpenSentinel(geometry, month, signal) {
   if (typeof month !== "string" || !monthPattern.test(month)) throw fail("Geçerli bir arşiv ayı seç.", 400);
   const start = new Date(month + "-01T00:00:00Z");
   const end = new Date(start);
@@ -70,7 +77,8 @@ export async function searchOpenSentinel(geometry, month) {
   const params = new URLSearchParams({ collections: collection, bbox: coarseBounds.join(","),
     datetime: start.toISOString() + "/" + end.toISOString(), limit: "48" });
   return limited(async () => {
-    const data = await stac("/search?" + params, AbortSignal.timeout(12000));
+    const timeout = AbortSignal.timeout(12000);
+    const data = await stac("/search?" + params, signal ? AbortSignal.any([signal, timeout]) : timeout);
     if (!Array.isArray(data?.features)) throw fail("Earth Search gözlem listesi geçersiz.");
     const dates = new Map();
     for (const item of data.features.slice(0, 48)) {
@@ -139,16 +147,17 @@ async function readBand(item, band, epsg, locations, signal) {
   }
 }
 
-export async function readOpenSentinel(geometry, id, layer) {
-  const metric = openSentinelMetrics.find(candidate => candidate.id === layer);
-  if (typeof id !== "string" || !sceneId.test(id) || !metric)
+export async function readOpenSentinelLayers(geometry, id, layers, parentSignal) {
+  const metrics = layers.map(layer => openSentinelMetrics.find(candidate => candidate.id === layer));
+  if (typeof id !== "string" || !sceneId.test(id) || !metrics.length || metrics.some(metric => !metric))
     throw fail("Arşiv sahnesi veya analiz katmanı geçersiz.", 400);
   return limited(async () => {
-    const signal = AbortSignal.timeout(22000);
+    const timeout = AbortSignal.timeout(25000);
+    const signal = parentSignal ? AbortSignal.any([timeout, parentSignal]) : timeout;
     const item = await stac("/collections/" + collection + "/items/" + id, signal);
     const scene = publicScene(item);
     const epsg = item?.properties?.["proj:epsg"];
-    if (!scene || scene.id !== id || !scene.available.includes(layer) ||
+    if (!scene || scene.id !== id || layers.some(layer => !scene.available.includes(layer)) ||
         !/^(326|327)(0[1-9]|[1-5][0-9]|60)$/.test(String(epsg)) || !overlap(geometryBounds(geometry), item.bbox))
       throw fail("Sahne bu parseli kapsamıyor veya gereken bantlar bulunmuyor.", 422);
     const grid = rasterGrid(geometry, 20);
@@ -159,18 +168,27 @@ export async function readOpenSentinel(geometry, id, layer) {
       const coordinate = unproject([(west + east) / 2, (south + north) / 2]);
       return containsPoint(geometry, coordinate) ? projection.forward(coordinate) : null;
     });
-    let bands;
+    const names = ["scl", ...new Set(metrics.flatMap(metric => metric.bands))];
+    let samples;
     try {
-      bands = await Promise.all(["scl", ...metric.bands].map(band => readBand(item, band, epsg, locations, signal)));
+      const bands = await Promise.all(names.map(band => readBand(item, band, epsg, locations, signal)));
+      samples = Object.fromEntries(names.map((name, index) => [name, bands[index]]));
     } catch (error) {
       if (error.status) throw error;
       throw fail("Açık arşivdeki COG bantları okunamadı.");
     }
-    const [classification, ...reflectance] = bands;
-    const values = classification.map((code, index) => clearClasses.has(code)
-      ? openSentinelValue(metric.id, reflectance.map(band => band[index])) : null);
-    if (!values.some(Number.isFinite)) throw fail("Bu sahnede parsel için geçerli piksel yok. Başka bir tarih seç.", 422);
-    return { ...grid, values, metric: layer, unit: "birimsiz", date: scene.date, capturedAt: scene.instant,
-      sceneId: id, source: scene.source, provider: scene.provider, method: scene.method, mask: "SCL 4/5/6" };
+    const parcelPixels = locations.filter(Boolean).length;
+    return Object.fromEntries(metrics.map(metric => [metric.id, {
+      ...grid, parcelPixels, metric: metric.id, unit: "birimsiz", date: scene.date, capturedAt: scene.instant,
+      sceneId: id, source: scene.source, provider: scene.provider, method: scene.method, mask: "SCL 4/5/6",
+      values: samples.scl.map((code, index) => clearClasses.has(code)
+        ? openSentinelValue(metric.id, metric.bands.map(band => samples[band][index])) : null),
+    }]));
   });
+}
+
+export async function readOpenSentinel(geometry, id, layer) {
+  const raster = (await readOpenSentinelLayers(geometry, id, [layer]))[layer];
+  if (!raster.values.some(Number.isFinite)) throw fail("Bu sahnede parsel için geçerli piksel yok. Başka bir tarih seç.", 422);
+  return raster;
 }

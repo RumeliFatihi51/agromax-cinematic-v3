@@ -62,7 +62,7 @@ function useOpenCatalog(fieldId, geometryHash, month) {
 
 function useRaster(fieldId, geometryHash, observation, layer, enabled) {
   const date = observation?.date, id = observation?.id;
-  const isOpen = observation?.provider === openSentinelProvider;
+  const isOpen = observation?.provider === openSentinelProvider && Array.isArray(observation.available);
   const key = enabled && date && id ? [fieldId, geometryHash, id, date, layer].join("/") : "";
   const [result, setResult] = useState(null);
   const [retry, setRetry] = useState(0);
@@ -240,7 +240,7 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
   const observations = currentCatalog?.observations || [];
   const activeDate = isOpen ? selection.archiveDate : selection.date;
   const observation = observations.find(item => item.date === activeDate) || observations[0];
-  const metrics = (isOpen ? openSentinelMetrics : availableMetrics(observation?.provider))
+  const metrics = (observation?.provider === openSentinelProvider ? openSentinelMetrics : availableMetrics(observation?.provider))
     .filter(item => hasMetric(observation, item.id));
   const layer = metrics.some(item => item.id === selection.layer) ? selection.layer : metrics[0]?.id;
   const alternatives = (isOpen && comparisonMonth && comparisonMonth !== openMonth
@@ -262,7 +262,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
     [raster, reference, renderMode]);
   const scale = useMemo(() => baseline && range?.layer === layer && range?.mode === renderMode
     ? { ...baseline, min: range.min, max: range.max } : baseline, [baseline, layer, range, renderMode]);
-  const rgbKey = !isMap && !isOpen && trueColor && observation && view === "3d" ? observation.id + observation.date : "";
+  const rgbKey = !isMap && trueColor && observation && observation.provider !== openSentinelProvider && view === "3d"
+    ? observation.id + observation.date : "";
   useEffect(() => {
     if (!rgbKey) return;
     const controller = new AbortController();
@@ -404,7 +405,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
           <label><input type="checkbox" checked={boundary} onChange={e => setBoundary(e.target.checked)} /> Parsel sınırı</label>
           <label><input type="checkbox" checked={basemap}
             onChange={e => setBasemap(e.target.checked)} /> Esri uydu altlığı</label>
-          {!isMap && !isOpen && observed && <label><input type="checkbox" checked={trueColor} disabled={!observation}
+          {!isMap && !isOpen && observed && <label><input type="checkbox" checked={trueColor}
+            disabled={!observation || observation.provider === openSentinelProvider}
             onChange={e => setTrueColor(e.target.checked)} /> Sentinel-2 doğal renk</label>}
           {cropAsset && <label><input type="checkbox" checked={showCrop}
             onChange={e => setShowCrop(e.target.checked)} /> Temsili bitki modeli</label>}
@@ -448,8 +450,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
         {markerText && <p>{markerText}</p>}
         {showZones && zonePlan && <p>{zonePlan.name} · v{zonePlan.version} · Kullanıcı reçete taslağı</p>}
         {raster && <p>Yakın komşu örnekleme · {raster.mask || "bulut ve NoData maskeli"} · {
-          isOpen ? raster.sceneId : raster.provider === "cdse" ? "Copernicus Data Space" : "Sentinel Hub"}</p>}
-        {isOpen && raster?.capturedAt && <p>Çekim {raster.capturedAt.slice(0, 19).replace("T", " ")} UTC</p>}
+          raster.provider === openSentinelProvider ? raster.sceneId : raster.provider === "cdse" ? "Copernicus Data Space" : "Sentinel Hub"}</p>}
+        {raster?.capturedAt && <p>Çekim {raster.capturedAt.slice(0, 19).replace("T", " ")} UTC</p>}
         {showCrop && cropAsset && <p>Bitki konumu, gelişim evresi ve görsel boyutu temsilidir.</p>}
         {contextImagery?.unavailable && <p>Esri altlığı alınamadı. Şematik yüzey gösteriliyor.</p>}
       </div>

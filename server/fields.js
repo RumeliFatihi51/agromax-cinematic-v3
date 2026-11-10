@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { validateGeometry } from "../shared/geometry.js";
-import { satelliteStatus, fetchImage, fetchSpatialRaster, comparisonRange } from "./satellite.js";
+import { fetchImage, fetchSpatialRaster, comparisonRange } from "./satellite.js";
+import { parcelSatelliteStatus, openRasterImage } from "./parcel-satellite.js";
+import { readOpenSentinel } from "./open-sentinel.js";
+import { openSentinelMethod, openSentinelProvider } from "../shared/open-sentinel.js";
 import { geometryHash } from "./analysis-jobs.js";
 export function prepareField(body, existing = {}) {
   const name = String(body.name ?? existing.name ?? "").trim();
@@ -35,7 +38,7 @@ export async function fieldRoutes({
   analysisService,
 }) {
   if (req.url === "/api/satellite/status") {
-    reply(200, satelliteStatus());
+    reply(200, parcelSatelliteStatus());
     return true;
   }
   const match = req.url.match(
@@ -98,15 +101,15 @@ export async function fieldRoutes({
     const hash = createHash("sha256")
       .update(JSON.stringify(field.geometry || null))
       .digest("hex");
-    const currentCache =
-      cached?.geometry_hash === hash &&
-      JSON.parse(cached.body).range?.split === comparisonRange().split &&
-      JSON.parse(cached.body).provider === process.env.SENTINEL_PROVIDER &&
-      JSON.parse(cached.body).method === "s2-l2a-v3";
+    const saved = cached?.geometry_hash === hash ? JSON.parse(cached.body) : null;
+    const status = parcelSatelliteStatus();
+    const currentCache = saved?.range?.split === comparisonRange().split &&
+      saved?.provider === status.provider &&
+      saved?.method === (status.provider === openSentinelProvider ? openSentinelMethod : "s2-l2a-v3");
     if (req.method === "GET") {
       reply(200, {
-        analysis: currentCache ? JSON.parse(cached.body) : null,
-        status: satelliteStatus(),
+        analysis: saved,
+        status,
       });
       return true;
     }
@@ -117,27 +120,27 @@ export async function fieldRoutes({
         });
         return true;
       }
-      if (!satelliteStatus().configured) {
+      if (!status.configured) {
         reply(503, {
           error:
-            "Copernicus client secret eksik. app/.env dosyasını tamamlayın; canlı veri henüz çekilemiyor.",
+            "Uydu analizi için açık arşiv veya yetkili Sentinel Hub bağlantısı gerekli.",
         });
         return true;
       }
       // A short cache avoids accidental double spending of provider quota.
       if (
         currentCache &&
-        Date.now() - Date.parse(JSON.parse(cached.body).fetchedAt) < 300000
+        Date.now() - Date.parse(saved.fetchedAt) < 300000
       ) {
         reply(200, {
-          analysis: JSON.parse(cached.body),
-          status: satelliteStatus(),
+          analysis: saved,
+          status,
         });
         return true;
       }
       try {
         const job = await analysisService.enqueue(session.id, id);
-        reply(202, { job, status: satelliteStatus() });
+        reply(202, { job, status });
       } catch (e) {
         reply(e.status || 502, { error: e.message });
       }
@@ -174,6 +177,16 @@ export async function fieldRoutes({
           Date.parse(scene.properties.datetime) >= Date.parse(o.from) &&
           Date.parse(scene.properties.datetime) < Date.parse(o.to),
       );
+      const layer = body.layer || (analysis.provider === openSentinelProvider ? "NDVI" : "RGB");
+      const open = analysis.provider === openSentinelProvider;
+      let openRaster;
+      if (open) {
+        if (!Number.isFinite(day?.stats?.[layer]?.mean)) {
+          reply(422, { error: "Bu tarih ve indeks için geçerli gözlem kaydı yok." });
+          return true;
+        }
+        openRaster = await readOpenSentinel(geometry, scene.id, layer);
+      }
       if (body.format === "values") {
         if (!body.analysisId || geometryHash(geometry) !== geometryHash(field.geometry)) {
           reply(409, { error: "Sayısal katman güncel parsel sınırına ait olmalı." });
@@ -183,14 +196,14 @@ export async function fieldRoutes({
           reply(422, { error: "Bu tarih ve indeks için geçerli gözlem kaydı yok." });
           return true;
         }
-        const raster = await fetchSpatialRaster(geometry, body.layer, day);
+        const raster = openRaster || await fetchSpatialRaster(geometry, layer, day);
         reply(200, { ...raster, geometryHash: geometryHash(geometry), date: body.date,
           analysisId: body.analysisId, source: analysis.source, analysisMethod: analysis.method });
         return true;
       }
-      const scale = day?.stats?.[body.layer];
+      const scale = day?.stats?.[layer];
       const { image, bounds, legend, validPixels, totalPixels } =
-        await fetchImage(geometry, body.date, body.layer || "RGB", {
+        openRaster ? openRasterImage(openRaster) : await fetchImage(geometry, body.date, layer, {
           scale,
           timeRange: day ? { from: day.from, to: day.to } : undefined,
         });
@@ -252,6 +265,8 @@ export async function imageAnalysis(db, userId, fieldId, analysisId, field) {
     analysis = JSON.parse(row.body);
     geometry = field.geometry;
   }
+  if (analysis.provider === openSentinelProvider && analysis.method === openSentinelMethod)
+    return { analysis, geometry };
   if (
     analysis.method !== "s2-l2a-v3" ||
     analysis.provider !== process.env.SENTINEL_PROVIDER

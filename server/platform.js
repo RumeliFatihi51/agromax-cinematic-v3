@@ -2,6 +2,8 @@ import { randomBytes, createHash } from 'node:crypto';
 import { platformFeatures, sourceAdapters, droneAdapters } from '../shared/platform.js';
 import { parseDraft, scenarioTotals } from '../shared/platform-contracts.js';
 import { satelliteStatus } from './satellite.js';
+import { parcelSatelliteStatus } from './parcel-satellite.js';
+import { openSentinelMethod, openSentinelMetrics, openSentinelProvider } from '../shared/open-sentinel.js';
 import { geometryHash } from './analysis-jobs.js';
 import { availableMetrics } from '../shared/metrics.js';
 import { validateManagementZones } from './management-zones.js';
@@ -87,8 +89,9 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     for (const row of rows) {
       if (!row.result) continue;
       const analysis = JSON.parse(row.result);
-      if (analysis.method !== "s2-l2a-v3" || !["cdse", "sentinelhub"].includes(analysis.provider)) continue;
-      const supported = availableMetrics(analysis.provider);
+      const open = analysis.provider === openSentinelProvider && analysis.method === openSentinelMethod;
+      if (!open && (analysis.method !== "s2-l2a-v3" || !["cdse", "sentinelhub"].includes(analysis.provider))) continue;
+      const supported = open ? openSentinelMetrics : availableMetrics(analysis.provider);
       const observations = (analysis.observations || []).map(day => ({
         from: Date.parse(day.from), to: Date.parse(day.to),
         metrics: Object.fromEntries(supported
@@ -142,8 +145,11 @@ export async function createPlatformService(db, { ownership = 'account_private' 
         const counts=await db.prepare('SELECT kind,COUNT(*) AS count FROM platform_records WHERE user_id=? GROUP BY kind').all(session.id);
         const satellite = satelliteStatus();
         const sources = sourceAdapters.map((source) => {
-          if (source.id === 'sentinel2')
-            return {...source, state:satellite.configured?'configured':'unconfigured'};
+          if (source.id === 'sentinel2') {
+            const optical = parcelSatelliteStatus();
+            return {...source, name:optical.source || source.name, state:optical.configured?'configured':'unconfigured',
+              detail:optical.provider === openSentinelProvider ? 'Parsel analizi ve tarihli indeks katmanları açık arşivden alınır.' : source.detail};
+          }
           if (ownership === 'organization' && source.id === 'sentinel1')
             return {...source, state:satellite.configured && satellite.provider === 'cdse'?'configured':'unconfigured',
               detail:'CDSE yörüngesine göre VV/VH ve radar kalite istatistikleri. Gerçek sağlayıcı kabulü ayrı doğrulanır.'};

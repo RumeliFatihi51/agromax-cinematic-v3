@@ -19,6 +19,7 @@ import {
   metricAvailability,
 } from "../../../shared/metrics";
 import SatelliteScene, { sceneDatesFor } from "./SatelliteScene";
+import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
 export const number = (value) =>
   Number.isFinite(value)
     ? value.toLocaleString("tr-TR", {
@@ -99,7 +100,16 @@ export default function FieldAnalysis({
       active = false;
     };
   }, [field.id, initialAnalysis]);
-  const connection = satellite === undefined ? status : satellite;
+  const connection = status ?? satellite;
+  const openSource = connection?.provider === openSentinelProvider;
+  async function retryConnection() {
+    try {
+      setError("");
+      setStatus(await api("satellite/status"));
+    } catch (error) {
+      setError(error.message);
+    }
+  }
   async function refresh() {
     if (!connection?.configured || !canAnalyze || busy || !field.geometry) return;
     setBusy(true);
@@ -125,9 +135,12 @@ export default function FieldAnalysis({
   const catalog = [...metrics, ...observationAngles];
   const metricId = catalog.some((metric) => metric.id === selectedMetric) ? selectedMetric : localMetric;
   const provider = analysis?.provider || status?.provider || "cdse";
-  const layers = [
+  const availability = (id) => provider === openSentinelProvider
+    ? openSentinelMetrics.some(metric => metric.id === id) ? null : "Bu katman açık Sentinel-2 arşivi analizinde yok."
+    : metricAvailability(id, provider);
+  const layers = provider === openSentinelProvider ? openSentinelMetrics.map(({ id }) => ({ id, label: id })) : [
     { id: "RGB", label: "Doğal renk (RGB)" },
-    ...catalog.filter(({ id }) => !metricAvailability(id, provider))
+    ...catalog.filter(({ id }) => !availability(id))
       .map(({ id }) => ({ id, label: id })),
   ];
   function selectMetric(id) {
@@ -237,18 +250,27 @@ export default function FieldAnalysis({
         <div className="data-warning">
           <Satellite size={20} />
           <div>
-            <strong>{connection.unavailable ? "Uydu bağlantı durumu alınamadı." : "Copernicus yapılandırması eksik."}</strong>
+            <strong>{connection.unavailable ? "Uydu bağlantı durumu alınamadı." : "Uydu analizi için kaynak ayarı gerekli."}</strong>
             <p>
               Bağlantı hazır olduğunda yeni bir uydu analizi başlatabilirsin.
             </p>
             {onConnections && <button className="text-button" onClick={onConnections}>Veri bağlantılarını aç</button>}
+            <button className="text-button" onClick={retryConnection}>Bağlantıyı yeniden kontrol et</button>
           </div>
         </div>
       )}
+      {!initialAnalysis && openSource && <div className="data-warning" role="status">
+        <Satellite size={20} />
+        <div><strong>Analiz kaynağı · Sentinel‑2 L2A / Earth Search</strong>
+          <p>{analysis?.provider === openSentinelProvider
+            ? "Son doğrulanmış parsel analizi " + date(analysis.fetchedAt) + "."
+            : "Açık uydu arşivi seçili. İlk ölçüm için uydu verilerini güncelle."}
+          </p></div>
+      </div>}
       <div className="analysis-top-grid">
         <SatelliteScene
           field={field} analysis={analysis} archiveId={archiveId} dates={sceneDates} day={imageDate}
-          onDay={setSelectedDate} layer={layers.some(({ id }) => id === (mapMetric || metricId)) ? (mapMetric || metricId) : "RGB"} layers={layers}
+          onDay={setSelectedDate} layer={layers.some(({ id }) => id === (mapMetric || metricId)) ? (mapMetric || metricId) : layers[0]?.id} layers={layers}
           onLayer={(id) => id === "RGB" ? setMapMetric(id) : selectMetric(id)}
           compact={false}
         />
@@ -380,7 +402,7 @@ export default function FieldAnalysis({
                       >
                         {Number.isFinite(c?.delta)
                           ? `${c.delta > 0 ? "+" : ""}${number(c.delta)}`
-                          : metricAvailability(m.id, status?.provider || "cdse")
+                          : availability(m.id)
                             ? "Kaynakta sunulmuyor"
                             : "Veri yetersiz"}
                       </span>
@@ -438,9 +460,9 @@ export default function FieldAnalysis({
         </div>
         <div className="metric-explanation">
           <p>{metric.description}</p>
-          {metricAvailability(metricId, status?.provider || "cdse") && (
+          {availability(metricId) && (
             <p className="data-warning">
-              {metricAvailability(metricId, status?.provider || "cdse")}
+              {availability(metricId)}
             </p>
           )}
           <code>{metric.formula.replaceAll("s.", "")}</code>
@@ -507,7 +529,7 @@ export default function FieldAnalysis({
             </h3>
             <p>
               {analysis
-                ? metricAvailability(metricId, status?.provider || "cdse") ||
+                ? availability(metricId) ||
                   "Seçilen aralıkta veri eksik, bulutlu veya hesaplama için yetersiz olabilir. Eksik ölçüm sıfır kabul edilmez."
                 : "Gerçek uydu analizi tamamlandığında günlük ölçümler burada yer alacak."}
             </p>

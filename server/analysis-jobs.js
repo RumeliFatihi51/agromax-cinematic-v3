@@ -1,5 +1,5 @@
 ﻿import { createHash, randomBytes } from "node:crypto";
-import { fetchAnalysis, satelliteStatus } from "./satellite.js";
+import { fetchParcelAnalysis, parcelSatelliteStatus } from "./parcel-satellite.js";
 export const geometryHash = (geometry) =>
   createHash("sha256")
     .update(JSON.stringify(geometry || null))
@@ -11,8 +11,8 @@ const stamp = () => new Date().toISOString();
 export async function createAnalysisService(
   db,
   {
-    execute = fetchAnalysis,
-    configured = () => satelliteStatus().configured,
+    execute = fetchParcelAnalysis,
+    configured = () => parcelSatelliteStatus().configured,
     maxWorkMs = 230000,
   } = {},
 ) {
@@ -55,7 +55,7 @@ export async function createAnalysisService(
       startedAt: row.started_at,
       finishedAt: row.finished_at,
       type: "Sentinel-2 L2A spektral analiz",
-      source: "Copernicus Sentinel-2 L2A",
+      source: row.result ? JSON.parse(row.result).source : snapshot.source || "Copernicus Sentinel-2 L2A",
       error: row.error,
       ...(result ? { field: snapshot.field } : {}),
       ...(result && row.result ? { analysis: JSON.parse(row.result) } : {}),
@@ -255,7 +255,7 @@ export async function createAnalysisService(
             userId,
             fieldId,
             geometryHash(field.geometry),
-            JSON.stringify({ field: { ...field, id: fieldId } }),
+            JSON.stringify({ field: { ...field, id: fieldId }, source: parcelSatelliteStatus().source }),
             stamp(),
           );
         await audit(tx, row, "analysis.queued");

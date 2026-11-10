@@ -5,12 +5,28 @@ import { validateManagementZones } from "./management-zones.js";
 import { openSentinelValue, readOpenSentinel, searchOpenSentinel } from "./open-sentinel.js";
 import { groupOutlierFootprints, measuredCells, mergeRegion, summarizeFootprints } from "../shared/raster-footprints.js";
 import area from "@turf/area";
+import { openRasterImage } from "./parcel-satellite.js";
+import { PNG } from "pngjs";
 
 const ring = (x, y, size) => [[x, y], [x + size, y], [x + size, y + size], [x, y + size], [x, y]];
 const geometry = { type: "MultiPolygon", coordinates: [
   [ring(27.5, 38.5, 0.001), ring(27.5003, 38.5003, 0.0003)],
   [ring(27.5012, 38.5, 0.0004)],
 ] };
+
+test("open satellite PNG retains the parcel bounds and transparent masked pixels", () => {
+  const raster = { ...rasterGrid(geometry, 20), parcelPixels: 2, unit: "birimsiz" };
+  const values = Array(raster.width * raster.height).fill(null);
+  values[0] = 0;
+  const layer = openRasterImage({ ...raster, values });
+  assert.equal(layer.bounds.length, 4);
+  assert.equal(layer.validPixels, 1);
+  assert.equal(layer.totalPixels, 2);
+  assert.equal(layer.legend.min, 0);
+  const decoded = PNG.sync.read(layer.image);
+  assert.equal(decoded.data[3], 255);
+  assert.equal(decoded.data[7], 0);
+});
 
 test("local metric coordinates retain holes and separate polygons without oversampling", () => {
   const frame = metricFrame(geometry);
