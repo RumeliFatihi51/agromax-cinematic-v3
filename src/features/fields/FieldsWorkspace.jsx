@@ -38,6 +38,7 @@ export default function FieldsWorkspace({
   favorites = [],
   onFavorites,
   canAnalyze = true,
+  canRunResearch = canAnalyze,
   customAnalysis = true,
 }) {
   const [view, setView] = useState(() => window.matchMedia("(max-width: 640px)").matches ? "map" : "atlas"),
@@ -169,7 +170,7 @@ export default function FieldsWorkspace({
                 locale={locale}
                 favorites={favorites}
                 onFavorites={onFavorites}
-                canAnalyze={canAnalyze}
+                canAnalyze={canRunResearch}
                 satelliteConfigured={satellite?.configured === true}
                 onConnections={onConnections}
                 customAnalysisEnabled={customAnalysis}

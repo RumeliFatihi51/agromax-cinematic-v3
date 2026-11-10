@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--enable-webgl", "--enable-unsafe-swiftshader"] } });
 
+test("existing-account owners can start standard parcel analysis without commercial email verification", async ({ page }, info) => {
+  const id = (info.project.name === "desktop" ? "a" : "b").repeat(32);
+  let existingAccount = true;
+  await page.route("**/api/v1/bootstrap", async route => {
+    const response = await route.fetch();
+    const json = await response.json();
+    await route.fulfill({ response, json: { ...json, user: { ...json.user, emailVerified: false },
+      capabilities: { ...json.capabilities, workspaceMode: existingAccount ? "existing-account" : undefined } } });
+  });
+  await page.goto("/");
+  await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
+  await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
+  await page.getByRole("button", { name: "Platforma giriş yap" }).click();
+  await expect(page.locator(".fw-overview-section")).toBeVisible();
+  await page.goto("/#fields?field=" + id);
+  const update = page.getByRole("button", { name: "Uydu verilerini güncelle", exact: true });
+  await expect(update).toBeEnabled();
+  const submitted = page.waitForResponse(response => response.url().endsWith("/records/" + id + "/analysis") &&
+    response.request().method() === "POST");
+  await update.click();
+  expect([200, 202]).toContain((await submitted).status());
+
+  existingAccount = false;
+  await page.reload();
+  await expect(update).toBeDisabled();
+  await expect(page.getByText(/e-posta doğrulaması gerekli/)).toBeVisible();
+});
+
 test("3D geometry, numeric Sentinel layers and dated comparisons work through the isolated API", async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   if (!process.env.AGROMAX_VERIFY_LIVE_TERRAIN) {

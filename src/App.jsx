@@ -79,6 +79,10 @@ export default function App() {
     commercial?.organizations.find(
       (o) => o.id === commercial.preferences?.activeOrganizationId,
     ) || commercial?.organizations[0];
+  const canRunVerifiedAnalysis = !activeWorkspace ||
+    (activeWorkspace.role !== "viewer" && commercial.user.emailVerified);
+  const canRunParcelAnalysis = canRunVerifiedAnalysis ||
+    (activeWorkspace?.role !== "viewer" && commercial?.capabilities?.workspaceMode === "existing-account");
   useEffect(() => {
     setSatellite(null);
     if (!user?.id || (user.commercial && !activeWorkspace?.id)) return;
@@ -384,10 +388,8 @@ export default function App() {
       <FieldsWorkspace
         commercial={!!activeWorkspace}
         customAnalysis={commercial?.capabilities?.customAnalysis !== false}
-        canAnalyze={
-          !activeWorkspace ||
-          (activeWorkspace.role !== "viewer" && commercial.user.emailVerified)
-        }
+        canAnalyze={canRunParcelAnalysis}
+        canRunResearch={canRunVerifiedAnalysis}
         locale={commercial?.preferences?.locale || "tr"}
         favorites={commercial?.preferences?.metricFavorites || []}
         onFavorites={async (ids) => {

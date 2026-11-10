@@ -227,6 +227,9 @@ export default function FieldAnalysis({
           {error}
         </p>
       )}
+      {!initialAnalysis && !canAnalyze && (
+        <p className="data-warning"><Info size={19} /> Yeni analiz için çalışma alanı yetkisi ve hesabın gerektirdiği e-posta doğrulaması gerekli.</p>
+      )}
       {initialAnalysis && (
         <div className="data-warning">
           Geçmiş analiz kaydı · {(archiveId || analysis.historyId)?.slice(0, 8)} · Bu ekran,
