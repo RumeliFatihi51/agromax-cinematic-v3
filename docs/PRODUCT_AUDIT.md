@@ -1,5 +1,7 @@
 # AgroMax kapsam ve doğrulama kaydı
 
+Bu sayfa 30 Ekim taban denetimidir. Güncel PDF kapsamı ve 19 alanın kabul durumu [üretim kabul kaydında](MASTER_COMPLETION.md).
+
 Kaynak: kullanıcının `pasted-text-1.txt` şartnamesi (35 bölüm). Bu kayıt kapsamı daraltmaz. Son inceleme: 30 Ekim 2026. Önceki çalışma turu ilerleme sağladı: arayüz dosyaları değişti, derleme ve 10 test geçti. Tarayıcı görsel doğrulaması yapılamadı.
 
 | Ana özellik | Durum | İncelenen kanıt / kalan iş |

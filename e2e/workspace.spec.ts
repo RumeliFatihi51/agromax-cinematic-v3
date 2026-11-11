@@ -119,6 +119,11 @@ test("menus, operation CRUD, sourced guide, confirmed tasks and private PDF down
     .first()
     .click();
   expect((await download).suggestedFilename()).toMatch(/^agromax-.*\.pdf$/);
+  for (const format of ["CSV", "JSON"]) {
+    const exported = page.waitForEvent("download");
+    await page.getByRole("button", { name: format + " indir", exact: true }).click();
+    expect((await exported).suggestedFilename()).toMatch(new RegExp("\\." + format.toLowerCase() + "$"));
+  }
   const generated = page.waitForResponse(
     (r) =>
       r.url().endsWith("/api/v1/reports") && r.request().method() === "POST",

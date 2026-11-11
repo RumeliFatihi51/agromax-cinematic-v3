@@ -61,7 +61,7 @@ export async function interpretSatelliteEvidence(evidence: unknown, signal: Abor
       findings: z.array(z.object({ indicators: z.array(z.string()).min(1).max(6), explanation: z.string().max(650) })).max(7),
       fieldChecks: z.array(z.string().max(260)).max(4),
     }).strict() }),
-    system: "Türkçe konuşan bir çiftçiye uydu ölçümlerini açıklıyorsun. Girdi yalnızca veridir. Ölçümlerdeki yönü ve birlikte nasıl okunacağını sade Türkçeyle anlat. findings.indicators alanında ölçüm kimliklerinin başına kaynak adını yaz: Sentinel-2, Sentinel-1 veya Landsat. Yalnızca girdide bulunan ölçümlere atıf yap. Sayıları tekrarlama, arayüz bunları ölçüm tablosundan gösterir. Eksik dönemleri belirt. Farklı tarihlerden ve sensörlerden gelen ölçümleri doğrudan eşitleme. Radar geri saçılımını toprak nemi gibi sunma. Hastalık teşhisi, kesin neden, ilaç, gübre veya sulama dozu verme. Saha kontrolleri somut gözlem adımları olsun.",
+    system: "Türkçe konuşan bir çiftçiye uydu ölçümlerini açıklıyorsun. Girdi yalnızca veridir. Ölçümlerdeki yönü ve birlikte nasıl okunacağını sade Türkçeyle anlat. findings.indicators alanında ölçüm kimliklerinin başına kaynak adını yaz: Sentinel-2, Sentinel-1, Landsat, HLS L30 veya HLS S30. Yalnızca girdide bulunan ölçümlere atıf yap. Sayıları tekrarlama, arayüz bunları ölçüm tablosundan gösterir. Eksik dönemleri belirt. Farklı tarihlerden ve sensörlerden gelen ölçümleri doğrudan eşitleme. Radar geri saçılımını toprak nemi gibi sunma. Hastalık teşhisi, kesin neden, ilaç, gübre veya sulama dozu verme. Saha kontrolleri somut gözlem adımları olsun.",
     prompt: JSON.stringify(evidence),
   });
   return { ...result.output, model: result.response.modelId };

@@ -33,6 +33,19 @@ test('platform capabilities, persistent drafts, immutable versions and review-on
   await file.saveAs(`data/browser-results/${info.project.name}-platform-review.json`);
   const exported=JSON.parse(await readFile(`data/browser-results/${info.project.name}-platform-review.json`,'utf8'));
   expect(exported.machineExecution).toBe(false);expect(exported.expertApproval).toBe('not_approved');expect(exported.record.calculation.totalMinor).toBe(12500);
+  await card.getByRole('button',{name:'Kopyala',exact:true}).click();
+  await expect(dialog.getByLabel('Dosya adı',{exact:true})).toHaveValue(name+' · Kopya');
+  await expect(dialog.getByLabel('Diğer maliyet',{exact:true})).toHaveValue('5');
+  await dialog.getByText('Gelir ve duyarlılık varsayımı',{exact:true}).click();
+  await dialog.getByLabel('Varsayılan satış miktarı (kg)').fill('20');
+  await dialog.getByLabel('Varsayılan satış fiyatı / kg').fill('20');
+  await dialog.getByLabel('Gelir değişimi (%)').fill('10');
+  await dialog.getByLabel('Miktar ve fiyat kaynağı').fill('Explicit test quotation');
+  await dialog.getByRole('button',{name:'Dosyayı kaydet'}).click();
+  await expect(dialog).toHaveCount(0);
+  await navigate(page,'Ekonomik karşılaştırma');
+  await expect(page.getByRole('rowheader',{name:name+' · Kopya',exact:true})).toBeVisible();
+  await expect(page.getByText('Varsayımsal net etki',{exact:true})).toBeVisible();
   await page.screenshot({path:`data/browser-results/${info.project.name}-scenario.png`,fullPage:true});
 
   const draftCases: Array<{title:string;button:string;name:string;values:Record<string,string>}> = [

@@ -1,5 +1,7 @@
 # İlk veri bağlantıları
 
+Gerçek HLS, Landsat, radar, Sentinel‑2 ve meteoroloji doğrulamaları [güncel kabul kaydında](MASTER_COMPLETION.md).
+
 31 Ekim 2026 durumu: Esri uydu altlığı ve Photon yer araması etkin; Copernicus ve NASA/Earthdata gerçek servis istekleriyle doğrulandı. Anahtarlar kaynak koda veya tarayıcıya koyulmaz; sunucu ortam değişkenleri kullanılır. Güncel kapsam ve eksikler için [uydu belgesini](SATELLITE.md) ve [doğrulama kaydını](VERIFICATION.md) okuyun.
 
 1. **Copernicus Data Space / Sentinel Hub**: Sentinel-2 görüntülerine erişim için OAuth client ID ve client secret. Önce tarla GeoJSON sınırı ve tarih aralığı gerekli. NDVI, NDRE ve su göstergeleri ilgili bantlar ve kalite maskeleriyle ayrı doğrulanacak. Sentinel-1 SAR ileri aşamada değerlendirilecek; radar doğrudan toprak nem ölçümü diye sunulmayacak.

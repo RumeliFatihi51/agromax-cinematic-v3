@@ -20,7 +20,10 @@ import { selectionSchema } from "./model";
 import { createReport } from "../reports/service";
 import { reserveUsage, settleUsage } from "../usage/service";
 import { geometryHash } from "../../server/analysis-jobs.js";
-import { fieldClaims } from "../intelligence/claims";
+import { fieldClaims, publishProjectedClaims } from "../intelligence/claims";
+import { scopedWorkspaceFiles } from "../records/workspace-files";
+import { sensorMetrics } from "../../shared/field-observations.js";
+import type { RuntimeOptions } from "../core/api";
 
 export async function fieldFacts(
   db: CommercialDb,
@@ -47,6 +50,13 @@ export async function fieldFacts(
       kind: field.geometry ? "calculated" : "user_statement",
       observedAt: null,
       geometryVersion: geometryHash(field.geometry),
+    });
+  const version = geometryHash(field.geometry);
+  if (field.crop || field.sowingDate)
+    facts.push({
+      id: "field-crop", source: `record:${field.id}`, kind: "user_statement",
+      text: `${t("Ürün ve ekim", "Crop and sowing")}: ${field.crop || t("Ürün kaydı yok", "No crop recorded")} · ${field.sowingDate || t("Ekim tarihi yok", "No sowing date")}`,
+      observedAt: field.sowingDate || null, geometryVersion: version,
     });
   const records = await db
     .select()
@@ -128,9 +138,28 @@ export async function fieldFacts(
       });
     }
   }
-  const version = geometryHash(field.geometry);
-  const claims = ctx.actor.authentication === "legacy-session" ? [] :
-    await fieldClaims(db, ctx.organization.id, fieldId, 12);
+  const files = await scopedWorkspaceFiles(db, ctx, fieldId, version);
+  for (const kind of ["scenario", "investigation", "prescription", "observation"]) {
+    for (const file of files.filter(file => file.kind === kind).slice(0, 3)) {
+      const p = file.payload;
+      const reading = p.measurement || p.sensor;
+      const measurement = reading ? ` · ${reading.value} ${sensorMetrics[reading.metric as keyof typeof sensorMetrics]?.unit || ""}` : "";
+      const text = file.calculation
+        ? `${t("Maliyet senaryosu", "Cost scenario")}: ${file.name} · ${file.calculation.totalMinor / 100} ${file.calculation.currency}`
+        : kind === "prescription"
+          ? `${t("Reçete taslağı", "Prescription draft")}: ${file.name} · ${p.rate} ${p.unit} · ${t("uzman onayı yok", "no expert approval")}`
+          : kind === "investigation"
+            ? `${t("Saha incelemesi", "Field investigation")}: ${file.name} · ${p.region}${measurement}${p.result ? " · " + p.result.slice(0, 350) : ""}`
+            : `${t("Saha gözlemi", "Field observation")}: ${file.name}${measurement} · ${p.notes.slice(0, 350)}`;
+      facts.push({
+        id: `workspace-${file.id}`, text, source: `record:${file.id}:v${file.version}`,
+        kind: file.calculation ? "calculated" : "user_statement",
+        observedAt: p.observedAt || p.visitedAt || null, geometryVersion: version,
+      });
+    }
+  }
+  if (ctx.actor.authentication === "legacy-session") await publishProjectedClaims(db, ctx.organization.id, fieldId);
+  const claims = await fieldClaims(db, ctx.organization.id, fieldId, 12);
   for (const claim of claims) {
     if (claim.geometryVersion !== version) continue;
     const evidence = claim.evidence;
@@ -184,6 +213,7 @@ export async function answerQuestion(
   key: string,
   model: ModelAdapter | undefined,
   enforceQuota: boolean,
+  parcelForecast?: RuntimeOptions["parcelForecast"],
 ) {
   const data = z
     .object({
@@ -205,6 +235,27 @@ export async function answerQuestion(
     );
   const facts = await fieldFacts(db, ctx, data.fieldId, data.locale),
     id = uid();
+  if (parcelForecast && /(?:hava|yağış|sıcaklık|rüzg[aâ]r|don|meteoroloji|weather|rain|temperature|wind|frost)/iu.test(data.question)) {
+    try {
+      const forecast = await parcelForecast(data.fieldId);
+      const next = forecast.points.find(point => Date.parse(point.time) >= Date.now() &&
+        Number.isFinite(point.values.air_temperature));
+      if (next) {
+        const units = [["air_temperature", "°C"], ["relative_humidity", "%"], ["wind_speed", "m/s"]] as const;
+        const values = units.flatMap(([metric, unit]) =>
+          Number.isFinite(next.values[metric]) ? [`${metric}: ${next.values[metric]} ${unit}`] : []);
+        const rain = next.periods.find(period => Number.isFinite(period.values.precipitation_amount));
+        if (rain) values.push(`precipitation_amount (${rain.hours} h): ${rain.values.precipitation_amount} mm`);
+        facts.push({
+          id: "parcel-weather", kind: "forecast", source: forecast.source,
+          text: `${data.locale === "tr" ? "Parsel için model tahmini" : "Parcel model forecast"} · ${next.time} · ${values.join(" · ")}`,
+          observedAt: next.time, methodVersion: forecast.method,
+        });
+      }
+    } catch {
+      // The parcel's other sources remain available when forecast retrieval fails.
+    }
+  }
   const request = await db.transaction(async (tx) => {
     await tx
       .select({ id: organizations.id })
@@ -258,7 +309,16 @@ export async function answerQuestion(
       .returning();
     return row!;
   });
-  if (request.answer) return request.answer;
+  if (request.answer) {
+    const cited = Array.isArray(request.answer.facts) ? request.answer.facts as Fact[] : [];
+    if (cited.some(previous => !facts.some(current =>
+      current.id === previous.id && current.source === previous.source &&
+      current.geometryVersion === previous.geometryVersion && current.text === previous.text
+    ))) throw new DomainError(
+      "SOURCES_CHANGED", "Bu yanıtın kaynakları değişti. Soruyu yeniden gönderin.", 409,
+    );
+    return request.answer;
+  }
   if (request.id !== id)
     throw new DomainError(
       "REQUEST_PENDING",

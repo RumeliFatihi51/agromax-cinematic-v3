@@ -1,5 +1,7 @@
 # Mevcut hesaplarla çalışma alanı · 4 Kasım 2026
 
+Bu belge ilk yayının kaydıdır. Son çalışma ağacında Filiz modeli, çok kaynaklı uydu, gözlemsel iddia ve rapor değişiklikleri [güncel üretim kabul kaydında](MASTER_COMPLETION.md) izlenir.
+
 `AGROMAX_WORKSPACE_ENABLED=true`, mevcut oturum ve parsel API'lerini koruyarak
 sezon/saha, maliyet, PDF raporu, hesap/tercih/oturum ekranları ve kaynaklı Filiz
 rehberini açar. Üretim `vercel.json` ile çalışır; tam Nitro/Better Auth cutover'ı değildir.

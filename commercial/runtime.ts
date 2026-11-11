@@ -24,6 +24,8 @@ export function getApplication() {
         await start(reportWorkflow, [id]);
       },
       assistantModel: configuredAssistantModel(),
+      rateLimit: !(!process.env.VERCEL && new URL(baseURL).hostname === "127.0.0.1" &&
+        process.env.AGROMAX_ISOLATED_BROWSER_FIXTURE === "true"),
       enforceQuota: process.env.VERCEL
         ? true
         : process.env.AGROMAX_ENFORCE_QUOTAS !== "false",

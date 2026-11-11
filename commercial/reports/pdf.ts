@@ -211,6 +211,24 @@ export async function renderReport(
       "Satellite indices are spectral calculations; they are not direct soil moisture, fertilizer dosage, disease diagnosis or yield measurements.",
     ),
   );
+  const supplementary = Object.values(snapshot.analysis.report?.supplementary || {});
+  if (supplementary.length) {
+    heading(t("Tamamlayıcı uydu gözlemleri", "Supplementary satellite observations"));
+    for (const source of supplementary) {
+      line([source.source, source.date, source.sceneId, source.method].filter(Boolean).join(" | "));
+      if (source.state !== "available")
+        line(source.state === "empty" ? t("Geçerli örnek yok.", "No valid samples.") :
+          source.state === "rate_limited" ? t("Sağlayıcı istek sınırı.", "Provider rate limit.") : t("Veri alınamadı.", "Data unavailable."));
+      for (const [metric, stat] of Object.entries(source.metrics || {}))
+        line(`${metric} | ${number(stat.mean)} ${stat.unit} | ${t("Geçerli kapsam", "Valid coverage")} ${number(stat.coverage * 100)}%`);
+    }
+  }
+  const interpretation = snapshot.analysis.report?.interpretation;
+  if (interpretation) {
+    heading(t("Filiz yorum özeti", "Filiz interpretation summary"));
+    line(interpretation.overview);
+    line(`${t("Model", "Model")}: ${interpretation.model}`);
+  }
   heading(t("Saha ve uygulama kayıtları", "Field and application records"));
   if (!snapshot.records.length)
     line(
@@ -253,6 +271,16 @@ export async function renderReport(
       nitrogenPercent: ["Azot (%)", "Nitrogen (%)"],
       phosphorusPercent: ["Fosfor (%)", "Phosphorus (%)"],
       potassiumPercent: ["Potasyum (%)", "Potassium (%)"],
+      observedAt: ["Gözlem tarihi", "Observation date"],
+      visitedAt: ["Saha tarihi", "Visit date"],
+      analysisId: ["İlişkili analiz", "Related analysis"],
+      result: ["İnceleme sonucu", "Investigation result"],
+      region: ["Kontrol bölgesi", "Investigation area"],
+      requestedData: ["İstenen veri", "Requested data"],
+      assumptions: ["Senaryo varsayımları", "Scenario assumptions"],
+      strategy: ["Strateji", "Strategy"],
+      rate: ["Taslak uygulama oranı", "Draft application rate"],
+      scope: ["Kapsam", "Scope"],
     };
     if (
       typeof record.data.amountMinor === "number" &&

@@ -366,7 +366,8 @@ export default function App() {
       canWrite={!activeWorkspace || activeWorkspace.role !== "viewer"}
       waterBalance={commercial?.capabilities?.waterBalance}
       claimsEnabled={commercial?.capabilities?.claims}
-      canCalculate={!!user.emailVerified && activeWorkspace?.role !== "viewer"}
+      canCalculate={activeWorkspace?.role !== "viewer" &&
+        (!!user.emailVerified || commercial?.capabilities?.workspaceMode === "existing-account")}
       offline={commercial?.capabilities?.offlineNotes && activeWorkspace && activeWorkspace.role !== "viewer"
         ? { userId: user.id, organizationId: activeWorkspace.id, tasks }
         : null}

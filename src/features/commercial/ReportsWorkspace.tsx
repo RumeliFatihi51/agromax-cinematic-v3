@@ -122,12 +122,13 @@ export default function ReportsWorkspace({
       setError(e instanceof Error ? e.message : "Request failed");
     }
   }
-  async function download(id: string) {
+  async function download(id: string, format: "pdf" | "csv" | "json" = "pdf") {
     setDownloadNotice("");
     setBusy(true);
     setError("");
     try {
-      const { url } = await api(`v1/reports/${id}/download-link`, {});
+      const { url } = format === "pdf" ? await api(`v1/reports/${id}/download-link`, {}) :
+        { url: `/api/v1/reports/${id}/export?format=${format}` };
       const response = await fetch(url, {
         credentials: "same-origin",
         headers: { "X-Organization-ID": organizationId },
@@ -139,9 +140,9 @@ export default function ReportsWorkspace({
       const link = URL.createObjectURL(await response.blob());
       const a = document.createElement("a");
       a.href = link;
-      a.download = `agromax-parsel-raporu-${id}.pdf`;
+      a.download = `agromax-parsel-raporu-${id}.${format}`;
       a.click();
-      setDownloadNotice(t("PDF raporu tarayıcıya gönderildi.", "The PDF report was sent to your browser."));
+      setDownloadNotice(t(`${format.toUpperCase()} raporu tarayıcıya gönderildi.`, `The ${format.toUpperCase()} report was sent to your browser.`));
       setTimeout(() => URL.revokeObjectURL(link), 1000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed");
@@ -311,6 +312,10 @@ export default function ReportsWorkspace({
             <div><dt>{t("Kaynak ve yöntem", "Source and method")}</dt><dd>{preview.snapshot.analysis.source} · {preview.snapshot.analysis.method}</dd></div>
             <div><dt>{t("Geometri sürümü", "Geometry version")}</dt><dd>{preview.snapshot.geometryVersion}</dd></div>
           </dl>
+          <div className="px-actions">
+            <button className="secondary" disabled={busy} onClick={() => download(preview.id, "csv")}><Download size={15} /> {t("CSV indir", "Download CSV")}</button>
+            <button className="secondary" disabled={busy} onClick={() => download(preview.id, "json")}><Download size={15} /> {t("JSON indir", "Download JSON")}</button>
+          </div>
           <div className="business-table-scroll">
             <table className="business-table">
               <thead>
@@ -350,8 +355,8 @@ export default function ReportsWorkspace({
         <ShieldCheck size={18} />
         <p>
           {t(
-            "Rapor dosyaları özeldir. İndirme bağlantıları 5 dakika geçerlidir ve oturum/işletme yetkisi gerektirir.",
-            "Report files are private. Download links expire in 5 minutes and require an authorized session and workspace membership.",
+            "Rapor dosyaları oturum ve işletme yetkisi gerektirir. PDF indirme bağlantısı 5 dakika geçerlidir.",
+            "Report files require a session and workspace membership. PDF download links expire in 5 minutes.",
           )}
         </p>
       </aside>

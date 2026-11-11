@@ -11,8 +11,9 @@ import { legacyDomainAdapter, type Store } from "./db/store";
 import { requirePermission, type Context } from "./organizations/service";
 import { DomainError } from "./core/errors";
 import { queueAnalysis, cancelAnalysis } from "./analyses/service";
-import { and, eq, desc } from "drizzle-orm";
-import { farmNotifications, notificationReceipts } from "./db/schema";
+import { and, eq, desc, inArray } from "drizzle-orm";
+import { farmNotifications, notificationReceipts, auditLog } from "./db/schema";
+import { ownField } from "./records/service";
 import { saveField } from "./fields/service";
 import { identifier } from "../shared/contracts/commercial";
 import { satelliteStatus } from "../server/satellite.js";
@@ -68,6 +69,7 @@ export async function createCompatibility(
   };
   return {
     jobs,
+    forecast: (organizationId: string, fieldId: string) => weather.forecast(organizationId, fieldId),
     evidenceBundle: (context: Context, fieldId: string) =>
       extendedEvidenceBundle(store.db, context, fieldId, platform.bundle),
     async handle(
@@ -106,6 +108,19 @@ export async function createCompatibility(
         email: ctx.actor.email,
       };
       const req = { url: path + url.search, method };
+      const revisionRoute = path.match(/^\/api\/records\/([a-f0-9]{32})\/revisions$/);
+      if (revisionRoute && method === "GET") {
+        requirePermission(ctx, "read");
+        const field = await ownField(store.db, ctx, revisionRoute[1]!);
+        const entries = await store.db.select().from(auditLog).where(and(
+          eq(auditLog.organizationId, ctx.organization.id), eq(auditLog.resourceId, field.id),
+          inArray(auditLog.action, ["field.created", "field.update", "field.delete", "field.restore"]),
+        )).orderBy(desc(auditLog.createdAt), desc(auditLog.id)).limit(100);
+        return Response.json({ revisions: entries.flatMap(entry => entry.details ? [{
+          version: entry.details.version, action: entry.action.slice(6),
+          geometryVersion: entry.details.geometryVersion, changedAt: entry.createdAt,
+        }] : []).sort((a, b) => Number(b.version) - Number(a.version)) });
+      }
       if (path === "/api/records" && method === "POST" && body.kind === "field")
         return Response.json(
           await saveField(store.db, ctx, body, options.enforceQuota ?? true),

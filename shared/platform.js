@@ -21,6 +21,7 @@ export const sourceAdapters = [
   { id:'sentinel2', name:'Sentinel-2 L2A', state:'configured', detail:'Mevcut parsel analiz kuyruğu. Bağlantı ayarı, doğrulanmış yeni veri anlamına gelmez.', docs:'https://documentation.dataspace.copernicus.eu/APIs.html' },
   { id:'sentinel1', name:'Sentinel-1', state:'planned', detail:'Radar işleme ve doğrulama adaptörü hazırlanacak.', docs:'https://documentation.dataspace.copernicus.eu/APIs.html' },
   { id:'landsat', name:'Landsat', state:'planned', detail:'Ayrı işleme, kalite maskesi ve dönem uyumlama adaptörü gerekli.', docs:'https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products' },
+  { id:'hls', name:'NASA HLS L30 / S30', state:'planned', detail:'NASA HLS v2.0 parsel istatistikleri mevcut hesap çalışma alanında uydu raporuna eklenir.', docs:'https://hls.gsfc.nasa.gov/data-products/' },
   { id:'commercial', name:'Ticari yüksek çözünürlük', state:'planned', detail:'Sağlayıcı seçimi, lisans ve erişim sözleşmesi gerekli.' },
 ];
 export const droneAdapters = [

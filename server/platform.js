@@ -8,6 +8,8 @@ import { geometryHash } from './analysis-jobs.js';
 import { availableMetrics } from '../shared/metrics.js';
 import { validateManagementZones } from './management-zones.js';
 import { containsPoint } from '../shared/spatial.js';
+import { fieldConsistency } from './field-consistency.js';
+import area from '@turf/area';
 const fail=(message,status=400)=>Object.assign(new Error(message),{status});
 const stamp=()=>new Date().toISOString();
 const id=()=>randomBytes(16).toString('hex');
@@ -27,7 +29,17 @@ export async function createPlatformService(db, { ownership = 'account_private' 
   }
   function publicRecord(row) {
     const body=JSON.parse(row.body);
-    return {id:row.id,fieldId:row.field_id,kind:row.kind,name:row.name,status:row.status,version:row.version,createdAt:row.created_at,updatedAt:row.updated_at,...body,...(row.kind==='scenario'?{calculation:scenarioTotals(body.payload)}:{})};
+    const record = {id:row.id,fieldId:row.field_id,kind:row.kind,name:row.name,status:row.status,version:row.version,createdAt:row.created_at,updatedAt:row.updated_at,...body};
+    if (row.kind === 'scenario') record.calculation = scenarioTotals(body.payload);
+    if (row.kind === 'prescription' && body.payload.zones?.length) {
+      const zones = body.payload.zones.map(zone => {
+        const hectares = area(zone.geometry) / 10000;
+        return { name: zone.name, hectares, quantity: hectares * zone.rate };
+      });
+      record.calculation = { zones, quantity: zones.reduce((total, zone) => total + zone.quantity, 0),
+        unit: body.payload.application === 'irrigation' ? 'm³' : 'kg' };
+    }
+    return record;
   }
   async function records(userId,fieldId) {
     await ownField(db,userId,fieldId);
@@ -43,9 +55,14 @@ export async function createPlatformService(db, { ownership = 'account_private' 
         try { validateManagementZones(value.payload.zones, field.geometry); }
         catch (error) { throw fail(error.message); }
       }
-      if (value.kind === 'observation' && value.payload.coordinate &&
+      if (['observation', 'investigation'].includes(value.kind) && value.payload.coordinate &&
           (!field.geometry || !containsPoint(field.geometry, value.payload.coordinate)))
-        throw fail('Gözlem noktası kayıtlı parsel sınırının içinde olmalı.');
+        throw fail('Saha noktası kayıtlı parsel sınırının içinde olmalı.');
+      if (value.kind === 'investigation' && value.payload.analysisId) {
+        const source = await tx.prepare("SELECT id FROM analysis_jobs WHERE id=? AND user_id=? AND field_id=? AND state='completed' AND geometry_hash=? AND result IS NOT NULL")
+          .get(value.payload.analysisId, userId, value.fieldId, geometryHash(field.geometry));
+        if (!source) throw fail('Bu parselin güncel sınırına bağlı tamamlanmış analiz bulunamadı.', 404);
+      }
       const existing=recordId?await tx.prepare('SELECT * FROM platform_records WHERE id=? AND user_id=?').get(recordId,userId):null;
       if(recordId&&!existing) throw fail('Dosya bulunamadı.',404);
       if(existing&&(existing.field_id!==value.fieldId||existing.kind!==value.kind)) throw fail('Dosyanın parseli veya türü değiştirilemez.');
@@ -67,17 +84,19 @@ export async function createPlatformService(db, { ownership = 'account_private' 
   }
   async function fieldContext(userId,fieldId) {
     const field=await ownField(db,userId,fieldId),hash=geometryHash(field.geometry);
-    const rows=await db.prepare('SELECT id,state,created_at,finished_at,geometry_hash,result,error FROM analysis_jobs WHERE user_id=? AND field_id=? ORDER BY created_at DESC LIMIT 50').all(userId,fieldId);
-    const latest=rows.find(row=>row.state==='completed'&&row.geometry_hash===hash&&row.result);
-    const analysis=latest?JSON.parse(latest.result):null;
+    const rows=await db.prepare('SELECT id,state,created_at,finished_at,geometry_hash,result,error FROM analysis_jobs WHERE user_id=? AND field_id=? ORDER BY created_at DESC,id DESC LIMIT 50').all(userId,fieldId);
+    const history = rows.map(row => ({ ...row, analysis: row.result ? JSON.parse(row.result) : null }));
+    const comparable = history.filter(row => row.state === 'completed' && row.geometry_hash === hash && row.analysis);
+    const latest = comparable[0], analysis = latest?.analysis;
     const issues=[];
     if(!field.geometry) issues.push({code:'boundary_missing',level:'review',title:'Parsel sınırı eksik',detail:'Konuma bağlı analiz için sınır çizilmeli.',action:'fields'});
     if(!field.crop) issues.push({code:'crop_missing',level:'info',title:'Ürün bilgisi eksik',detail:'Ürün ve sezon yorumu için saha kaydını tamamlayın.',action:'fields'});
     if(!analysis) issues.push({code:'observation_missing',level:'review',title:'Güncel sınır için tamamlanmış analiz yok',detail:'Uydu değerlendirmesi henüz yapılamaz.',action:'fields'});
     if(rows.some(row=>row.state==='completed'&&row.geometry_hash!==hash)) issues.push({code:'geometry_changed',level:'review',title:'Farklı parsel sınırıyla alınmış gözlemler var',detail:'Bu kayıtlar mevcut alanla eşdeğer kabul edilmez; tarihçede saklanır.',action:'history'});
-    if(rows[0]?.state==='failed') issues.push({code:'analysis_failed',level:'review',title:'Son analiz tamamlanamadı',detail:'Yeni sonuç varmış gibi değerlendirme yapılmaz.',action:'history'});
+    const saved = await records(userId, fieldId);
+    issues.push(...fieldConsistency(field, hash, rows, comparable, saved));
     const comparison=Object.entries(analysis?.comparison||{}).filter(([,item])=>item&&Number.isFinite(item.current?.mean)&&Number.isFinite(item.previous?.mean)).map(([metric,item])=>({metric,current:item.current.mean,previous:item.previous.mean,delta:item.current.mean-item.previous.mean,currentCoverage:item.current.meanCoverage??null,previousCoverage:item.previous.meanCoverage??null}));
-    return {field,geometryHash:hash,generatedAt:stamp(),issues,comparison,latestAnalysis:analysis?{id:latest.id,source:analysis.source,method:analysis.method,range:analysis.range,fetchedAt:analysis.fetchedAt,observationCount:analysis.observations?.length||0,minimumCoverage:analysis.minimumCoverage}:null,history:rows.map(row=>{const value=row.result?JSON.parse(row.result):null;return {id:row.id,state:row.state,createdAt:row.created_at,finishedAt:row.finished_at,geometryHash:row.geometry_hash,comparable:row.geometry_hash===hash,source:value?.source||null,range:value?.range||null,observationCount:value?.observations?.length||0,error:row.error||null};}),limitations:['Parsel özeti, kalibre edilmiş tarımsal simülasyon modeli değildir.','İndeks değişimi gözlemseldir; müdahalenin etkisini veya hastalık nedenini kanıtlamaz.','Eksik ölçümler sıfır kabul edilmez.']};
+    return {field,geometryHash:hash,generatedAt:stamp(),issues,comparison,latestAnalysis:analysis?{id:latest.id,source:analysis.source,method:analysis.method,range:analysis.range,fetchedAt:analysis.fetchedAt,observationCount:analysis.observations?.length||0,minimumCoverage:analysis.minimumCoverage}:null,history:history.map(({ analysis: value, ...row })=>({id:row.id,state:row.state,createdAt:row.created_at,finishedAt:row.finished_at,geometryHash:row.geometry_hash,comparable:row.geometry_hash===hash,source:value?.source||null,range:value?.range||null,observationCount:value?.observations?.length||0,error:row.error||null})),limitations:['Parsel özeti, kalibre edilmiş tarımsal simülasyon modeli değildir.','İndeks değişimi gözlemseldir; müdahalenin etkisini veya hastalık nedenini kanıtlamaz.','Eksik ölçümler sıfır kabul edilmez.']};
   }
   async function spatialCatalog(userId, fieldId) {
     const field = await ownField(db, userId, fieldId);
@@ -156,6 +175,11 @@ export async function createPlatformService(db, { ownership = 'account_private' 
           if (ownership === 'organization' && source.id === 'landsat')
             return {...source, state:process.env.AGROMAX_LANDSAT_AWS_ENABLED === 'true'?'configured':'catalog',
               detail:'USGS kataloğunda yüzey yansıtımı ve sıcaklığı. Piksel işlemesi için yetkili COG erişimi gerekir.'};
+          if (ownership === 'account_private' && process.env.AGROMAX_WORKSPACE_ENABLED === 'true') {
+            if (source.id === 'sentinel1') return {...source, state:'configured', detail:'Uydu raporunda Sentinel-1 RTC parsel örnekleri ve VV/VH geri saçılımı.'};
+            if (source.id === 'landsat') return {...source, state:'configured', detail:'Uydu raporunda Collection 2 Level-2 yansıtım, indeks ve mevcutsa yüzey sıcaklığı.'};
+            if (source.id === 'hls') return {...source, state:'configured', detail:'Uydu raporunda Fmask ile elenen piksellerin dışındaki NASA L30 ve S30 yüzey yansıtımı ve indeksler.'};
+          }
           return source;
         });
         reply(200,{schemaVersion:1,features:platformFeatures,sources,drones:droneAdapters,counts:Object.fromEntries(counts.map(row=>[row.kind,Number(row.count)])),capabilities:{predictiveTwin:false,aiAnomalyModel:false,machinePrescription:false,certifiedMrv:false,draftPersistence:true,scenarioArithmetic:true},ownership});return true;

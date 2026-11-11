@@ -1,5 +1,7 @@
 ﻿# AgroMax platform foundation — 7 November 2026
 
+This is the foundation release record. See the [current implementation and verification matrix](MASTER_COMPLETION.md) for the latest provider, account bridge and module behavior.
+
 The 14 requested capabilities have dedicated catalog entries, grouped navigation and explicit runtime scope. The platform is available to existing accounts without replacing login, fields or satellite history.
 
 | Capability | Available in this release | Next dependency |

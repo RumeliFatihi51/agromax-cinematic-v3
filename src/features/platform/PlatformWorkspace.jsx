@@ -13,6 +13,7 @@ import WaterBalance from './WaterBalance';
 import TemporalStudio from './TemporalStudio';
 import ClaimsPanel from './ClaimsPanel';
 import OfflineTools from './OfflineTools';
+import TwinInputs from './TwinInputs';
 import './platform.css';
 const SpatialWorkbench = lazy(() => import('../spatial/SpatialWorkbench'));
 const SpatialAtlas = lazy(() => import('../spatial/SpatialAtlas'));
@@ -117,9 +118,9 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
             </Suspense>}
           <div className="px-main-grid" data-workspace={page}><section className="px-content">
             {page==='satellite'&&<>
-              <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>{bootstrap?.ownership==='organization'?'Parsel Analizi ekranında Sentinel-2, Sentinel-1 ve Landsat kaynakları ayrı yöntem ve kalite bilgisiyle gösterilir.':'Sentinel‑2 parsel analizi mevcut bağlantı üzerinden çalışır.'}</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
+              <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
             {page==='twin'&&<>
-              {!field.geometry && <Notice>Üç boyutlu görünüm için kayıtlı bir parsel sınırı gerekli.</Notice>}
+              <TwinInputs key={activeId+context.geometryHash} context={context} records={currentData.records} onNavigate={onNavigate} onField={()=>onSelect(field)}/>
               <Checks context={context} onNavigate={onNavigate}/>
             </>}
             {page==='evidence'&&<Evidence context={context}/>}
@@ -136,7 +137,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
                 <p>{context.latestAnalysis ? context.latestAnalysis.source + ' · ' + date(context.latestAnalysis.fetchedAt) : 'Bu sınıra bağlı tamamlanmış gözlem yok.'}</p>
               </div>
             </section>}
-            {waterBalance&&['twin','scenarios'].includes(page)&&<WaterBalance key={activeId} fieldId={activeId} canRun={canCalculate&&!!field.geometry} spatialField={page==='scenarios'&&field.geometry?field:null}/>}
+            {waterBalance&&['twin','scenarios'].includes(page)&&<WaterBalance key={activeId} fieldId={activeId} sowingDate={field.sowingDate} canRun={canCalculate&&!!field.geometry} spatialField={page==='scenarios'&&field.geometry?field:null}/>}
             {!waterBalance&&page==='scenarios'&&<Notice>Üç boyutlu etki karşılaştırması FAO-56 su dengesi modelinin bağlı olduğu çalışma alanlarında açılır. Kaynak ve maliyet kayıtları aşağıda kullanılabilir.</Notice>}
             {claimsEnabled&&['evidence','contradictions','investigation','intelligence'].includes(page)&&<ClaimsPanel key={activeId} fieldId={activeId} page={page} canWrite={canWrite}/>}
             {['intelligence','contradictions'].includes(page)&&<><section className="px-surface px-section"><h2>{page==='intelligence'?'İncelemeye nereden başlamalı?':'Kayıt hazırlık kontrolleri'}</h2><p>Kontroller: parsel sınırı, ürün bilgisi, güncel geometriye ait sonuç, eski sınırdaki kayıtlar ve son işlem hatası.</p><Checks context={context} onNavigate={onNavigate}/></section><Notice>{page==='intelligence'?'Yapay zekâ anomali modeli bağlı değil. Aşağıdaki işaretler açıklanabilir kayıt kurallarından gelir; hastalık veya neden teşhisi değildir.':'Bu aşama tam uydu–sensör–saha çelişki çözümlemesi değildir. İşaretlerin bulunmaması tarımsal doğruluk veya risksizlik onayı sayılmaz.'}</Notice><div className="px-actions"><button className="primary" onClick={()=>onNavigate('investigation',field.id)}>Saha incelemesi oluştur <Plus size={17}/></button><button className="secondary" onClick={()=>onNavigate('assistant',field.id)}>Filiz’i aç <ArrowUpRight size={16}/></button></div></>}
@@ -146,7 +147,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
               <div className="temporal-links">{workspaceActions}</div>
               <RecordList canWrite={canWrite} records={records} kind={kind} busy={busy} onNew={()=>setEditor({})} onEdit={setEditor} onExport={exportFile} onReview={review} onHistory={history}/>
             </>}
-            {['scenarios','economics'].includes(page)&&<><Notice>Hesaplar yalnızca girilen miktar × birim fiyat ilişkisini kullanır. Verim, bitki tepkisi, risk veya kârlılık tahmini yapılmaz. Farklı para birimleri ortak toplamda birleştirilmez.</Notice><ScenarioComparison records={records} chart={page==='economics'}/><RecordList canWrite={canWrite} records={records} kind={kind} busy={busy} onNew={()=>setEditor({})} onEdit={setEditor} onExport={exportFile} onReview={review} onHistory={history}/>{page==='economics'&&commercial&&<button className="secondary" onClick={()=>onNavigate('finance')}>Gerçek maliyet kayıtlarını aç <ArrowUpRight size={16}/></button>}</>}
+            {['scenarios','economics'].includes(page)&&<><Notice>Sonuçlar kullanıcı tarafından girilen miktar, fiyat ve gelir varsayımlarına dayanır. Her para birimi kendi ölçeğinde karşılaştırılır.</Notice><ScenarioComparison records={records} chart={page==='economics'} hectares={field.geometry ? field.area / 10 : null}/><RecordList canWrite={canWrite} records={records} kind={kind} busy={busy} onNew={()=>setEditor({})} onEdit={setEditor} onCopy={record=>setEditor({name:(record.name.slice(0,142)+' · Kopya'),payload:record.payload})} onExport={exportFile} onReview={review} onHistory={history}/>{page==='economics'&&commercial&&<button className="secondary" onClick={()=>onNavigate('finance')}>Gerçek maliyet kayıtlarını aç <ArrowUpRight size={16}/></button>}</>}
             {['prescriptions','investigation','drones'].includes(page)&&<>
               {page==='prescriptions'&&<>
                 {!field.geometry && <Notice>Yönetim bölgelerini göstermek için önce parsel sınırı kaydedin.</Notice>}
@@ -160,7 +161,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         </>}
       </>}
     </>}
-    {editor&&field&&<DraftEditor kind={kind} field={field} record={editor.id?editor:null} onClose={()=>setEditor(null)} onSaved={()=>{setEditor(null);setReload(n=>n+1);}}/>}
+    {editor&&field&&<DraftEditor kind={kind} field={field} record={editor} latestAnalysis={context?.latestAnalysis} onClose={()=>setEditor(null)} onSaved={()=>{setEditor(null);setReload(n=>n+1);}}/>}
     {revisions&&<RevisionDialog value={revisions} onClose={()=>setRevisions(null)}/>}
   </div>;
 }
@@ -192,7 +193,15 @@ function SatelliteSources({ sources }) {
 }
 
 function SourceCards({sources}) {return <section className="px-sources">{sources.map(source=><article className="px-surface" key={source.id}><header><SourceState state={source.state}/><Layers3 size={20}/></header><h2>{source.name}</h2><p>{source.detail}</p>{source.docs&&<a href={source.docs} target="_blank" rel="noreferrer">Resmî kaynak <ArrowUpRight size={14}/></a>}</article>)}</section>;}
-function Checks({context,onNavigate}) {return <div className="px-checks">{context.issues.length?context.issues.map(issue=><article key={issue.code}><Info size={18}/><div><strong>{issue.title}</strong><p>{issue.detail}</p></div><button aria-label={`${issue.title}: ilgili kaydı aç`} onClick={()=>onNavigate(issue.action,context.field.id)}><ArrowUpRight size={17}/></button></article>):<article><Check size={19}/><div><strong>Bu kayıt kontrollerinde işaret yok.</strong><p>Bu sonuç tarımsal risksizlik veya verilerin uzman tarafından onaylandığı anlamına gelmez.</p></div></article>}</div>;}
+function Checks({context,onNavigate}) {
+  const levels = { critical: 'Kritik', review: 'İnceleme', info: 'Bilgi' };
+  return <div className="px-checks">{context.issues.length ? context.issues.map(issue =>
+    <article key={issue.code + (issue.reference || '')}>
+      <Info size={18} aria-hidden="true"/><div><small>{levels[issue.level]}</small><strong>{issue.title}</strong>
+        <p>{issue.detail}</p>{issue.reference && <small title={issue.reference}>Kayıt {issue.reference.slice(0, 8)}</small>}</div>
+      <button aria-label={issue.title + ' · ilgili modülü aç'} onClick={()=>onNavigate(issue.action,context.field.id)}><ArrowUpRight size={17}/></button>
+    </article>) : <article><Check size={19}/><div><strong>Bu kayıt kontrollerinde işaret yok.</strong></div></article>}</div>;
+}
 function Evidence({ context }) {
   const { latestAnalysis, comparison } = context;
   const plotted = comparison.filter(({ delta }) => Number.isFinite(delta));
@@ -248,7 +257,7 @@ function FeatureAtlas({features, query, onNavigate}) {
   </div>;
 }
 
-function ScenarioComparison({records, chart}) {
+function ScenarioComparison({records, chart, hectares}) {
   const active = records.filter((record) => record.status !== 'archived');
   const currencies = [...new Set(active.map((record) => record.calculation.currency))];
   return <section className="px-surface px-section scenario-comparison">
@@ -269,16 +278,52 @@ function ScenarioComparison({records, chart}) {
       </figure>;
     })}</div>}
     {active.length ? <div className="px-table-wrap"><table>
-      <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Toplam</th></tr></thead>
-      <tbody>{active.map((record) => <tr key={record.id}>
+      <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Toplam</th>{chart && <><th>Hektar başına</th><th>Varsayımsal net etki</th></>}</tr></thead>
+      <tbody>{active.map((record) => {
+        const {currency, revenue, totalMinor} = record.calculation;
+        return <tr key={record.id}>
         <th scope="row">{record.name}</th><td>{num(record.payload.waterM3)}</td>
         <td>{num(record.payload.fertilizerKg)}</td><td>{num(record.payload.laborHours)}</td><td>{money(record.calculation)}</td>
-      </tr>)}</tbody>
+        {chart && <><td>{hectares > 0 ? money({currency, totalMinor:totalMinor / hectares}) : '—'}</td>
+        <td>{revenue ? <details><summary>{money({currency,totalMinor:revenue.netMinor})}</summary>
+          <p>Brüt gelir {money({currency,totalMinor:revenue.grossMinor})}</p>
+          <p>Gelir ±%{num(revenue.sensitivityPercent)} iken net aralık {money({currency,totalMinor:revenue.lowNetMinor})} – {money({currency,totalMinor:revenue.highNetMinor})}</p>
+          <p>Girdi kaynağı {revenue.source}</p></details> : 'Gelir varsayımı girilmedi'}</td></>}
+      </tr>;
+      })}</tbody>
     </table></div> : <div className="px-empty-inline">İlk senaryonu kaydettiğinde karşılaştırma burada oluşur.</div>}
     </div>
   </section>;
 }
-function RecordList({records,kind,busy,canWrite,onNew,onEdit,onExport,onReview,onHistory}) {return <section className="px-surface px-section px-records"><header><div><h2>{kindLabels[kind]} dosyaları</h2><p>{records.length} çalışma kaydı · Sürümleri sunucuda saklanır.</p></div><button className="primary" onClick={onNew} disabled={!canWrite}><Plus size={16}/> Yeni {kindLabels[kind]?.toLocaleLowerCase('tr-TR')}</button></header>{records.length?<div className="px-record-list">{records.map(record=><article key={record.id}><div><span className="px-stage stage-foundation">{statuses[record.status]}</span><small>v{record.version} · {date(record.updatedAt)}</small></div><h3>{record.name}</h3><p>{record.kind==='scenario'?`${money(record.calculation)} · ${record.payload.assumptions||'Kullanıcı girdileriyle maliyet hesabı'}`:record.kind==='investigation'?`${({low:'Düşük',normal:'Normal',high:'Yüksek'})[record.payload.priority]} öncelik · ${record.payload.region}`:record.kind==='prescription'?`${num(record.payload.rate)} ${record.payload.unit} · ${record.payload.scope}`:record.kind==='drone'?`${record.payload.vendor.toUpperCase()} · ${record.payload.model}`:record.payload.notes}</p><footer><button onClick={()=>onEdit(record)} disabled={busy||!canWrite}>Düzenle</button><button onClick={()=>onHistory(record)} disabled={busy}>Sürümler</button><button onClick={()=>onExport(record)} disabled={busy}><Download size={14}/> İnceleme dosyası</button>{record.status==='draft'&&canWrite&&<button onClick={()=>onReview(record)} disabled={busy}>İnceleme iste <ArrowUpRight size={14}/></button>}</footer></article>)}</div>:<div className="px-empty-inline">Henüz dosya yok. Yeni kayıt oluştur; alanlar, kaynak parseli ve sürüm bilgisi birlikte saklansın.</div>}</section>;}
+const investigationStates = {open:'Açık',in_progress:'Sahada',closed:'Kapandı'};
+function RecordList({records,kind,busy,canWrite,onNew,onEdit,onCopy,onExport,onReview,onHistory}) {
+  return <section className="px-surface px-section px-records">
+    <header><div><h2>{kindLabels[kind]} dosyaları</h2><p>{records.length} çalışma kaydı · Sürümleri sunucuda saklanır.</p></div>
+      <button className="primary" onClick={onNew} disabled={!canWrite}><Plus size={16}/> Yeni {kindLabels[kind]?.toLocaleLowerCase('tr-TR')}</button></header>
+    {records.length ? <div className="px-record-list">{records.map(record=>{
+      const {payload, calculation} = record;
+      const summary = kind==='scenario' ? money(calculation) + (payload.assumptions ? ' · ' + payload.assumptions : '') :
+        kind==='investigation' ? investigationStates[payload.state || 'open'] + ' · ' + payload.region :
+        kind==='prescription' ? num(payload.rate) + ' ' + payload.unit + ' · ' + payload.scope :
+        kind==='drone' ? payload.vendor.toUpperCase() + ' · ' + payload.model : payload.notes;
+      return <article key={record.id}><div><span className="px-stage stage-foundation">{statuses[record.status]}</span><small>v{record.version} · {date(record.updatedAt)}</small></div>
+        <h3>{record.name}</h3><p>{summary}</p>
+        {kind==='investigation' && (payload.result || payload.analysisId) && <details><summary>İnceleme dayanağı</summary>
+          {payload.analysisId && <p>Uydu analizi <code>{payload.analysisId}</code></p>}
+          {payload.visitedAt && <p>Saha tarihi {payload.visitedAt}</p>}
+          {payload.measurement && <p>{sensorMetrics[payload.measurement.metric].label} · {num(payload.measurement.value)} {sensorMetrics[payload.measurement.metric].unit}</p>}
+          {payload.result && <p>{payload.result}</p>}</details>}
+        {kind==='prescription' && calculation && <details><summary>Toplam {num(calculation.quantity)} {calculation.unit}</summary>
+          <ul>{calculation.zones.map((zone,index)=><li key={index}>{zone.name} · {num(zone.hectares)} ha · {num(zone.quantity)} {calculation.unit}</li>)}</ul></details>}
+        <footer><button onClick={()=>onEdit(record)} disabled={busy||!canWrite}>Düzenle</button>
+          {onCopy && <button onClick={()=>onCopy(record)} disabled={busy||!canWrite}>Kopyala</button>}
+          <button onClick={()=>onHistory(record)} disabled={busy}>Sürümler</button>
+          <button onClick={()=>onExport(record)} disabled={busy}><Download size={14}/> İnceleme dosyası</button>
+          {record.status==='draft'&&canWrite&&<button onClick={()=>onReview(record)} disabled={busy}>İnceleme iste <ArrowUpRight size={14}/></button>}</footer>
+      </article>;
+    })}</div> : <div className="px-empty-inline">Henüz dosya yok. Yeni kayıt oluşturduğunda kaynak parseli ve sürümü burada görünür.</div>}
+  </section>;
+}
 function ObservationFields({ payload, geometry }) {
   const [category, setCategory] = useState(payload.category || 'crop');
   const [metric, setMetric] = useState(payload.sensor?.metric || 'soilMoisture');
@@ -317,17 +362,44 @@ function ObservationFields({ payload, geometry }) {
     {needsPosition && <p>Konumu parselin içinden WGS84 derece olarak gir. Bu kayıt elle girilir.</p>}
   </>;
 }
-function DraftEditor({kind,field,record,onClose,onSaved}) {
+function DraftEditor({kind,field,record,latestAnalysis,onClose,onSaved}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const ref=useDialogFocus(()=>{if(!busy)onClose();});
-  const [application,setApplication]=useState(record?.payload.application||'irrigation');
+  const [application,setApplication]=useState(record.payload?.application||'irrigation');
   const p=record?.payload||{};
   async function submit(event) {
     event.preventDefault();setBusy(true);setError('');
     const form=new FormData(event.currentTarget),read=name=>String(form.get(name)||''),number=name=>Number(form.get(name));
     let payload;
-    if(kind==='scenario')payload={waterM3:number('waterM3'),waterUnitCost:number('waterUnitCost'),fertilizerKg:number('fertilizerKg'),fertilizerUnitCost:number('fertilizerUnitCost'),laborHours:number('laborHours'),laborHourlyCost:number('laborHourlyCost'),otherCost:number('otherCost'),currency:read('currency'),assumptions:read('assumptions')};
-    else if(kind==='investigation')payload={priority:read('priority'),region:read('region'),requestedData:read('requestedData'),notes:read('notes')};
+    if(kind==='scenario') {
+      payload = Object.fromEntries(['waterM3','waterUnitCost','fertilizerKg','fertilizerUnitCost','laborHours',
+        'laborHourlyCost','otherCost','energyKwh','energyUnitCost','equipmentHours','equipmentHourlyCost'].map(name => [name, number(name)]));
+      Object.assign(payload, {currency:read('currency'),assumptions:read('assumptions'),strategy:read('strategy') || undefined});
+      if (['quantityKg','unitPrice','revenueSource','sensitivityPercent'].some(name => read(name))) {
+        if (!['quantityKg','unitPrice','revenueSource','sensitivityPercent'].every(name => read(name).trim())) {
+          setError('Gelir hesabı için miktar, fiyat, kaynak ve duyarlılık girin.');setBusy(false);return;
+        }
+        payload.revenue = {quantityKg:number('quantityKg'),unitPrice:number('unitPrice'),
+          source:read('revenueSource'),sensitivityPercent:number('sensitivityPercent')};
+      }
+    }
+    else if(kind==='investigation') {
+      payload = {priority:read('priority'),region:read('region'),requestedData:read('requestedData'),notes:read('notes'),
+        state:read('state'),result:read('result').trim() || undefined,visitedAt:read('visitedAt') || undefined,
+        analysisId:read('analysisId') || undefined};
+      if (read('longitude') || read('latitude')) {
+        if (!read('longitude') || !read('latitude')) {
+          setError('Konum için enlem ve boylamı birlikte girin.');setBusy(false);return;
+        }
+        payload.coordinate = [number('longitude'), number('latitude')];
+      }
+      if (read('device') || read('reading')) {
+        if (!read('device').trim() || !read('reading')) {
+          setError('Ölçüm için cihaz adı ve değer girin.');setBusy(false);return;
+        }
+        payload.measurement = { device:read('device'), metric:read('metric'), value:number('reading') };
+      }
+    }
     else if(kind==='prescription'){
       payload={application,rate:number('rate'),unit:application==='irrigation'?'m3/ha':'kg/ha',scope:read('scope'),notes:read('notes')};
       const zones=read('zones').trim();
@@ -356,13 +428,50 @@ function DraftEditor({kind,field,record,onClose,onSaved}) {
         payload.sensor = { device: read('device'), metric: read('metric'), value: number('reading') };
       if (payload.category === 'irrigation') payload.asset = read('asset');
     }
-    try{await api(record?`platform/records/${record.id}`:'platform/records',{fieldId:field.id,kind,name:read('name'),payload,status:record?.status||'draft',...(record?{version:record.version}:{})},record?'PATCH':'POST');onSaved();}catch(e){setError(e.message);}finally{setBusy(false);}
+    try{await api(record.id?`platform/records/${record.id}`:'platform/records',{fieldId:field.id,kind,name:read('name'),payload,status:record.status||'draft',...(record.id?{version:record.version}:{})},record.id?'PATCH':'POST');onSaved();}catch(e){setError(e.message);}finally{setBusy(false);}
   }
   const amount=(name,label)=><label key={name}>{label}<input name={name} type="number" min="0" max="100000000" step="any" defaultValue={p[name]??0} required/></label>;
   const text=(name,label,required=true)=><label key={name}>{label}<textarea name={name} defaultValue={p[name]||''} required={required} maxLength={name==='notes'&&kind==='observation'?4000:2000}/></label>;
-  return <div className="modal-backdrop"><section ref={ref} className="px-editor" role="dialog" aria-modal="true" aria-labelledby="platform-editor-title"><header><div><span className="px-kicker">{field.name}</span><h2 id="platform-editor-title">{record?'Dosyayı düzenle':`Yeni ${kindLabels[kind]?.toLocaleLowerCase('tr-TR')}`}</h2></div><button aria-label="Dosya düzenleyicisini kapat" onClick={onClose} disabled={busy}><X size={21}/></button></header><form onSubmit={submit}><label>Dosya adı<input name="name" defaultValue={record?.name||''} required maxLength={150}/></label>
-    {kind==='scenario'&&<><div className="px-form-grid">{amount('waterM3','Su miktarı (m³)')}{amount('waterUnitCost','Su birim fiyatı / m³')}{amount('fertilizerKg','Gübre miktarı (kg)')}{amount('fertilizerUnitCost','Gübre birim fiyatı / kg')}{amount('laborHours','İşçilik (saat)')}{amount('laborHourlyCost','İşçilik saat ücreti')}{amount('otherCost','Diğer maliyet')}<label>Para birimi<select name="currency" defaultValue={p.currency||'TRY'}><option>TRY</option><option>EUR</option><option>USD</option></select></label></div>{text('assumptions','Varsayımlar ve açıklama',false)}<Notice>Sonuç yalnızca maliyet aritmetiğidir. Verim ve risk simülasyonu yapılmaz.</Notice></>}
-    {kind==='investigation'&&<><label>Öncelik<select name="priority" defaultValue={p.priority||'normal'}><option value="low">Düşük</option><option value="normal">Normal</option><option value="high">Yüksek</option></select></label>{text('region','Kontrol edilecek bölge')}{text('requestedData','İstenen veri veya saha kontrolü')}{text('notes','İnceleme notu',false)}</>}
+  return <div className="modal-backdrop"><section ref={ref} className="px-editor" role="dialog" aria-modal="true" aria-labelledby="platform-editor-title"><header><div><span className="px-kicker">{field.name}</span><h2 id="platform-editor-title">{record.id?'Dosyayı düzenle':`Yeni ${kindLabels[kind]?.toLocaleLowerCase('tr-TR')}`}</h2></div><button aria-label="Dosya düzenleyicisini kapat" onClick={onClose} disabled={busy}><X size={21}/></button></header><form onSubmit={submit}><label>Dosya adı<input name="name" defaultValue={record.name||''} required maxLength={150}/></label>
+    {kind==='scenario'&&<>
+      <label>Strateji<select name="strategy" defaultValue={p.strategy || ''}>
+        <option value="">Belirtilmedi</option><option value="irrigation">Sulama</option><option value="fertilization">Gübreleme</option>
+        <option value="drought">Kuraklık</option><option value="weather">Hava koşulları</option><option value="management">Yönetim</option>
+      </select></label>
+      <div className="px-form-grid">{amount('waterM3','Su miktarı (m³)')}{amount('waterUnitCost','Su birim fiyatı / m³')}{amount('fertilizerKg','Gübre miktarı (kg)')}{amount('fertilizerUnitCost','Gübre birim fiyatı / kg')}{amount('laborHours','İşçilik (saat)')}{amount('laborHourlyCost','İşçilik saat ücreti')}{amount('otherCost','Diğer maliyet')}<label>Para birimi<select name="currency" defaultValue={p.currency||'TRY'}><option>TRY</option><option>EUR</option><option>USD</option></select></label></div>
+      <details open={Boolean(p.energyKwh || p.equipmentHours)}><summary>Enerji ve ekipman</summary><div className="px-form-grid">
+        {amount('energyKwh','Enerji (kWh)')}{amount('energyUnitCost','Enerji birim fiyatı / kWh')}
+        {amount('equipmentHours','Ekipman (saat)')}{amount('equipmentHourlyCost','Ekipman saat ücreti')}
+      </div></details>
+      <details open={Boolean(p.revenue)}><summary>Gelir ve duyarlılık varsayımı</summary><div className="px-form-grid">
+        <label>Varsayılan satış miktarı (kg)<input name="quantityKg" type="number" min="0" max="100000000" step="any" defaultValue={p.revenue?.quantityKg}/></label>
+        <label>Varsayılan satış fiyatı / kg<input name="unitPrice" type="number" min="0" max="100000000" step="any" defaultValue={p.revenue?.unitPrice}/></label>
+        <label>Gelir değişimi (%)<input name="sensitivityPercent" type="number" min="0" max="100" step="any" defaultValue={p.revenue?.sensitivityPercent}/></label>
+        <label>Miktar ve fiyat kaynağı<input name="revenueSource" maxLength={600} defaultValue={p.revenue?.source}/></label>
+      </div></details>
+      {text('assumptions','Varsayımlar ve açıklama',false)}
+    </>}
+    {kind==='investigation'&&<>
+      <div className="px-form-grid">
+        <label>Öncelik<select name="priority" defaultValue={p.priority||'normal'}><option value="low">Düşük</option><option value="normal">Normal</option><option value="high">Yüksek</option></select></label>
+        <label>Durum<select name="state" defaultValue={p.state||'open'}>{Object.entries(investigationStates).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+        <label>Saha tarihi<input name="visitedAt" type="date" defaultValue={p.visitedAt}/></label>
+        <label>Uydu analizi<select name="analysisId" defaultValue={p.analysisId || ''}><option value="">Bağlantı yok</option>
+          {p.analysisId && p.analysisId !== latestAnalysis?.id && <option value={p.analysisId}>Kayıtlı analiz · {p.analysisId.slice(0,8)}</option>}
+          {latestAnalysis && <option value={latestAnalysis.id}>Son analiz · {latestAnalysis.source} · {date(latestAnalysis.fetchedAt)}</option>}
+        </select></label>
+      </div>
+      {text('region','Kontrol edilecek bölge')}{text('requestedData','İstenen veri veya saha kontrolü')}{text('notes','İnceleme notu',false)}{text('result','Saha sonucu',false)}
+      <details open={Boolean(p.coordinate || p.measurement)}><summary>Saha konumu ve ölçüm</summary><div className="px-form-grid">
+        {field.geometry && <>
+          <label>Boylam (WGS84)<input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={p.coordinate?.[0]}/></label>
+          <label>Enlem (WGS84)<input name="latitude" type="number" step="any" min="-85" max="85" defaultValue={p.coordinate?.[1]}/></label>
+        </>}
+        <label>Ölçüm cihazı<input name="device" maxLength={150} defaultValue={p.measurement?.device}/></label>
+        <label>Ölçüm türü<select name="metric" defaultValue={p.measurement?.metric || 'soilMoisture'}>{Object.entries(sensorMetrics).map(([id,metric])=><option key={id} value={id}>{metric.label} ({metric.unit})</option>)}</select></label>
+        <label>Ölçüm değeri<input name="reading" type="number" step="any" defaultValue={p.measurement?.value}/></label>
+      </div></details>
+    </>}
     {kind==='prescription'&&<><div className="px-form-grid"><label>Uygulama<select name="application" aria-label="Uygulama türü" value={application} onChange={event=>setApplication(event.target.value)}><option value="irrigation">Sulama</option><option value="fertilization">Gübreleme</option></select></label><label>Birim<input readOnly value={application==='irrigation'?'m³/ha':'kg/ha'} /></label>{amount('rate','Uzman incelemesine sunulan oran')}</div>{text('scope','Kapsam ve ihtiyaç bölgesi açıklaması')}{text('notes','Uzman için not',false)}
       <details><summary>Yönetim bölgeleri ekle</summary>
         <label>Yönetim bölgeleri (GeoJSON)<small>WGS84 FeatureCollection. Her Polygon veya MultiPolygon için properties.name ve sayısal properties.rate girin. Oran, yukarıdaki uygulama birimini kullanır.</small>

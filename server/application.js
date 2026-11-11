@@ -192,6 +192,8 @@ export async function createApplication({
               },
             ),
             session,
+            platformService.bundle,
+            weatherService.forecast,
           );
           res.statusCode = response.status;
           response.headers.forEach((value, key) => res.setHeader(key, value));

@@ -1,5 +1,7 @@
 # Agromax geliştirme temeli
 
+Güncel çalışma ağacında mevcut hesap API köprüsü ve ticari Better Auth/Workflow derlemesi ayrı çalışır. [Son mimari kapsam ve kabul kaydı](MASTER_COMPLETION.md)
+
 ## Çalıştırma
 
 Node.js 24 gereklidir. `app` klasöründe `npm.cmd install`, ardından `npm.cmd run dev` çalıştırın. Adres: http://127.0.0.1:5173

@@ -19,6 +19,11 @@ import { searchObservations } from "../analyses/observations";
 import { privateObjects, type PrivateObjects } from "../files/private-store";
 import { processReport } from "../reports/worker";
 import type { Actor } from "../organizations/service";
+import { intelligenceRoutes } from "../intelligence/api";
+import type { RuntimeOptions } from "../core/api";
+import { extendedEvidenceBundle } from "../intelligence/mrv";
+import { publishProjectedClaims } from "../intelligence/claims";
+import { simulationRoutes } from "../simulation/api";
 
 export async function createProductionWorkspace(config: {
   store?: Store;
@@ -83,6 +88,8 @@ export async function createProductionWorkspace(config: {
     async handle(
       request: Request,
       sourceActor: { id: string; name: string; email: string },
+      sourceBundle?: (accountId: string, fieldId: string) => Promise<Record<string, unknown>>,
+      sourceForecast?: (accountId: string, fieldId: string) => ReturnType<NonNullable<RuntimeOptions["parcelForecast"]>>,
     ): Promise<Response> {
       try {
         const actor: Actor = {
@@ -125,6 +132,8 @@ export async function createProductionWorkspace(config: {
             onboardingRequired: false,
             capabilities: {
               customAnalysis: false,
+              claims: true,
+              waterBalance: true,
               workspaceMode: "existing-account",
               reportDailyLimit: 10,
             },
@@ -181,17 +190,24 @@ export async function createProductionWorkspace(config: {
         }
         if (path === "/api/v1/observations/search" && method === "POST")
           return Response.json(await searchObservations(store.db, ctx, body));
+        const evidence = path.match(/^\/api\/v1\/fields\/([a-f0-9]{32})\/evidence-bundle$/);
+        if (evidence && method === "GET" && sourceBundle)
+          return Response.json(await extendedEvidenceBundle(store.db, ctx, evidence[1]!, async (_, fieldId) => {
+            const bundle = await sourceBundle(actor.id, fieldId);
+            await publishProjectedClaims(store.db, ctx.organization.id, fieldId);
+            return bundle;
+          }), { headers: { "Cache-Control": "private, no-store" } });
         const input = {
           db: store.db,
           context: ctx,
           body,
-          options,
+          options: { ...options, parcelForecast: sourceForecast && ((fieldId: string) => sourceForecast(actor.id, fieldId)) },
           request,
           url,
           path,
           method,
         };
-        for (const handler of [recordRoutes, reportRoutes, assistantRoutes]) {
+        for (const handler of [recordRoutes, reportRoutes, assistantRoutes, intelligenceRoutes, simulationRoutes]) {
           const response = await handler(input);
           if (response) {
             if (path.endsWith("/confirm") && response.ok) {

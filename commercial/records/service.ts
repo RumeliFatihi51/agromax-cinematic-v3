@@ -28,6 +28,8 @@ export async function ownField(db: CommercialDb, ctx: Context, id: string) {
     id: string;
     name: string;
     area: number;
+    crop?: string;
+    sowingDate?: string;
     version?: number;
     geometry?: unknown;
   };

@@ -76,8 +76,8 @@ function DepletionChart({ result }: { result: ReturnType<typeof runWaterBalance>
   );
 }
 
-export default function WaterBalance({ fieldId, canRun, spatialField }: {
-  fieldId: string; canRun: boolean; spatialField?: { id: string; geometry: unknown } | null;
+export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate }: {
+  fieldId: string; canRun: boolean; spatialField?: { id: string; geometry: unknown } | null; sowingDate?: string;
 }) {
   const path = `v1/fields/${fieldId}/water-balance`;
   const [saved, setSaved] = useState<SavedBalance | null>(null);
@@ -148,7 +148,7 @@ export default function WaterBalance({ fieldId, canRun, spatialField }: {
           <div className="business-form-grid">
             <label>Meteoroloji kaynağı<input name="weatherSource" maxLength={160} required /></label>
             <label>Toprak verisi kaynağı<input name="soilSource" maxLength={160} required /></label>
-            <label>Ekim tarihi<input name="sowingDate" type="date" required /></label>
+            <label>Ekim tarihi<input name="sowingDate" type="date" defaultValue={sowingDate} required /></label>
             {soilFields.map(([key, label, step]) => (
               <label key={key}>{label}<input name={key} type="number" step={step} required /></label>
             ))}

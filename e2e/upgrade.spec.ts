@@ -134,8 +134,12 @@ test("water-balance persistence, linked evidence, and reference screens", async 
         level: 1, name: screen === "overview" ? "Arazilerinizdeki güncel durum" : "Filiz",
       })).toBeVisible();
     }
-    if (screen === "assistant")
+    if (screen === "assistant") {
+      const drawer = page.locator(".filiz-source-drawer");
+      await drawer.locator("summary").click();
       await expect(page.getByText(/s2-period-change-v1/)).toBeVisible();
+      await drawer.locator("summary").click();
+    }
     if (screen === "overview") {
       await expect(page.locator(".dashboard-layer-info strong")).toContainText("NDVI · 2026-10-31");
       const ndre = page.getByRole("button", { name: "NDRE", exact: true });

@@ -173,6 +173,7 @@ export default function FilizWorkspace({
     ({
       user_statement: t("Kullanıcı beyanı", "User statement"),
       calculated: t("Hesaplanmış veri", "Calculated data"),
+      forecast: t("Model tahmini", "Model forecast"),
     })[kind] || kind;
   return (
     <div className="business-workspace filiz-workbench">

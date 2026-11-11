@@ -4,7 +4,7 @@ const format = value => Number.isFinite(value)
   ? value.toLocaleString("tr-TR", { maximumFractionDigits: 3 }) : "—";
 const date = value => new Date(value).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul" });
 const priority = ["NDVI", "NDRE", "NDMI", "NDWI", "EVI", "WDRVI"];
-const sourceLabels = { radar: "Sentinel‑1 radar", landsat: "Landsat 8/9" };
+const sourceLabels = { radar: "Sentinel‑1 radar", landsat: "Landsat 8/9", hlsL30: "NASA HLS L30", hlsS30: "NASA HLS S30" };
 const measurementLabels = {
   LST: "Yüzey sıcaklığı", VV: "Radar geri saçılımı (VV)", VH: "Radar geri saçılımı (VH)",
   "VV/VH": "Radar bantları oranı (VV/VH)", red: "Kırmızı bant", green: "Yeşil bant",
@@ -49,10 +49,11 @@ export default function AnalysisReport({ analysis, onAssistant }) {
       </div> : <p>Sentinel‑2 dönem ortalaması için yeterli kaliteli ölçüm yok.</p>}
       {supplementary && Object.entries(supplementary).map(([key, source]) => (
         <details key={key} className="parcel-report-details" open>
-          <summary>{sourceLabels[key]} · {source.date ? date(source.date) :
-            source.state === "empty" ? "Uygun ölçüm yok" : "Veri alınamadı"}</summary>
+          <summary>{sourceLabels[key] || source.source} · {source.date ? date(source.date) :
+            source.state === "empty" ? "Uygun ölçüm yok" : source.state === "rate_limited" ? "Sağlayıcı istek sınırına ulaştı" : "Veri alınamadı"}</summary>
           {source.metrics && <div className="table-wrap">
             <p>{source.source} · {source.sceneId}{source.orbit ? " · " + source.orbit : ""}</p>
+            {source.method && <p>{source.nativeResolution} m kaynak çözünürlüğü · {source.method}</p>}
             <table>
               <thead><tr><th scope="col">Ölçüm</th><th scope="col">Ortalama</th><th scope="col">Geçerli kapsam</th></tr></thead>
               <tbody>{Object.entries(source.metrics).map(([id, stat]) => <tr key={id}>

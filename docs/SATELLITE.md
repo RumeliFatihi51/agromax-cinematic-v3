@@ -1,5 +1,7 @@
 # Parsel ve uydu modülleri
 
+Son çalışma ağacındaki HLS, Landsat ve Sentinel‑1 kaynak kanıtı [güncel üretim kabul kaydında](MASTER_COMPLETION.md).
+
 ## Mevcut uygulama
 
 - Harita varsayılan görünümdür; üstte listeye geçiş bulunur.

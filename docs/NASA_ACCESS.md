@@ -17,9 +17,9 @@ Gerçek değerler yalnızca Git dışında `.env` içinde saklanır. Vercel dağ
 
 31 Ekim 2026 canlı kontrolü: NASA geçidi HTTP 200; Earthdata korumalı HLS bant erişimi HTTP 206 ve TIFF imzası. Aynı korumalı dosyaya tokensız istek Earthdata girişine yönlendirildi. Bunlar gerçek erişim kanıtlarıdır; tarla analizi yapıldığına dair kanıt değildir.
 
-## Kalan HLS çalışması
+## HLS parsel istatistikleri
 
-HLS parsel analizi henüz uygulanmadı. HLS L30 ve S30 bant eşlemesi, ölçek/offset, Fmask kalite bitleri, 30 m örnekleme, bulut/gölge/kar maskeleri ve formül doğrulaması ayrı işlem zinciri gerektirir. Mevcut sonuçlar Copernicus Sentinel-2 L2A kaynağı olarak etiketlenmeye devam eder. Erişim testi bu işlemleri tamamlanmış göstermez.
+Mevcut hesap çalışma alanında NASA HLS L30/S30 v2.0 yansıtım ve indeks istatistikleri, Planetary Computer üzerinden alınan gerçek COG pencerelerinden hesaplanır. 30 m kaynak çözünürlüğü, yöntem, sahne ve geçerli örnek kapsamı sonuçla kaydedilir. Ayrı Earthdata token kontrolü doğrudan korumalı dosya erişimini sınar. Earthdata’dan bağımsız tarihli HLS raster katmanı veya kullanıcı tarafından seçilen HLS analizi henüz açılmadı. [Güncel test ve kabul kaydı](MASTER_COMPLETION.md)
 
 NASA POWER meteoroloji hizmeti ayrıca değerlendirilmelidir. Anahtar veya Earthdata tokenı sağlamak meteoroloji verisinin bağlandığı anlamına gelmez.
 

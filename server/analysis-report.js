@@ -1,11 +1,14 @@
 import { readPublicObservation } from "./public-observations.js";
+const supplementarySources = {
+  radar: "Sentinel-1", landsat: "Landsat", hlsL30: "HLS L30", hlsS30: "HLS S30",
+};
 
 export async function enrichAnalysis(analysis, geometry, signal) {
-  const extra = await Promise.all(["radar", "landsat"].map(async kind => {
+  const extra = await Promise.all(Object.entries(supplementarySources).map(async ([kind, source]) => {
     try {
       return [kind, await readPublicObservation(kind, geometry, analysis.range, signal)];
-    } catch {
-      return [kind, { state: "unavailable", source: kind === "radar" ? "Sentinel-1 RTC" : "Landsat 8/9 L2" }];
+    } catch (error) {
+      return [kind, { state: error.status === 429 ? "rate_limited" : "unavailable", source }];
     }
   }));
   const supplementary = Object.fromEntries(extra);
@@ -24,7 +27,7 @@ export async function enrichAnalysis(analysis, geometry, signal) {
     }, signal);
     if (model) {
       const validIds = new Set([...Object.keys(measurements), ...Object.entries(supplementary).flatMap(([kind, source]) =>
-        Object.keys(source.metrics || {}).map(id => (kind === "radar" ? "Sentinel-1 " : "Landsat " ) + id))]);
+        Object.keys(source.metrics || {}).map(id => supplementarySources[kind] + " " + id))]);
       interpretation = { ...model, findings: model.findings.filter(item =>
         item.indicators.every(id => validIds.has(id))) };
     }

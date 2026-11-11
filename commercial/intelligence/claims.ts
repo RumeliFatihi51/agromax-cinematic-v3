@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
-import { analysisClaims } from "../db/schema";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { analysisClaims, farmJobs } from "../db/schema";
 import type { CommercialDb } from "../db/store";
+import { openSentinelMethod, openSentinelProvider } from "../../shared/open-sentinel.js";
 
 const metricIds = ["NDVI", "NDMI", "NDWI", "NDRE"] as const;
 const summary = z.object({
@@ -11,14 +13,14 @@ const summary = z.object({
 });
 const interval = z.object({ from: z.iso.datetime(), split: z.iso.datetime(), to: z.iso.datetime() });
 const analysisSchema = z.object({
-  method: z.literal("s2-l2a-v3"),
+  method: z.enum(["s2-l2a-v3", openSentinelMethod]),
   source: z.string().min(1),
-  provider: z.enum(["cdse", "sentinelhub"]),
+  provider: z.enum(["cdse", "sentinelhub", openSentinelProvider]),
   fetchedAt: z.iso.datetime(),
   range: interval,
   comparison: z.record(z.string(), z.unknown()),
   observations: z.unknown().optional(),
-});
+}).refine(value => (value.method === openSentinelMethod) === (value.provider === openSentinelProvider));
 type ObservationSummary = z.infer<typeof summary>;
 export type ClaimEvidence = {
   kind: "observed_change";
@@ -129,4 +131,26 @@ export function fieldClaims(db: CommercialDb, organizationId: string, fieldId: s
     eq(analysisClaims.organizationId, organizationId),
     eq(analysisClaims.fieldId, fieldId),
   )).orderBy(desc(analysisClaims.createdAt), desc(analysisClaims.id)).limit(limit);
+}
+
+export async function publishProjectedClaims(db: CommercialDb, organizationId: string, fieldId: string) {
+  const jobs = await db.select({
+    id: farmJobs.id, result: farmJobs.result, geometryVersion: farmJobs.geometryHash,
+    createdAt: farmJobs.createdAt, finishedAt: farmJobs.finishedAt,
+  }).from(farmJobs).where(and(
+    eq(farmJobs.organizationId, organizationId), eq(farmJobs.fieldId, fieldId),
+    eq(farmJobs.state, "completed"), isNotNull(farmJobs.result),
+  )).orderBy(desc(farmJobs.createdAt), desc(farmJobs.id)).limit(20);
+  const claims = jobs.flatMap(job => {
+    const createdAt = new Date(job.finishedAt || job.createdAt);
+    if (!Number.isFinite(createdAt.getTime())) return [];
+    return deriveClaims(JSON.parse(job.result!)).map(claim => ({
+      ...claim, organizationId, fieldId, analysisId: job.id, geometryVersion: job.geometryVersion,
+      id: createHash("sha256").update(`analysis-claim:${organizationId}:${job.id}:${claim.metric}`).digest("hex").slice(0, 32),
+      createdAt,
+    }));
+  });
+  if (claims.length) await db.insert(analysisClaims).values(claims).onConflictDoNothing({
+    target: [analysisClaims.analysisId, analysisClaims.metric],
+  });
 }

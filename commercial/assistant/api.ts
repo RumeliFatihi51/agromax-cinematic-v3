@@ -46,6 +46,7 @@ export async function assistantRoutes({
         identifier.parse(request.headers.get("idempotency-key")),
         options.assistantModel,
         options.enforceQuota ?? true,
+        options.parcelForecast,
       ),
     );
   if (path === "/api/v1/assistant/proposals" && method === "POST")

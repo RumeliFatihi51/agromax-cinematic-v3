@@ -4,6 +4,8 @@ import { DomainError } from "../core/errors";
 import { identifier } from "../../shared/contracts/commercial";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { WorkspaceRequest } from "../core/api";
+import type { ReportSnapshot } from "./service";
+import { reportCsv } from "./csv";
 export async function reportRoutes({
   db,
   context,
@@ -44,7 +46,7 @@ export async function reportRoutes({
     );
   }
   const reportMatch = path.match(
-    /^\/api\/v1\/reports\/([a-f0-9]{32})(?:\/(download-link|file))?$/,
+    /^\/api\/v1\/reports\/([a-f0-9]{32})(?:\/(download-link|file|export))?$/,
   );
   if (reportMatch) {
     const report = await ownReport(db, context, reportMatch[1]!);
@@ -56,6 +58,20 @@ export async function reportRoutes({
         error: report.error,
         createdAt: report.createdAt,
       });
+    if (method === "GET" && reportMatch[2] === "export") {
+      const format = url.searchParams.get("format");
+      if (format !== "csv" && format !== "json")
+        throw new DomainError("INVALID_FORMAT", "CSV veya JSON biçimini seçin.", 400);
+      const snapshot = report.snapshot as unknown as ReportSnapshot;
+      return new Response(format === "csv" ? reportCsv(snapshot) : JSON.stringify(snapshot), {
+        headers: {
+          "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="agromax-${report.id}.${format}"`,
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     const signature = (expires: string) =>
       createHmac("sha256", options.secret)
         .update(

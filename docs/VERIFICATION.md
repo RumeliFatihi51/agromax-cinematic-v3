@@ -1,5 +1,7 @@
 # Doğrulama — 30 Ekim 2026
 
+Son çalışma ağacı için [19 alanlı kabul matrisi ve gerçek sağlayıcı kanıtı](MASTER_COMPLETION.md).
+
 Bu dosya bütün ürünün tamamlandığı iddiası değildir. Eksik kapsam `PRODUCT_AUDIT.md` içinde izlenir.
 
 - `npm.cmd test`: 32 test, 32 başarılı. Test kullanıcıları/parseller/uydu yanıtları yalnızca açıkça işaretlenmiş in-memory fixture'lardır.

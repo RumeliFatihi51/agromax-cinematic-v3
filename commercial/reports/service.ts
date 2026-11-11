@@ -6,6 +6,7 @@ import { requirePermission, uid, type Context } from "../organizations/service";
 import { reserveUsage } from "../usage/service";
 import { DomainError } from "../core/errors";
 import { identifier } from "../../shared/contracts/commercial";
+import { scopedWorkspaceFiles } from "../records/workspace-files";
 
 export interface ReportSnapshot {
   schemaVersion: "report-v1";
@@ -44,6 +45,13 @@ export interface ReportSnapshot {
     resolution: number;
     mask: string;
     aggregation: string;
+    report?: {
+      supplementary?: Record<string, {
+        state: string; source: string; date?: string; sceneId?: string; method?: string; nativeResolution?: number;
+        metrics?: Record<string, { mean: number; min: number; max: number; coverage: number; unit: string }>;
+      }>;
+      interpretation?: { model: string; overview: string };
+    };
   };
   records: {
     id: string;
@@ -167,6 +175,7 @@ export async function createReport(
           isNull(domainRecords.deletedAt),
         ),
       );
+    const platformFiles = await scopedWorkspaceFiles(tx as unknown as CommercialDb, ctx, job.fieldId, job.geometryHash);
     const snapshot: ReportSnapshot = {
       schemaVersion: "report-v1",
       createdAt: now.toISOString(),
@@ -176,7 +185,13 @@ export async function createReport(
       analysisId: job.id,
       geometryVersion: job.geometryHash,
       analysis,
-      records,
+      records: [...records, ...platformFiles.map(file => ({
+        id: file.id, version: file.version, kind: file.kind,
+        data: { name: file.name, ...file.payload, ...(file.calculation ? {
+          currency: file.calculation.currency, amountMinor: file.calculation.totalMinor,
+          scenarioRevenue: file.calculation.revenue,
+        } : {}) },
+      }))],
     };
     const [report] = await tx
       .insert(reports)

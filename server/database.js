@@ -126,6 +126,7 @@ export async function initializeDatabase(db) {
     CREATE INDEX IF NOT EXISTS sessions_owner ON sessions(user_id);
     CREATE TABLE IF NOT EXISTS records(id TEXT PRIMARY KEY,user_id TEXT,kind TEXT,body TEXT);
     CREATE INDEX IF NOT EXISTS records_owner ON records(user_id);
+    CREATE TABLE IF NOT EXISTS field_revisions(field_id TEXT NOT NULL,user_id TEXT NOT NULL,version INTEGER NOT NULL,action TEXT NOT NULL,geometry_hash TEXT NOT NULL,changed_at TEXT,PRIMARY KEY(field_id,version));
     CREATE TABLE IF NOT EXISTS analyses(field_id TEXT PRIMARY KEY,geometry_hash TEXT,body TEXT);
     CREATE TABLE IF NOT EXISTS auth_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,started_at BIGINT NOT NULL);
   `);

@@ -5,6 +5,7 @@ import { parcelSatelliteStatus, openRasterImage } from "./parcel-satellite.js";
 import { readOpenSentinel } from "./open-sentinel.js";
 import { openSentinelMethod, openSentinelProvider } from "../shared/open-sentinel.js";
 import { geometryHash } from "./analysis-jobs.js";
+import { isISODate } from "../shared/dates.js";
 export function prepareField(body, existing = {}) {
   const name = String(body.name ?? existing.name ?? "").trim();
   if (!name || name.length > 150)
@@ -17,6 +18,12 @@ export function prepareField(body, existing = {}) {
     notes: String(body.notes ?? existing.notes ?? "").slice(0, 4000),
     updatedAt: new Date().toISOString(),
   };
+  if (body.sowingDate !== undefined) {
+    if (body.sowingDate !== "" && !isISODate(body.sowingDate))
+      throw new Error("Geçerli bir ekim tarihi girin.");
+    if (body.sowingDate) next.sowingDate = body.sowingDate;
+    else delete next.sowingDate;
+  }
   if (body.geometry) Object.assign(next, validateGeometry(body.geometry));
   else if (existing.geometry)
     Object.assign(next, validateGeometry(existing.geometry));
@@ -42,7 +49,7 @@ export async function fieldRoutes({
     return true;
   }
   const match = req.url.match(
-    /^\/api\/records\/([a-f0-9]+)(?:\/(analysis|image|restore))?$/,
+    /^\/api\/records\/([a-f0-9]+)(?:\/(analysis|image|restore|revisions))?$/,
   );
   if (!match) return false;
   const [, id, operation] = match;
@@ -55,12 +62,44 @@ export async function fieldRoutes({
   }
   if (row.kind !== "field") return false;
   const field = JSON.parse(row.body);
+  async function updateField(next, action) {
+    const version = Number(field.version || 1);
+    if (body?.version !== undefined && body.version !== version)
+      throw Object.assign(new Error("Parsel değişti. Yeniden yükleyerek tekrar deneyin."), { status: 409 });
+    next.version = version + 1;
+    next.geometryVersion = geometryHash(next.geometry);
+    next.updatedAt = new Date().toISOString();
+    await db.transaction(async tx => {
+      const update = await tx.prepare("UPDATE records SET body=? WHERE id=? AND user_id=? AND body=?")
+        .run(JSON.stringify(next), id, session.id, row.body);
+      if (update.changes !== 1)
+        throw Object.assign(new Error("Parsel değişti. Yeniden yükleyerek tekrar deneyin."), { status: 409 });
+      const priorHash = geometryHash(field.geometry);
+      const revision = tx.prepare("INSERT INTO field_revisions(field_id,user_id,version,action,geometry_hash,changed_at) VALUES(?,?,?,?,?,?) ON CONFLICT(field_id,version) DO NOTHING");
+      await revision.run(id, session.id, version, "snapshot", priorHash, field.updatedAt || field.createdAt || null);
+      await revision.run(id, session.id, next.version, action, next.geometryVersion, next.updatedAt);
+      if (next.geometryVersion !== priorHash)
+        await tx.prepare("DELETE FROM analyses WHERE field_id=?").run(id);
+    });
+  }
   if (operation === "restore" && req.method === "POST") {
-    delete field.deletedAt;
-    await db
-      .prepare("UPDATE records SET body=? WHERE id=?")
-      .run(JSON.stringify(field), id);
-    reply(200, { ...field, id, kind: "field" });
+    const next = { ...field };
+    delete next.deletedAt;
+    try {
+      if (field.deletedAt) await updateField(next, "restore");
+      reply(200, { ...next, id, kind: "field" });
+    } catch (error) {
+      if (!error.status) throw error;
+      reply(error.status, { error: error.message });
+    }
+    return true;
+  }
+  if (operation === "revisions" && req.method === "GET") {
+    const revisions = await db.prepare("SELECT version,action,geometry_hash,changed_at FROM field_revisions WHERE field_id=? AND user_id=? ORDER BY version DESC LIMIT 100").all(id, session.id);
+    reply(200, { revisions: revisions.length ? revisions.map(row => ({
+      version: row.version, action: row.action, geometryVersion: row.geometry_hash, changedAt: row.changed_at,
+    })) : [{ version: field.version || 1, action: "snapshot", geometryVersion: geometryHash(field.geometry),
+      changedAt: field.updatedAt || field.createdAt || null }] });
     return true;
   }
   if (
@@ -71,27 +110,31 @@ export async function fieldRoutes({
     return true;
   }
   if (!operation && req.method === "PATCH") {
+    let next;
     try {
-      const next = prepareField(body, field);
-      await db
-        .prepare("UPDATE records SET body=? WHERE id=?")
-        .run(JSON.stringify(next), id);
-      if (JSON.stringify(next.geometry) !== JSON.stringify(field.geometry))
-        await db.prepare("DELETE FROM analyses WHERE field_id=?").run(id);
-      reply(200, { ...next, id, kind: "field" });
+      next = prepareField(body, field);
     } catch (e) {
       reply(400, { error: e.message });
+      return true;
+    }
+    try {
+      await updateField(next, "update");
+      reply(200, { ...next, id, kind: "field" });
+    } catch (error) {
+      if (!error.status) throw error;
+      reply(error.status, { error: error.message });
     }
     return true;
   }
   if (!operation && req.method === "DELETE") {
-    await db
-      .prepare("UPDATE records SET body=? WHERE id=?")
-      .run(
-        JSON.stringify({ ...field, deletedAt: new Date().toISOString() }),
-        id,
-      );
-    reply(200, { ok: true });
+    try {
+      const next = { ...field, deletedAt: new Date().toISOString() };
+      await updateField(next, "delete");
+      reply(200, { ok: true, version: next.version });
+    } catch (error) {
+      if (!error.status) throw error;
+      reply(error.status, { error: error.message });
+    }
     return true;
   }
   if (operation === "analysis") {

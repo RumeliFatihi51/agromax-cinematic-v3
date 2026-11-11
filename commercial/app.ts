@@ -319,7 +319,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
           db,
           context,
           body,
-          options,
+          options: { ...options, parcelForecast: (fieldId: string) => legacy.forecast(context.organization.id, fieldId) },
           request,
           url,
           path,

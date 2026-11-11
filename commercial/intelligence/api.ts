@@ -6,7 +6,7 @@ import { analysisClaims, auditLog, domainRecords } from "../db/schema";
 import { requirePermission, uid } from "../organizations/service";
 import { ownField } from "../records/service";
 import { geometryHash } from "../../server/analysis-jobs.js";
-import { fieldClaims } from "./claims";
+import { fieldClaims, publishProjectedClaims } from "./claims";
 
 const investigationKind = "claim_investigation";
 export async function intelligenceRoutes({ db, context, path, method }: WorkspaceRequest) {
@@ -19,6 +19,8 @@ export async function intelligenceRoutes({ db, context, path, method }: Workspac
   const organizationId = context.organization.id;
   const geometryVersion = geometryHash(field.geometry);
   if (!claimId && method === "GET") {
+    if (context.actor.authentication === "legacy-session")
+      await publishProjectedClaims(db, organizationId, fieldId);
     const [claims, investigations] = await Promise.all([
       fieldClaims(db, organizationId, fieldId),
       db.select().from(domainRecords).where(and(
@@ -39,6 +41,8 @@ export async function intelligenceRoutes({ db, context, path, method }: Workspac
       eq(analysisClaims.fieldId, fieldId),
     ));
     if (!claim) throw new DomainError("NOT_FOUND", "İddia bulunamadı.", 404);
+    if (claim.geometryVersion !== geometryVersion)
+      throw new DomainError("GEOMETRY_CHANGED", "Bu iddia önceki parsel sınırına bağlı.", 409);
     const id = createHash("sha256").update(`investigation:${claimId}`).digest("hex").slice(0, 32);
     const [created] = await tx.insert(domainRecords).values({
       id, organizationId, fieldId,

@@ -101,6 +101,10 @@ export default function FieldEditor({
             />
           </label>
           <label>
+            Ekim tarihi <small>İsteğe bağlı</small>
+            <input type="date" name="sowingDate" defaultValue={field?.sowingDate || ""} />
+          </label>
+          <label>
             Bölge / konum
             <input
               name="location"

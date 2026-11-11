@@ -14,6 +14,11 @@ export interface RuntimeOptions {
   dispatchReport?: (id: string) => Promise<void>;
   objects?: PrivateObjects;
   assistantModel?: ModelAdapter;
+  parcelForecast?: (fieldId: string) => Promise<{
+    source: string; updatedAt: string; method: string;
+    points: Array<{time: string; values: Record<string, number | null>;
+      periods: Array<{hours: number; values: Record<string, number | null>}>}>;
+  }>;
   enforceQuota?: boolean;
   reportDailyLimit?: number;
 }

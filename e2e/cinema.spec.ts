@@ -358,7 +358,9 @@ test("Filiz source reveal and empty workspace are truthful", async ({ page }, in
   const fieldURL = new URL(page.url());
   expect(new URLSearchParams(fieldURL.hash.split("?")[1]).get("field")).toBeTruthy();
   await expect(page.getByRole("button", { name: "Uydu verilerini güncelle" })).toBeDisabled();
-  const technical = page.locator(".analysis-page > .parcel-report-details");
+  const technical = page.locator(".analysis-page > .parcel-report-details").filter({
+    has: page.getByText("İndeks grafikleri, çekimler ve teknik ayrıntılar", { exact: true }),
+  });
   if ((await technical.getAttribute("open")) === null) await technical.locator("summary").click();
   await page.getByRole("button", { name: "NDMI", exact: true }).click();
   await expect(page).toHaveURL(/metric=NDMI/);
@@ -437,11 +439,11 @@ test("touch controls open the parcel map and the Filiz source drawer", async ({ 
   })).toBe(true);
   const sources = page.locator(".filiz-source-drawer");
   const toggle = sources.locator("summary");
-  await expect(sources).toHaveAttribute("open", "");
-  await toggle.tap();
   await expect(sources).not.toHaveAttribute("open", "");
   await toggle.tap();
   await expect(sources.locator(".business-fact").first()).toBeVisible();
+  await toggle.tap();
+  await expect(sources).not.toHaveAttribute("open", "");
   await page.getByRole("button", { name: "Menüyü aç" }).tap();
   await page.locator(".platform-nav-group summary").filter({ hasText: "Operasyon ve uygulama" }).tap();
   await page.getByRole("button", { name: "Sezon ve saha", exact: true }).tap();

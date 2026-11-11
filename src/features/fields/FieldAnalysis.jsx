@@ -45,6 +45,40 @@ function download(data, name, type) {
   a.click();
   URL.revokeObjectURL(url);
 }
+function ParcelRevisions({ fieldId }) {
+  const [revisions, setRevisions] = useState(null);
+  const [error, setError] = useState("");
+  const controller = useRef(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  async function load() {
+    if (controller.current) return;
+    const request = new AbortController();
+    controller.current = request;
+    setError("");
+    try {
+      const response = await api("records/" + fieldId + "/revisions", undefined, "GET", { signal: request.signal });
+      if (!request.signal.aborted) setRevisions(response.revisions);
+    } catch (failure) {
+      if (!request.signal.aborted) setError(failure.message);
+    } finally {
+      controller.current = null;
+    }
+  }
+  const actions = { snapshot: "İlk kayıt", created: "Oluşturuldu", update: "Düzenlendi", delete: "Kaldırıldı", restore: "Geri alındı" };
+  return <details className="parcel-report-details" onToggle={event => {
+    if (event.currentTarget.open && revisions === null && !error) void load();
+  }}>
+    <summary>Parsel değişiklik geçmişi</summary>
+    {error ? <p role="alert">{error} <button className="text-button" onClick={load}>Tekrar dene</button></p> :
+      revisions === null ? <p role="status">Geçmiş yükleniyor…</p> :
+      revisions.length ? <div className="table-wrap"><table><thead><tr><th>Sürüm</th><th>İşlem</th><th>Tarih</th><th>Geometri özeti</th></tr></thead>
+        <tbody>{revisions.map(item => <tr key={item.version}><th scope="row">v{item.version}</th>
+          <td>{actions[item.action]}</td><td>{item.changedAt ? date(item.changedAt) : "—"}</td>
+          <td><code title={item.geometryVersion}>{item.geometryVersion?.slice(0, 12)}</code></td></tr>)}</tbody>
+      </table></div> : <p>Parsel sürüm geçmişi henüz kaydedilmemiş.</p>}
+  </details>;
+}
+
 export default function FieldAnalysis({
   field,
   onBack,
@@ -201,6 +235,7 @@ export default function FieldAnalysis({
             {field.crop || "Ürün belirtilmedi"} ·{" "}
             {areaFormat.format(field.area)} ·{" "}
             {field.location || "Konum belirtilmedi"}
+            {field.sowingDate && " · Ekim " + date(field.sowingDate)}
           </p>
         </div>
         <div>
@@ -225,6 +260,7 @@ export default function FieldAnalysis({
           )}
         </div>
       </header>
+      {!initialAnalysis && <ParcelRevisions key={field.id + ":" + (field.version || 1)} fieldId={field.id} />}
       {error && (
         <p className="error" role="alert">
           {error}

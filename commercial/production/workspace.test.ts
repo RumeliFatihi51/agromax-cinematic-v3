@@ -9,6 +9,8 @@ import { createReport } from "../reports/service";
 import { projectWorkspace } from "./snapshot";
 import type { PrivateObjects } from "../files/private-store";
 import { randomBytes } from "node:crypto";
+import { geometryHash } from "../../server/analysis-jobs.js";
+import { openSentinelMethod, openSentinelProvider } from "../../shared/open-sentinel.js";
 
 export function productionSqlAdapter(store: Store) {
   const adapter = (client: SqlClient) => ({
@@ -198,7 +200,8 @@ test("existing live sessions open real workspace modules without replacing accou
     const job = "c".repeat(32);
     const analysis = {
       source: "EXPLICIT TEST SOURCE",
-      method: "fixture-v1",
+      method: openSentinelMethod,
+      provider: openSentinelProvider,
       fetchedAt: new Date().toISOString(),
       range: {
         from: "2026-09-01T00:00:00Z",
@@ -206,7 +209,10 @@ test("existing live sessions open real workspace modules without replacing accou
         to: "2026-10-31T23:59:59Z",
       },
       observations: [],
-      comparison: {},
+      comparison: { NDVI: {
+        previous: { mean: 0.3, meanCoverage: 0.9, observations: 3 },
+        current: { mean: 0.5, meanCoverage: 0.9, observations: 3 },
+      } },
       resolution: 20,
     };
     await store.raw.query(
@@ -215,12 +221,45 @@ test("existing live sessions open real workspace modules without replacing accou
         job,
         a.body.id,
         field.body.id,
-        "fixture-geometry",
+        geometryHash(geometry),
         JSON.stringify({ field: field.body }),
         new Date().toISOString(),
         JSON.stringify(analysis),
       ],
     );
+    const workspaceFile = await call("/api/platform/records", {
+      fieldId: field.body.id, name: "EXPLICIT COST SCENARIO", kind: "scenario",
+      payload: { waterM3: 10, waterUnitCost: 2, fertilizerKg: 0, fertilizerUnitCost: 0,
+        laborHours: 0, laborHourlyCost: 0, otherCost: 0, currency: "TRY" },
+    }, a.cookie);
+    assert.equal(workspaceFile.status, 201);
+    const claimsPath = `/api/v1/fields/${field.body.id}/claims`;
+    const claims = await call(claimsPath, undefined, a.cookie);
+    assert.equal(claims.body.claims[0].analysisId, job);
+    assert.equal(claims.body.claims[0].evidence.verification, "observational");
+    assert.equal((await call(claimsPath, undefined, b.cookie)).status, 404);
+    const claimId = claims.body.claims[0].id;
+    const investigationPath = `${claimsPath}/${claimId}/investigation`;
+    assert.equal((await call(investigationPath, {}, a.cookie)).status, 201);
+    assert.equal((await call(investigationPath, {}, a.cookie)).status, 200);
+    const balancePath = `/api/v1/fields/${field.body.id}/water-balance`;
+    const input = {
+      scope: "trakya-winter-wheat", weatherSource: "Explicit meteorology", soilSource: "Explicit soil",
+      sowingDate: "2026-10-01", days: ["2026-10-02", "2026-10-03"].map(date =>
+        ({ date, et0Mm: 4, effectiveRainMm: 0, cropCoefficient: 1, meanTempC: 10 })),
+      soil: { fieldCapacity: 0.3, wiltingPoint: 0.15, rootDepthM: 1, initialDepletionMm: 120, depletionFraction: 0.5 },
+      systemEfficiency: 0.8, baseTemperatureC: 2,
+      scenarios: [{ name: "Temel", irrigation: [] }, { name: "Alternatif", irrigation: [{ date: "2026-10-02", grossMm: 100 }] }],
+      waterCostMinorPerM3: 200, maxVolumeM3: 10000, maxCostMinor: 1000000,
+    };
+    assert.equal((await call(balancePath, input, b.cookie)).status, 404);
+    const modelRun = await call(balancePath, input, a.cookie);
+    assert.equal(modelRun.status, 201);
+    assert.equal(modelRun.body.run.data.result.calibration, "unvalidated_pilot");
+    assert.equal(modelRun.body.run.data.result.yieldPrediction, null);
+    assert.equal((await call(balancePath, undefined, a.cookie)).body.run.id, modelRun.body.run.id);
+    const facts = await call(`/api/v1/assistant/facts?fieldId=${field.body.id}`, undefined, a.cookie);
+    assert.ok(facts.body.facts.some((fact: {source:string}) => fact.source.includes(workspaceFile.body.record.id)));
     const report = await call(
       "/api/v1/reports",
       { analysisId: job },
@@ -235,6 +274,19 @@ test("existing live sessions open real workspace modules without replacing accou
       a.cookie,
     );
     assert.equal(saved.body.state, "completed");
+    assert.ok(saved.body.snapshot.records.some((record: {id:string}) => record.id === workspaceFile.body.record.id));
+    const exportPath = `/api/v1/reports/${report.body.id}/export`;
+    const json = await call(exportPath + "?format=json", undefined, a.cookie);
+    assert.equal(json.body.geometryVersion, geometryHash(geometry));
+    assert.equal((await call(exportPath + "?format=json", undefined, b.cookie)).status, 404);
+    const csv = await fetch(base + exportPath + "?format=csv", { headers: { Cookie: a.cookie! } });
+    assert.equal(csv.headers.get("content-type"), "text/csv; charset=utf-8");
+    assert.match(await csv.text(), /EXPLICIT COST SCENARIO/);
+    const mrv = await call(`/api/v1/fields/${field.body.id}/evidence-bundle`, undefined, a.cookie);
+    assert.equal(mrv.body.schema, "agromax.evidence-bundle.v2");
+    assert.ok(mrv.body.reportFiles.some((file: {id:string}) => file.id === report.body.id));
+    assert.ok(mrv.body.modelRuns.some((run: {id:string}) => run.id === modelRun.body.run.id));
+    assert.equal(mrv.body.integrity.algorithm, "SHA-256");
     assert.equal(
       (await call(`/api/v1/reports/${report.body.id}`, undefined, b.cookie))
         .status,
