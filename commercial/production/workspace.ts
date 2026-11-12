@@ -24,11 +24,14 @@ import type { RuntimeOptions } from "../core/api";
 import { extendedEvidenceBundle } from "../intelligence/mrv";
 import { publishProjectedClaims } from "../intelligence/claims";
 import { simulationRoutes } from "../simulation/api";
+import { terrainRoutes } from "../terrain/api";
+import { terrainUpload } from "../../shared/terrain-upload.js";
 
 export async function createProductionWorkspace(config: {
   store?: Store;
   secret: string;
   objects?: PrivateObjects;
+  background?: RuntimeOptions["background"];
 }) {
   if (config.secret.length < 32)
     throw new Error("Workspace signing secret is required.");
@@ -51,6 +54,7 @@ export async function createProductionWorkspace(config: {
     },
     baseURL: "",
     secret: config.secret,
+    background: config.background,
     enforceQuota: false,
     assistantModel: configuredAssistantModel(),
     reportDailyLimit: 10,
@@ -104,7 +108,7 @@ export async function createProductionWorkspace(config: {
         const selected = request.headers.get("x-organization-id");
         if (selected && selected !== ctx.organization.id)
           throw new DomainError("NOT_FOUND", "İşletme bulunamadı.", 404);
-        const body = ["GET", "HEAD"].includes(method)
+        const body = ["GET", "HEAD"].includes(method) || method === "PUT" && terrainUpload.test(path)
           ? {}
           : z.record(z.string(), z.unknown()).parse(await request.json());
         // Existing session authentication remains the sole authority for this adapter.
@@ -207,7 +211,7 @@ export async function createProductionWorkspace(config: {
           path,
           method,
         };
-        for (const handler of [recordRoutes, reportRoutes, assistantRoutes, intelligenceRoutes, simulationRoutes]) {
+        for (const handler of [recordRoutes, reportRoutes, assistantRoutes, intelligenceRoutes, simulationRoutes, terrainRoutes]) {
           const response = await handler(input);
           if (response) {
             if (path.endsWith("/confirm") && response.ok) {

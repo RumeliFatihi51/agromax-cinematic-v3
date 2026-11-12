@@ -29,7 +29,7 @@ const statuses={draft:'Taslak',review_requested:'İnceleme istendi',archived:'Ar
 const sourceStates={configured:'Yapılandırılmış',unconfigured:'Bağlantı gerekli',planned:'Adaptör hazırlığı',catalog:'Katalog erişimi'};
 function download(name,value) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function Notice({children}) {return <div className="px-notice"><Info size={17} aria-hidden="true" /><p>{children}</p></div>;}
-export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,waterBalance,claimsEnabled,canCalculate,offline,spatialSelection,onSpatialSelection}) {
+export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,canEditTerrain=false,waterBalance,claimsEnabled,canCalculate,offline,spatialSelection,onSpatialSelection}) {
   const area=useAreaFormat();
   const [bootstrap,setBootstrap]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[exportNotice,setExportNotice]=useState(''),[editor,setEditor]=useState(null),[revisions,setRevisions]=useState(null),[query,setQuery]=useState('');
   const [fieldId,setFieldId]=useState(()=>{if(initialFieldId)return initialFieldId;try{return localStorage.getItem('agromax.platform.field')||'';}catch{return '';}});
@@ -73,7 +73,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
     {page!=='platform'&&<button className="secondary" onClick={()=>onNavigate('platform')}><Layers3 size={16} /> Platform merkezi</button>}
     {page==='platform'&&<button className="primary" onClick={()=>onNavigate('twin', activeId)}>Dijital ikizi aç <ArrowRight size={17}/></button>}
   </>;
-  const spatialProps = { field, context, waterBalance, variant: page, selection: spatialSelection?.[activeId],
+  const spatialProps = { field, context, waterBalance, droneEnabled: !!commercial, canEditTerrain, variant: page, selection: spatialSelection?.[activeId],
     observationsOnField: currentData?.records.filter(record=>record.kind==='observation' &&
       record.fieldSnapshot.geometryHash===context.geometryHash && record.payload.coordinate),
     zonePlan: page==='twin' ? currentData?.records.find(record=>record.kind==='prescription' &&

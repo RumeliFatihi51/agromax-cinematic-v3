@@ -156,12 +156,6 @@
   background: #cbd998; color: #1b3627; border: 0; border-radius: 6px; font-weight: 750;
 }
 .spatial-scenario { border-top: 1px solid var(--sp-line); margin-top: 16px; padding-top: 14px; }
-.spatial-scenario-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 12px 0; }
-.spatial-scenario-grid figure { margin: 0; min-width: 0; }
-.spatial-scenario-grid figcaption { display: grid; gap: 2px; padding: 8px 10px; background: #e8ecdd; }
-.spatial-scenario-canvas { height: clamp(140px, 30vh, 280px); background: #263f36; border-radius: 8px 8px 0 0; overflow: hidden; }
-.spatial-scenario-key { display: flex; align-items: center; gap: 8px; font-size: .76rem; margin-top: 8px; }
-.spatial-scenario-key i { height: 8px; flex: 1; background: linear-gradient(90deg, hsl(199 43% 72%), hsl(229 43% 32%)); }
 @media (max-width: 700px) {
   .spatial-workbench-header { padding-block: 15px; }
   .spatial-stage { height: clamp(340px, 54svh, 480px); }
@@ -180,3 +174,79 @@
   .spatial-timeline { grid-template-columns: minmax(0, 1fr); }
   .spatial-readout > div { flex-basis: 100%; }
 }
+.water-balance:has(.water-comparison) .water-balance-grid { grid-template-columns: minmax(0, 1fr) !important; }
+.water-comparison { color: #18372c; padding-top: clamp(16px, 3vw, 34px); }
+.water-compare-heading, .water-compare-chart figcaption { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 20px; }
+.water-compare-heading h3 { font-size: clamp(1.6rem, 3vw, 2.75rem); line-height: 1.04; letter-spacing: -.055em; }
+.water-compare-heading > span { color: #6c532c; background: #efe4cd; padding: 5px 10px; border-radius: 4px; font-size: .78rem; }
+.water-compare-select { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 10px; }
+.water-compare-select label { min-width: 0; font-size: .78rem; color: #415749; }
+.water-compare-select select { width: 100%; min-height: 44px; margin-top: 4px; }
+.water-compare-stage { overflow: hidden; border-radius: 14px; background: #162d26; color: #fcf8eb; }
+.water-compare-panels { position: relative; height: clamp(280px, 34vw, 460px); background: radial-gradient(ellipse at 50% 30%, #415b45, #1b322b 72%); }
+.water-compare-panels .spatial-three { position: absolute !important; inset: 0; }
+.water-compare-overlays { pointer-events: none; position: absolute; inset: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.water-compare-panel { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: clamp(10px, 2vw, 23px); min-width: 0; }
+.water-compare-panel + .water-compare-panel { border-inline-start: 1px solid #e4e9c87a; }
+.water-compare-panel-name, .water-compare-panel-value { background: #102a22ed; color: #fff8e7; border: 1px solid #aab89a55; border-radius: 5px; padding: 6px 10px; max-width: 100%; overflow-wrap: anywhere; }
+.water-compare-panel-name[data-side="0"] { border-inline-start: 3px solid #75d4b1; }
+.water-compare-panel-name[data-side="1"] { border-inline-start: 3px solid #efab7c; }
+.water-compare-panel-value { display: grid; gap: 1px; font-variant-numeric: tabular-nums; }
+.water-compare-panel-value > small { font-size: .61rem; letter-spacing: .08em; }
+.water-compare-panel-value strong { font-size: clamp(1rem, 2.25vw, 1.9rem); line-height: 1.14; }
+.water-compare-panel-value meter { width: min(100%, 105px); height: 8px; }
+.water-compare-tools { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 11px; background: #10241e; }
+.water-compare-tools > div { display: flex; gap: 4px; flex-wrap: wrap; }
+.water-compare-tools button, .water-compare-tools > span { display: inline-flex; align-items: center; gap: 5px; font-size: .76rem; }
+.water-compare-tools button { color: inherit; background: #273e32; min-height: 44px; padding: 0 8px; border: 1px solid #657962; border-radius: 5px; }
+.water-compare-fallback { position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.water-compare-fallback > p { z-index: 1; padding: 5px 10px; text-align: center; }
+.water-comparison .spatial-scenario-source { font-size: .73rem; color: #465949; margin-block: 7px 16px; }
+.water-comparison .spatial-scenario-source a { color: #245a4b; text-underline-offset: 2px; }
+.water-compare-source-select { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 8px; font-size: .77rem; }
+.water-compare-source-select select { min-height: 44px; max-width: 100%; }
+.water-compare-chart { margin: 0; padding: clamp(9px, 2vw, 22px); background: #f8f4e8; border: 1px solid #dbd5c2; border-radius: 9px; }
+.water-compare-chart h4, .water-compare-summary h4 { font-size: clamp(1.05rem, 2vw, 1.45rem); margin: 2px 0; }
+.water-compare-chart svg { width: 100%; display: block; margin-top: 10px; cursor: crosshair; touch-action: pan-y; }
+.water-compare-chart svg text { fill: #43594d; font-size: 13px; }
+.water-compare-chart svg line { stroke: #d6dbc9; }
+.water-compare-chart svg .water-compare-threshold { stroke: #8b6a3d; stroke-dasharray: 4 4; }
+.water-compare-chart svg .water-compare-cursor { stroke: #203f34; }
+.water-compare-chart-key { display: flex; flex-wrap: wrap; gap: 5px 14px; font-size: .75rem; }
+.water-compare-chart-key span { display: flex; align-items: center; gap: 5px; }
+.water-compare-chart-key i { width: 14px; height: 3px; }
+.water-compare-day { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; margin-top: 9px; }
+.water-compare-day input { width: 100%; min-height: 44px; accent-color: #006b59; }
+.water-compare-chart p { font-size: .78rem; }
+.water-compare-summary { margin-top: 22px; }
+.water-compare-summary table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.water-compare-summary :is(th,td) { text-align: right; padding: 10px 6px; border-bottom: 1px solid #d7d6c7; overflow-wrap: anywhere; }
+.water-compare-summary :is(th,td):first-child { text-align: left; }
+.water-compare-summary thead { background: #e6ebdf; }
+.water-compare-summary td:last-child { font-weight: 700; }
+@media (max-width: 760px) {
+  .water-compare-panels { height: 500px; }
+  .water-compare-overlays { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .water-compare-panel + .water-compare-panel { border-inline-start: 0; border-block-start: 1px solid #e4e9c87a; }
+  .water-compare-chart svg text { font-size: 16px; }
+  .water-compare-summary table { font-size: .79rem; }
+}
+.water-run-picker { display: grid; gap: 4px; width: fit-content; font-size: .83rem; }
+.water-run-picker select { min-height: 44px; }
+.spatial-drone-details { border: 1px solid #d3ddcf; background: #f2f4e9; border-radius: 8px; margin-block: 12px; padding: 0 12px; }
+.spatial-drone-details summary { display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px; color: #1d4836; font-weight: 700; }
+.spatial-drone-details summary span { margin-left: auto; font-size: .78rem; }
+.spatial-drone-details[open] { padding-bottom: 12px; }
+.spatial-drone-details form { border-top: 1px solid #d6dece; margin-top: 8px; padding-top: 9px; }
+.spatial-drone-details form p { margin: 8px 0; font-size: .82rem; }
+.spatial-drone-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.spatial-drone-details label { display: grid; gap: 4px; color: #244938; font-size: .84rem; }
+.spatial-drone-details :is(input, select) { min-width: 0; min-height: 44px; }
+.spatial-drone-job button { margin-left: 8px; }
+.spatial-twin-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
+.spatial-twin-presets button { min-height: 44px; border: 1px solid #a4b3a2; border-radius: 5px; background: #eff3e6; padding: 4px 9px; color: #244938; }
+.spatial-twin-presets button:hover { background: #dbe8d5; }
+.spatial-twin-presets button[aria-pressed="true"] { background: #214d3b; color: #f9f8eb; }
+.water-compare-tools button[aria-pressed="true"] { background: #cadfc3; color: #17382b; }
+.spatial-stage:has(.spatial-three) { background: radial-gradient(ellipse at 55% 28%, #486650, #192f28 80%); }
+@media (max-width: 550px) { .spatial-drone-form { grid-template-columns: minmax(0, 1fr); } }

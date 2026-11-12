@@ -9,6 +9,18 @@ export interface PrivateObjects {
 }
 export const contentHash = (bytes: Uint8Array) =>
   createHash("sha256").update(bytes).digest("hex");
+export function supabaseObjectConfig() {
+  const bucket = process.env.AGROMAX_SUPABASE_BUCKET;
+  const endpoint = process.env.AGROMAX_SUPABASE_S3_ENDPOINT;
+  const region = process.env.AGROMAX_SUPABASE_S3_REGION;
+  const accessKeyId = process.env.AGROMAX_SUPABASE_S3_KEY_ID;
+  const secretAccessKey = process.env.AGROMAX_SUPABASE_S3_SECRET;
+  if (!bucket || !endpoint?.startsWith("https://") || !region || !accessKeyId || !secretAccessKey) return null;
+  const client = new S3Client({ endpoint, region, forcePathStyle: true,
+    credentials: { accessKeyId, secretAccessKey }, maxAttempts: 2,
+    requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
+  return { client, bucket };
+}
 export function privateObjects(
   options: { directory?: string; token?: string; remote?: boolean } = {},
 ): PrivateObjects {
@@ -32,14 +44,10 @@ export function privateObjects(
   }
   const bucket = process.env.AGROMAX_SUPABASE_BUCKET;
   if (remote && bucket) {
-    const endpoint = process.env.AGROMAX_SUPABASE_S3_ENDPOINT;
-    const region = process.env.AGROMAX_SUPABASE_S3_REGION;
-    const accessKeyId = process.env.AGROMAX_SUPABASE_S3_KEY_ID;
-    const secretAccessKey = process.env.AGROMAX_SUPABASE_S3_SECRET;
-    if (!endpoint?.startsWith("https://") || !region || !accessKeyId || !secretAccessKey)
+    const config = supabaseObjectConfig();
+    if (!config)
       throw new Error("Private Supabase Storage credentials are required.");
-    const client = new S3Client({ endpoint, region, forcePathStyle: true,
-      credentials: { accessKeyId, secretAccessKey }, maxAttempts: 2 });
+    const { client } = config;
     return {
       async put(key, content, contentType) {
         path(key);

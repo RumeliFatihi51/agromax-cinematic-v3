@@ -364,6 +364,7 @@ export default function App() {
       onSelect={analyze}
       commercial={!!activeWorkspace}
       canWrite={!activeWorkspace || activeWorkspace.role !== "viewer"}
+      canEditTerrain={["owner", "manager"].includes(activeWorkspace?.role)}
       waterBalance={commercial?.capabilities?.waterBalance}
       claimsEnabled={commercial?.capabilities?.claims}
       canCalculate={activeWorkspace?.role !== "viewer" &&

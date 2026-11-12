@@ -13,6 +13,8 @@ import {
 import { openDatabase, initializeDatabase } from "./database.js";
 import { createPlatformService } from "./platform.js";
 import { enrichAnalysis } from "./analysis-report.js";
+import { Readable } from "node:stream";
+import { terrainUpload } from "../shared/terrain-upload.js";
 
 /** @param {{db?:any, background?:(work:Promise<unknown>)=>void,workspace?:any}} [options] */
 export async function createApplication({
@@ -35,6 +37,7 @@ export async function createApplication({
           await import("../commercial/production/workspace.ts")
         ).createProductionWorkspace({
           secret: process.env.AGROMAX_AUTH_SECRET || "",
+          background: process.env.VERCEL ? background : undefined,
         })
       : null);
   return {
@@ -54,7 +57,9 @@ export async function createApplication({
             `${process.env.VERCEL ? "https" : "http"}://${req.headers.host}`
         )
           return reply(403, { error: "İstek kaynağı doğrulanamadı." });
-        let body = req.body;
+        const terrainFile = !process.env.VERCEL && workspace && req.method === "PUT" &&
+          terrainUpload.test(req.url);
+        let body = terrainFile ? {} : req.body;
         if (body === undefined) {
           let raw = "";
           for await (const chunk of req) {
@@ -186,7 +191,7 @@ export async function createApplication({
               {
                 method: req.method,
                 headers,
-                ...(["GET", "HEAD"].includes(req.method)
+                ...(terrainFile ? { body: Readable.toWeb(req), duplex: "half" } : ["GET", "HEAD"].includes(req.method)
                   ? {}
                   : { body: JSON.stringify(body) }),
               },

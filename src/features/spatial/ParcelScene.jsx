@@ -1,13 +1,12 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { BufferGeometry, CanvasTexture, Float32BufferAttribute, NearestFilter, PlaneGeometry, SRGBColorSpace } from "three";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { CanvasTexture, PlaneGeometry, SRGBColorSpace } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { containsPoint, pixelBounds, polygons, unproject } from "../../../shared/spatial";
 import { colorFor, rgb } from "./colors";
-const CropInstances = lazy(() => import("./CropInstances"));
 
-function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrain, exaggeration }) {
-  const { camera, gl, invalidate } = useThree();
+function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrain, exaggeration, split, stacked, interaction }) {
+  const { camera, gl, invalidate, size } = useThree();
   const instance = useRef(null);
   const event = useRef(onCamera);
   event.current = onCamera;
@@ -47,6 +46,11 @@ function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrai
     };
   }, [camera, gl, invalidate]);
   useLayoutEffect(() => {
+    if (!instance.current) return;
+    instance.current.enabled = interaction;
+    gl.domElement.style.touchAction = interaction ? "none" : "pan-y";
+  }, [gl, interaction]);
+  useLayoutEffect(() => {
     if (!sync) return;
     camera.position.fromArray(sync);
     camera.lookAt(0, 0, 0);
@@ -57,6 +61,8 @@ function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrai
     const controls = instance.current;
     const start = camera.position.clone();
     const end = start.clone();
+    const viewAspect = size.height ? size.width / size.height * (split ? stacked ? 2 : 0.5 : 1) : 1;
+    const fitScale = Math.max(1, 1.12 / viewAspect);
     const startTarget = controls.target.clone();
     const endTarget = startTarget.clone();
     if (command.type === "focus") {
@@ -64,12 +70,19 @@ function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrai
       end.add(endTarget).sub(startTarget);
     }
     if (command.type === "fit") {
-      end.set(1.04, 0.96, 1.30).multiplyScalar(Math.max(1, 1.06 / camera.aspect));
+      end.set(0.82, 0.90, 1.04).multiplyScalar(fitScale);
+      endTarget.set(0, 0, 0);
+    }
+    if (command.type === "slope") {
+      end.set(0.96, 0.51, 1.19).multiplyScalar(fitScale);
       endTarget.set(0, 0, 0);
     }
     if (command.type === "north") end.set(0, Math.max(0.28, start.y),
       start.distanceTo(startTarget) * 0.7).add(startTarget);
-    if (command.type === "top") end.set(0, 2.1, 0.032).add(startTarget);
+    if (command.type === "top") {
+      end.set(0, 1.72 * fitScale, 0.032);
+      endTarget.set(0, 0, 0);
+    }
     if (command.type === "in" || command.type === "out")
       end.sub(startTarget).multiplyScalar(command.type === "in" ? 0.8 : 1.25).clampLength(0.45, 5.4).add(startTarget);
     let animation;
@@ -85,7 +98,7 @@ function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrai
     };
     animation = requestAnimationFrame(move);
     return () => cancelAnimationFrame(animation);
-  }, [camera, command, invalidate, reduced]);
+  }, [camera, command, invalidate, reduced, size.height, size.width, split, stacked]);
   return null;
 }
 
@@ -103,9 +116,10 @@ function trace(ctx, geometry, xy) {
   }
 }
 
-function createTexture({ frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact }) {
+function createTexture({ frame, field, width, depth, raster, scale, opacity, boundary, imagery,
+  contextImagery, droneImagery, zones, activeZone, compact }) {
   const canvas = document.createElement("canvas");
-  const size = compact ? 512 : 896;
+  const size = compact ? 512 : 1024;
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
   const xy = (point) => {
@@ -120,14 +134,16 @@ function createTexture({ frame, field, width, depth, raster, scale, opacity, bou
   if (contextImagery) {
     ctx.drawImage(contextImagery, 0, 0, size, size);
   }
+  if (droneImagery) {
+    const [west, south, east, north] = droneImagery.bounds;
+    const [left, top] = xy(unproject([west, north]));
+    const [right, bottom] = xy(unproject([east, south]));
+    ctx.drawImage(droneImagery.bitmap, left, top, right - left, bottom - top);
+  }
 
   trace(ctx, field.geometry, xy);
   ctx.save();
   ctx.clip("evenodd");
-  ctx.fillStyle = tone || "#a5aa78";
-  ctx.globalAlpha = contextImagery && !tone ? 0.09 : 1;
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalAlpha = 1;
   if (imagery) {
     const [west, south, east, north] = imagery.bounds;
     const [left, top] = xy([west, north]), [right, bottom] = xy([east, south]);
@@ -160,22 +176,32 @@ function createTexture({ frame, field, width, depth, raster, scale, opacity, bou
     trace(ctx, field.geometry, xy);
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#162d29";
-    ctx.lineWidth = 6;
+    ctx.lineWidth = size / 210;
     ctx.stroke();
     ctx.strokeStyle = "#f5e8ac";
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = size / 440;
     ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "destination-in";
+  for (const vertical of [false, true]) {
+    const fade = ctx.createLinearGradient(0, 0, vertical ? 0 : size, vertical ? size : 0);
+    fade.addColorStop(0, "#0000");
+    fade.addColorStop(0.065, "#000");
+    fade.addColorStop(0.935, "#000");
+    fade.addColorStop(1, "#0000");
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 0, size, size);
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  texture.magFilter = NearestFilter;
+  texture.anisotropy = compact ? 2 : 4;
   return texture;
 }
 
 function Surface({ frame, field, terrain, exaggeration, raster, scale, opacity, boundary, imagery, contextImagery,
-  zones, activeZone, tone, onPoint, compact }) {
+  droneImagery, zones, activeZone, onPoint, compact }) {
   const width = frame.width + frame.span * 0.70, depth = frame.depth + frame.span * 0.70;
-  const segments = terrain ? compact ? 32 : 54 : 1;
+  const segments = terrain ? compact ? 36 : terrain.drone ? 112 : 60 : 1;
   const surface = useMemo(() => {
     const mesh = new PlaneGeometry(width / frame.span, depth / frame.span, segments, segments);
     mesh.rotateX(-Math.PI / 2);
@@ -189,44 +215,41 @@ function Surface({ frame, field, terrain, exaggeration, raster, scale, opacity, 
     }
     return mesh;
   }, [width, depth, frame.span, segments, terrain, exaggeration]);
-  const skirt = useMemo(() => {
-    const positions = surface.attributes.position;
-    const stride = segments + 1;
-    const edge = [
-      ...Array.from({ length: segments }, (_, i) => i),
-      ...Array.from({ length: segments }, (_, i) => i * stride + segments),
-      ...Array.from({ length: segments }, (_, i) => segments * stride + segments - i),
-      ...Array.from({ length: segments }, (_, i) => (segments - i) * stride),
-    ];
-    const base = Math.min(0, ...Array.from({ length: positions.count }, (_, i) => positions.getY(i))) - 0.048;
-    const vertices = [];
-    for (let i = 0; i < edge.length; i++) {
-      const a = edge[i], b = edge[(i + 1) % edge.length];
-      const point = index => [positions.getX(index), positions.getY(index), positions.getZ(index)];
-      const topA = point(a), topB = point(b);
-      const bottomA = [topA[0], base, topA[2]], bottomB = [topB[0], base, topB[2]];
-      vertices.push(...topA, ...bottomA, ...bottomB, ...topA, ...bottomB, ...topB);
-    }
-    const geometry = new BufferGeometry().setAttribute("position", new Float32BufferAttribute(vertices, 3));
-    geometry.computeVertexNormals();
-    return geometry;
-  }, [surface, segments]);
   const texture = useMemo(() => createTexture({
-    frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact,
-  }), [frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact]);
+    frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, droneImagery, zones, activeZone, compact,
+  }), [frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, droneImagery, zones, activeZone, compact]);
   useEffect(() => () => surface.dispose(), [surface]);
-  useEffect(() => () => skirt.dispose(), [skirt]);
   useEffect(() => () => texture.dispose(), [texture]);
-  return <><mesh geometry={skirt}><meshStandardMaterial color="#27372d" side={2} roughness={1} /></mesh>
-    <mesh geometry={surface} onClick={(event) => {
+  return <mesh geometry={surface} onClick={(event) => {
     if (event.delta > 4 || !onPoint) return;
     const x = event.point.x * frame.span, z = event.point.z * frame.span;
     const coordinate = frame.coordinate(x, z);
     if (containsPoint(field.geometry, coordinate)) onPoint({ x, z, coordinate });
   }}>
-    {raster || imagery || tone ? <meshBasicMaterial map={texture} toneMapped={false} /> :
-      <meshStandardMaterial map={texture} roughness={0.9} />}
-  </mesh></>;
+    <meshBasicMaterial map={texture} toneMapped={false} transparent alphaTest={0.025} />
+  </mesh>;
+}
+
+function SplitViews({ stacked }) {
+  useFrame(({ gl, scene, camera, size }) => {
+    const width = stacked ? size.width : Math.floor(size.width / 2);
+    const height = stacked ? Math.floor(size.height / 2) : size.height;
+    if (!width || !height) return;
+    const originalAspect = camera.aspect;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    gl.setScissorTest(true);
+    for (const [x, y] of stacked ? [[0, size.height - height], [0, 0]] : [[0, 0], [size.width - width, 0]]) {
+      gl.setViewport(x, y, width, height);
+      gl.setScissor(x, y, width, height);
+      gl.render(scene, camera);
+    }
+    gl.setScissorTest(false);
+    gl.setViewport(0, 0, size.width, size.height);
+    camera.aspect = originalAspect;
+    camera.updateProjectionMatrix();
+  }, 1);
+  return null;
 }
 
 const emptyZones = [];
@@ -258,27 +281,32 @@ function ObservationMarkers({ markers, frame, terrain, exaggeration, onPoint }) 
 
 export default function ParcelScene({ frame, field, terrain = null, exaggeration = 1, raster = null,
   scale = null, opacity = 0.84, boundary = true, imagery = null, contextImagery = null, zones = emptyZones, activeZone,
-  tone, command, sync, onCamera, onContextLoss, onPoint, cropAsset, markers = emptyZones,
-  reduced = false, compact = false, fallback = null, selection = null }) {
+  droneImagery, command, sync, onCamera, onContextLoss, onPoint, markers = emptyZones, split = false, stacked = false,
+  reduced = false, compact = false, fallback = null, selection = null, interaction = true }) {
+  const [software, setSoftware] = useState(false);
   const camera = useMemo(() => ({
-    position: compact ? [1.35, 1.36, 1.76] : [1.04, 0.96, 1.30], fov: 42, near: 0.012, far: 28,
-  }), [compact]);
+    position: compact && !split ? [1.14, 1.18, 1.42] : [0.82, 0.90, 1.04], fov: 46, near: 0.012, far: 28,
+  }), [compact, split]);
   return <Canvas
     className="spatial-three"
     frameloop="demand"
-    dpr={[1, compact ? 1.25 : 1.6]}
+    dpr={software ? 0.85 : [1, compact ? 1.15 : 1.5]}
     camera={camera}
-    gl={{ antialias: !compact, powerPreference: "low-power" }}
+    gl={{ antialias: !compact && !split, powerPreference: "low-power" }}
+    onCreated={({ gl }) => {
+      const context = gl.getContext();
+      const extension = context.getExtension("WEBGL_debug_renderer_info");
+      setSoftware(!!extension && /swiftshader|llvmpipe|software rasterizer/i
+        .test(context.getParameter(extension.UNMASKED_RENDERER_WEBGL)));
+    }}
     fallback={fallback}
   >
     <hemisphereLight args={["#e6eef7", "#82725a", 1.13]} />
     <directionalLight position={[-3, 3.5, -2]} intensity={1.52} color="#ffedcc" />
-    <Surface {...{ frame, field, terrain, exaggeration, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, onPoint, compact }} />
-    {cropAsset && <Suspense fallback={null}>
-      <CropInstances asset={cropAsset} geometry={field.geometry} {...{ frame, terrain, exaggeration, compact }} />
-    </Suspense>}
+    <Surface {...{ frame, field, terrain, exaggeration, raster, scale, opacity, boundary, imagery, contextImagery, droneImagery, zones, activeZone, onPoint }} compact={compact || software} />
     <ObservationMarkers {...{ markers, frame, terrain, exaggeration, onPoint }} />
     {selection && <SelectionPin {...{ selection, frame, terrain, exaggeration }} />}
-    <Camera {...{ command, sync, onCamera, onContextLoss, reduced, frame, terrain, exaggeration }} />
+    <Camera {...{ command, sync, onCamera, onContextLoss, reduced, frame, terrain, exaggeration, split, stacked, interaction }} />
+    {split && <SplitViews stacked={stacked} />}
   </Canvas>;
 }

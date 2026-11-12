@@ -66,3 +66,22 @@ Konumu girilmiş saha gözlemleri mevcut gözlem kayıtlarında saklanır ve ayn
 Copernicus kayıtlı analiz yolu için sunucuda `SENTINEL_PROVIDER`, `SENTINEL_CLIENT_ID` ve `SENTINEL_CLIENT_SECRET` ayarlanır. Sağlayıcı erişimi hazır olduğunda kayıtlı bir parselde analiz çalıştırılır, tarih ve indeks seçilir, kaynak ve çözünürlük kontrol edilir. Açık arşiv OAuth gerektirmez. Landsat ve Sentinel-1’in mevcut katalog ve özet araçları ayrı çalışır.
 
 Kaynaklar [Copernicus Sentinel-2 L2A](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/S2L2A.html), [Earth Search Sentinel-2 COG arşivi](https://registry.opendata.aws/sentinel-2-l2a-cogs/), [Gitelson WDRVI](https://www.sciencedirect.com/science/article/pii/S0176161704705726), [Mapzen Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), [Mapzen veri lisansları](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) ve [deck.gl MapLibre entegrasyonu](https://deck.gl/docs/developer-guide/base-maps/using-with-maplibre).
+
+## Senaryo karşılaştırması ve drone arazi katmanı
+
+Senaryo Laboratuvarı kayıtlı model çalışmasının iki planını eşzamanlı çizer. Ortak kamera ve model günü iki görünümü birlikte yönetir. Yağış model girdisinden, sulama ve su açığı günlük model çıktısından gelir. Ortak günlere göre hesaplanan tablo farkı B − A yönündedir. FAO‑56 su açığı parsel geneli pilot model değeridir.
+
+Dijital İkiz’de yetkili parsel düzenleyicisi **Drone ortomozaik ve arazi modeli** bölümünden tarih ve kaynak girerek 8 bit RGB/RGBA ortomozaik ve isteğe bağlı metre birimli tek bant DTM yükler. Dosyalar kuzeye hizalı, döşemeli COG biçiminde ve en fazla 50 MB olmalıdır. WGS84 ve WGS84/UTM EPSG kodları kabul edilir. Alfa ve NoData alanları saydam kalır. Drone yükseklik alanı dışında Mapzen rölyefi kullanılır. İki veri setinin örtüşmesindeki medyan ofset yalnızca sahne yüzeylerini hizalar. Nokta okuması kendi kaynağının değerini ve etiketini gösterir.
+
+Ticari ve mevcut oturum köprüsü aynı API’yi kullanır. POST `/api/v1/fields/:id/terrain-datasets` kısa süreli yükleme bağlantısı açar. `/:datasetId/finish` doğrulamayı başlatır, `/:datasetId` durumu döndürür ve `/:datasetId/layers/:kind` yetkili oturuma görünüm dosyasını verir. Kaynak ve çıktı nesneleri özel kalır. Veri setleri mevcut sürümlü domain kayıtlarında saklanır. Ayrı şema migration’ı gerekmez. Üretimde özel Supabase S3 bucket yapılandırması gerekir. Bucket boyut sınırı 50 MB olmalı ve istemci kökeninden imzalı PUT çalışmalıdır. Depolama eksikse uydu ve Mapzen görünümü kullanılabilir.
+
+Blender betiği paketlenmiş düzenlenebilir sahneyi, iki PNG renderı ve web GLB’sini üretir. PNG çıktıları çalışma alanındaki `outputs/agromax-terrain-v2` klasörüne gider. Buğday ve çevre ayrıntıları temsili saha etüdünde yer alır.
+
+İzole tarayıcı testi `npm run test:browser -- terrain-v2.spec.ts` komutuyla çalışır. Gerçek veri denemesi için `AGROMAX_DRONE_SAMPLE_DIR` değişkeni, `sample.json` geometrisi, kaynak ve çekim tarihi ile `ortho.tif` ve `dtm.tif` içeren klasörü gösterir. Kanıt çekimi `AGROMAX_TERRAIN_EVIDENCE=true` ile açılır. QA kesiti Steve Vessey / GeoNadir Beesby Wood 10000 çekiminden kırpıldı ve yaklaşık 0,25 m örnekleme aralığında COG olarak paketlendi. Bu veri setindeki DTM’nin düşey datum bilgisi bulunmadığı için yükseklik kaynağın ham değeri olarak okunur. [GeoNadir çekimi](https://data.geonadir.com/image-collection-details/10000) · [Kaynak ve CC BY 4.0 lisansı](https://registry.opendata.aws/geonadir-fair-data/)
+
+### Revizyon kabul kaydı
+
+- Önceki sürüm `04ebcdd` ile yeni sürüm aynı Beesby parseli ve aynı izole model girdileriyle çalıştırıldı. Her iki ekran 1440 ve 390 CSS pikselinde görüntülendi.
+- Lisanslı RGB kesitinde parsel kapsamı %100, DTM kesitinde %84,65 ölçüldü. Boş DTM alanlarında sahne Mapzen yüksekliğine kademeli geçer. Nokta okuması veri kaynağını ayrı gösterir. Model meteorolojisi ve toprak girdileri açıkça izole QA girdileridir.
+- AMD Radeon Graphics ve Direct3D 11 üzerinde 79 kare aralığında ölçülen p95, 1440 px görünümde Dijital İkiz için 7,0 ms ve Senaryo Karşılaştırması için 7,1 ms oldu. 390 px görünüm masaüstü cihazda emüle edildi ve iki sahnede 7,1 ms ölçüldü.
+- Gerçek COG doğrulaması ve kuruluş sınırı izole depolamada tarayıcıyla çalıştırıldı. Üretim Supabase bağlantısının imzalı yükleme ve CORS doğrulaması, canlı yayın adımında yapılır.

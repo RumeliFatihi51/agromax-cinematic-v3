@@ -9,7 +9,7 @@ from mathutils import Vector
 
 ROOT = Path.cwd()
 SOURCE = ROOT / "data/spatial-source"
-OUT = ROOT / "../../outputs/agromax-3d"
+OUT = ROOT / "../../outputs/agromax-terrain-v2"
 PUBLIC = ROOT / "public/visuals"
 OUT.mkdir(parents=True, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -86,10 +86,11 @@ def soil_material():
 
 
 def height(x, y):
-    return 0.026 * y + 0.44 * math.sin(x / 8 + y / 11) + 0.12 * math.cos(y / 4 - x / 10)
+    ripples = 0.018 * math.cos((y - 0.72 * math.sin(x / 7)) * math.tau / 0.64)
+    return 0.026 * y + 0.44 * math.sin(x / 8 + y / 11) + 0.12 * math.cos(y / 4 - x / 10) + ripples
 
 
-width, depth, divisions = 38, 28, 70
+width, depth, divisions = 58, 49, 150
 vertices = []
 for row in range(divisions + 1):
     for column in range(divisions + 1):
@@ -105,7 +106,7 @@ ground_mesh.update()
 uv = ground_mesh.uv_layers.new()
 for loop in ground_mesh.loops:
     x, y, _ = ground_mesh.vertices[loop.vertex_index].co
-    uv.data[loop.index].uv = (x / 2.6, y / 2.6)
+    uv.data[loop.index].uv = (x / 2.0, y / 2.0)
 for polygon in ground_mesh.polygons:
     polygon.use_smooth = True
 ground = bpy.data.objects.new("Illustrative ground", ground_mesh)
@@ -118,33 +119,53 @@ rows = bpy.data.objects.new("Wheat rows", None)
 bpy.context.collection.objects.link(rows)
 rows.select_set(True)
 plants = []
-for row in range(17):
-    for column in range(31):
-        x = -13.1 + column * 0.82 + rng.uniform(-0.12, 0.12)
-        y = -9 + row * 1.07 + 1.12 * math.sin(x / 9) + rng.uniform(-0.10, 0.10)
-        if rng.random() < 0.055 or -1.4 < x + 0.10 * y < 0.6:
+for row in range(36):
+    for column in range(52):
+        x = -16.3 + column * 0.64 + rng.uniform(-0.18, 0.18)
+        y = -11.7 + row * 0.64 + 0.72 * math.sin(x / 7) + rng.uniform(-0.13, 0.13)
+        if rng.random() < 0.04 or abs(y + 1.1 + 0.07 * x) < 0.62:
             continue
         plant = wheat.copy()
         bpy.context.collection.objects.link(plant)
         plant.parent = rows
         plant.location = (x, y, height(x, y) - 0.035)
         plant.rotation_euler.z = rng.uniform(-math.pi, math.pi)
-        plant.scale = (rng.uniform(1.05, 1.36), rng.uniform(1.05, 1.36), rng.uniform(0.82, 1.15))
+        plant.rotation_euler.x = rng.gauss(0.035, 0.05)
+        plant.rotation_euler.y = rng.gauss(-0.07, 0.05)
+        plant.scale = (rng.uniform(1.22, 1.65), rng.uniform(1.22, 1.65), rng.uniform(0.82, 1.16))
         plant.select_set(True)
         plants.append(plant)
 bpy.data.objects.remove(wheat, do_unlink=True)
 
-# A separately sourced tree provides scale and a horizon landmark in the Blender study.
-# It stays in the authoring scene; the interactive web file uses the crop and soil only.
+# Keep the detailed tree and high-resolution plant geometry in the authoring scene.
 export(PUBLIC / "spatial-field-study.glb")
 for plant in plants:
     plant.data = detail_mesh
+nodes = ground_mesh.materials[0].node_tree.nodes
+links = ground_mesh.materials[0].node_tree.links
+shader = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
+normal = next(node for node in nodes if node.type == "NORMAL_MAP")
+noise = nodes.new("ShaderNodeTexNoise")
+noise.inputs["Scale"].default_value = 430
+noise.inputs["Detail"].default_value = 3.5
+bump = nodes.new("ShaderNodeBump")
+bump.inputs["Strength"].default_value = 0.39
+bump.inputs["Distance"].default_value = 0.10
+links.new(noise.outputs["Fac"], bump.inputs["Height"])
+links.new(normal.outputs["Normal"], bump.inputs["Normal"])
+links.new(bump.outputs["Normal"], shader.inputs["Normal"])
 tree_path = SOURCE / "tree/tree.gltf"
 if tree_path.is_file() and (tree_path.parent / "tree_small_02.bin").is_file():
     bpy.ops.import_scene.gltf(filepath=str(tree_path))
     tree = next(obj for obj in bpy.context.selected_objects if obj.type == "MESH")
     tree.location = (-13.6, 8.5, height(-13.6, 8.5))
     tree.scale = (0.64, 0.64, 0.64)
+    for x, y, scale in ((-22, 12, 1.2), (-18, 16, 0.76), (-6, 18, 0.89), (3, 17.5, 1.08), (10, 20, 0.82)):
+        landmark = tree.copy()
+        bpy.context.collection.objects.link(landmark)
+        landmark.location = (x, y, height(x, y))
+        landmark.rotation_euler.z += rng.uniform(-math.pi, math.pi)
+        landmark.scale = (scale, scale, scale)
 
 scene = bpy.context.scene
 scene.world = bpy.data.worlds.new("Farm daylight")
@@ -154,28 +175,39 @@ environment = nodes.new("ShaderNodeTexEnvironment")
 environment.image = bpy.data.images.load(str(SOURCE / "farm-field.hdr"))
 environment.image.pack()
 background = nodes.get("Background")
-background.inputs["Strength"].default_value = 0.48
+background.inputs["Strength"].default_value = 0.55
 scene.world.node_tree.links.new(environment.outputs["Color"], background.inputs["Color"])
 sun = bpy.data.lights.new("Late afternoon key", "SUN")
-sun.energy, sun.angle = 2.05, math.radians(6)
-sun.color = (1.0, 0.89, 0.72)
+sun.energy, sun.angle = 2.6, math.radians(4)
+sun.color = (1.0, 0.91, 0.76)
 sun_object = bpy.data.objects.new("Late afternoon key", sun)
 bpy.context.collection.objects.link(sun_object)
-sun_object.rotation_euler = (0.48, -0.68, -0.43)
+sun_object.rotation_euler = (0.59, -0.88, -0.67)
 camera = bpy.data.objects.new("Field study camera", bpy.data.cameras.new("Field study camera"))
 bpy.context.collection.objects.link(camera)
 scene.camera = camera
-camera.location = (17, -21, 10.5)
-camera.rotation_euler = (Vector((-2, 1.9, 0.7)) - camera.location).to_track_quat("-Z", "Y").to_euler()
-camera.data.lens = 44
+camera.location = (12.4, -13.3, 5.1)
+camera.rotation_euler = (Vector((-3.2, 1.6, 0.9)) - camera.location).to_track_quat("-Z", "Y").to_euler()
+camera.data.lens = 43
+detail = bpy.data.objects.new("Crop-height detail camera", bpy.data.cameras.new("Crop-height detail camera"))
+bpy.context.collection.objects.link(detail)
+detail.location = (-2.7, -4.7, height(-2.7, -4.7) + 0.84)
+detail.rotation_euler = (Vector((1.0, 0.3, height(1.0, 0.3) + 0.42)) - detail.location).to_track_quat("-Z", "Y").to_euler()
+detail.data.lens = 54
+detail.data.dof.use_dof = True
+detail.data.dof.focus_distance = 2.6
+detail.data.dof.aperture_fstop = 4.0
 scene.render.engine = "CYCLES"
-scene.cycles.samples = 20
+scene.cycles.samples = 28
 scene.cycles.use_denoising = True
 scene.render.resolution_x, scene.render.resolution_y = 1200, 750
 scene.render.resolution_percentage = 100
 scene.view_settings.view_transform = "AgX"
+scene.view_settings.look = "AgX - Medium High Contrast"
 bpy.context.preferences.filepaths.save_version = 0
 bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=str((OUT / "agromax-tarla-etudu.blend").resolve()), compress=True)
-scene.render.filepath = str((OUT / "blender-tarla-etudu.png").resolve())
-bpy.ops.render.render(write_still=True)
+for label, view in (("tarla-genel", camera), ("basak-yakin", detail)):
+    scene.camera = view
+    scene.render.filepath = str((OUT / (label + ".png")).resolve())
+    bpy.ops.render.render(write_still=True)

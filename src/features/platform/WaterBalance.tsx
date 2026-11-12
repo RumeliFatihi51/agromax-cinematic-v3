@@ -9,11 +9,14 @@ type SavedBalance = {
     createdAt: string;
     data: {
       geometryVersion: string;
-      input: { weatherSource: string; soilSource: string };
+      areaM2?: number;
+      input: { weatherSource: string; soilSource: string; waterCostMinorPerM3?: number;
+        days?: { date: string; effectiveRainMm: number }[] };
       result: ReturnType<typeof runWaterBalance>;
     };
   } | null;
   geometryVersion: string;
+  history?: { id: string; createdAt: string }[];
 };
 const soilFields = [
   ["fieldCapacity", "Tarla kapasitesi (m³/m³)", "0.0001"],
@@ -83,13 +86,14 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
   const [saved, setSaved] = useState<SavedBalance | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [activeRun, setActiveRun] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    api(path, undefined, "GET", { signal: controller.signal })
+    api(path + (activeRun ? "?run=" + encodeURIComponent(activeRun) : ""), undefined, "GET", { signal: controller.signal })
       .then(setSaved)
       .catch((e) => { if (!controller.signal.aborted) setError(e.message); });
     return () => controller.abort();
-  }, [path]);
+  }, [path, activeRun]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +109,7 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
       const schedule = (key: string) => csv(values.get(key), 2).map(([date, depth]) => ({
         date, grossMm: Number(depth),
       }));
-      setSaved(await api(path, {
+      const calculated = await api(path, {
         scope: "trakya-winter-wheat",
         weatherSource: values.get("weatherSource"),
         soilSource: values.get("soilSource"),
@@ -125,7 +129,9 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
         waterCostMinorPerM3: Math.round(number("waterCost") * 100),
         maxVolumeM3: number("maxVolumeM3"),
         maxCostMinor: Math.round(number("maxCost") * 100),
-      }));
+      }) as SavedBalance;
+      setSaved(previous => ({ ...calculated, history: previous?.history }));
+      setActiveRun(calculated.run?.id ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Su dengesi hesaplanamadı.");
     } finally {
@@ -135,6 +141,8 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
 
   const run = saved?.run;
   const result = run?.data.result;
+  const showComparison = !!(run && result && result.scenarios.length >= 2 &&
+    spatialField && saved?.geometryVersion === run.data.geometryVersion);
   return (
     <section className="px-surface px-section business-workspace water-balance">
       <h2>Trakya kışlık buğdayı · Su dengesi pilotu</h2>
@@ -169,16 +177,25 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
       {error && <p className="error" role="alert">{error}</p>}
       {run && result && (
         <div className="water-balance-results">
-          <p role="status">Son çalışma · {run.createdAt.slice(0, 10)} · {result.methodVersion}</p>
+          {!!saved.history?.length && !!spatialField && <label className="water-run-picker">Kayıtlı model çalışması
+            <select value={saved.history.some(item => item.id === run.id) ? run.id : ""}
+              onChange={event => { setError(""); setActiveRun(event.target.value); }}>
+              {!saved.history.some(item => item.id === run.id) && <option value="">Önceki sınırın çalışması</option>}
+              {saved.history.map(item => <option key={item.id} value={item.id}>
+                {new Date(item.createdAt).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })} · {item.id.slice(0, 6)}
+              </option>)}
+            </select>
+          </label>}
+          <p role="status">Model çalışması · {run.createdAt.slice(0, 10)} · {result.methodVersion}</p>
           <p>{run.data.input.weatherSource} · {run.data.input.soilSource}</p>
           {saved.geometryVersion !== run.data.geometryVersion && <p>Bu çalışma önceki parsel sınırına aittir.</p>}
-          <DepletionChart key={run.id} result={result} />
-          {spatialField && saved.geometryVersion === run.data.geometryVersion && (
+          {showComparison ? (
             <Suspense fallback={<p role="status">3D karşılaştırma hazırlanıyor…</p>}>
-              <ScenarioRelief key={run.id} field={spatialField} result={result} />
+              <ScenarioRelief key={run.id} field={spatialField} geometryVersion={run.data.geometryVersion}
+                result={result} input={run.data.input} areaM2={run.data.areaM2} />
             </Suspense>
-          )}
-          <div className="px-table-wrap">
+          ) : <DepletionChart key={run.id} result={result} />}
+          {!showComparison && <div className="px-table-wrap">
             <table>
               <thead><tr><th>Senaryo</th><th>Stres günü</th><th>Son açık (mm)</th><th>Su (m³)</th><th>Maliyet (₺)</th><th>Kısıt</th></tr></thead>
               <tbody>{result.scenarios.map((row) => <tr key={row.name}>
@@ -186,7 +203,7 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
                 <td>{fmt(row.volumeM3)}</td><td>{fmt(row.costMinor / 100)}</td><td>{row.feasible ? "Uygun" : "Aşıldı"}</td>
               </tr>)}</tbody>
             </table>
-          </div>
+          </div>}
           <p>ET₀ ±%10 duyarlılığı, son su açığı (mm): {result.scenarios.map((row) =>
             row.sensitivity ? `${row.name} ${fmt(row.sensitivity.minDepletionMm)}–${fmt(row.sensitivity.maxDepletionMm)}` : row.name).join(" · ")}</p>
           <p>{result.bestFeasible ? `Girilen takvimler arasında en az stres ve suyla: ${result.bestFeasible}.` : "Girilen takvimlerden hiçbiri su ve bütçe kısıtlarına uymuyor."}</p>

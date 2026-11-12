@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { domainRecords, auditLog } from "../db/schema";
 import { requirePermission, uid } from "../organizations/service";
 import { ownField } from "../records/service";
@@ -11,7 +11,7 @@ import { balanceInput, runWaterBalance } from "./water-balance";
 
 const kind = "water_balance";
 
-export async function simulationRoutes({ db, context, body, path, method }: WorkspaceRequest) {
+export async function simulationRoutes({ db, context, body, path, method, url }: WorkspaceRequest) {
   const match = path.match(/^\/api\/v1\/fields\/([a-f0-9]{32})\/water-balance$/);
   if (!match || !["GET", "POST"].includes(method)) return;
   const fieldId = match[1]!;
@@ -19,12 +19,23 @@ export async function simulationRoutes({ db, context, body, path, method }: Work
   requirePermission(context, method === "GET" ? "read" : existingAccount ? "record.write" : "calculate");
   if (method === "GET") {
     const field = await ownField(db, context, fieldId);
-    const runs = await db.select().from(domainRecords).where(and(
+    const scope = and(
       eq(domainRecords.organizationId, context.organization.id),
       eq(domainRecords.fieldId, fieldId),
       eq(domainRecords.kind, kind),
-    )).orderBy(desc(domainRecords.createdAt), desc(domainRecords.id)).limit(1);
-    return Response.json({ run: runs[0] ?? null, geometryVersion: geometryHash(field.geometry) }, {
+      isNull(domainRecords.deletedAt),
+    );
+    const runId = url.searchParams.get("run");
+    const geometryVersion = geometryHash(field.geometry);
+    const [runs, history] = await Promise.all([
+      db.select().from(domainRecords).where(and(scope, runId ? eq(domainRecords.id, runId) : undefined))
+        .orderBy(desc(domainRecords.createdAt), desc(domainRecords.id)).limit(1),
+      db.select({ id: domainRecords.id, createdAt: domainRecords.createdAt }).from(domainRecords)
+        .where(and(scope, sql`${domainRecords.data}->>'geometryVersion' = ${geometryVersion}`))
+        .orderBy(desc(domainRecords.createdAt), desc(domainRecords.id)).limit(50),
+    ]);
+    if (runId && !runs[0]) throw new DomainError("NOT_FOUND", "Model çalışması bulunamadı.", 404);
+    return Response.json({ run: runs[0] ?? null, geometryVersion, history }, {
       headers: { "Cache-Control": "no-store" },
     });
   }

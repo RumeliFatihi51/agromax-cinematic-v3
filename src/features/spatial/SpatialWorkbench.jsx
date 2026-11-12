@@ -9,7 +9,7 @@ import ParcelMap from "../fields/ParcelMap";
 import { colorScale, rgb } from "./colors";
 import { loadTerrain, slopeAspect } from "./terrain";
 import { useContextImagery } from "./imagery";
-import { cropModel } from "./crops";
+import { DroneTerrainControls, useCombinedTerrain, useDroneTerrain } from "./DroneTerrain";
 import "./spatial.css";
 
 export const ParcelScene = lazy(() => import("./ParcelScene"));
@@ -162,7 +162,7 @@ export default function SpatialWorkbench(props) {
 
 function ParcelWorkbench({ field, context, variant, selection = {}, onSelection, onStudy,
   onNavigate, onField, zones = noMarkers, activeZone, onZone, markerText, highlight = false,
-  waterBalance, observationsOnField = noMarkers, zonePlan }) {
+  waterBalance, observationsOnField = noMarkers, zonePlan, droneEnabled, canEditTerrain }) {
   const area = useAreaFormat();
   const isMap = variant === "satellite" || variant === "intelligence";
   const observed = variant === "twin" || isMap;
@@ -170,12 +170,12 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const compact = useMedia("(max-width: 700px)");
   const [view, setView] = useState("3d");
+  const [touchOrbit, setTouchOrbit] = useState(false);
   const [command, setCommand] = useState(null);
   const [boundary, setBoundary] = useState(true);
   const [topography, setTopography] = useState(true);
   const [basemap, setBasemap] = useState(true);
   const [trueColor, setTrueColor] = useState(false);
-  const [showCrop, setShowCrop] = useState(false);
   const [showObservations, setShowObservations] = useState(true);
   const [showZones, setShowZones] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -199,7 +199,9 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
   const [full, setFull] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
   const contextImagery = useContextImagery(frame, !isMap && view === "3d" && basemap, compact);
-  const cropAsset = variant === "twin" ? cropModel(field.crop) : null;
+  const supportsDrone = variant === "twin" && droneEnabled;
+  const drone = useDroneTerrain(field.id, context.geometryHash, frame, supportsDrone, true);
+  const combinedTerrain = useCombinedTerrain(drone.dtm, Number.isFinite(dem?.reference) ? dem : null, frame);
   const isOpen = selection.source === openSentinelProvider;
   const openMonth = selection.month || new Date().toISOString().slice(0, 7);
   const openCatalog = useOpenCatalog(field.id, context.geometryHash, observed && isOpen ? openMonth : "");
@@ -315,9 +317,11 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
     <p role="status">3D açılamadı. Kayıtlı sınır 2D haritada gösteriliyor.</p>
     <ParcelMap geometry={field.geometry} height="100%" compact />
   </div>;
-  const terrain = topography && Number.isFinite(dem?.reference) ? dem : null;
-  const height = terrain && point?.x !== undefined ? terrain.sample(point.x, point.z) : null;
-  const relief = terrain && point?.x !== undefined ? slopeAspect(terrain, point.x, point.z) : null;
+  const terrain = topography ? combinedTerrain : null;
+  const pointTerrain = terrain?.drone && point && !Number.isFinite(drone.dtm.sample(point.x, point.z))
+    ? (Number.isFinite(dem?.reference) ? dem : null) : terrain?.drone ? drone.dtm : terrain;
+  const height = pointTerrain && point?.x !== undefined ? pointTerrain.sample(point.x, point.z) : null;
+  const relief = pointTerrain && point?.x !== undefined ? slopeAspect(pointTerrain, point.x, point.z) : null;
   const sampledIndex = point && raster ? pixelIndex(raster, point.coordinate) : -1;
   const sampledValue = point && raster ? (renderMode === "columns" ? point.value :
     raster.values[sampledIndex]) : null;
@@ -344,6 +348,12 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
       </div>
       </div>
     </header>
+    {supportsDrone && <DroneTerrainControls drone={drone} editable={canEditTerrain} />}
+    {variant === "twin" && view === "3d" && <div className="spatial-twin-presets" role="group" aria-label="Arazi bakış açıları">
+      {[["fit", "Genel görünüm"], ["slope", "Arazi eğimi"], ["top", "Üstten inceleme"]].map(([type, label]) =>
+        <button type="button" key={type} onClick={() => setCommand({ type })}>{label}</button>)}
+      {compact && <button type="button" aria-pressed={touchOrbit} onClick={() => setTouchOrbit(value => !value)}>Kamera hareketi</button>}
+    </div>}
     {observed && <div className="spatial-control-deck">
       <label>Veri kaynağı<select aria-describedby="spatial-archive-hint" value={isOpen ? openSentinelProvider : "recorded"}
         onChange={event => {
@@ -401,7 +411,8 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
             <ParcelScene {...{ field, frame, terrain, exaggeration, raster, scale, opacity, boundary, command,
               imagery: datedImagery, selection: point?.coordinate,
               zones: variant === "twin" ? twinZones : zones, activeZone: point?.zone?.id || activeZone,
-              contextImagery: contextImagery?.canvas, cropAsset: showCrop ? cropAsset : null, markers,
+              contextImagery: contextImagery?.canvas, droneImagery: drone.imagery, markers,
+              interaction: variant !== "twin" || !compact || touchOrbit,
               onCamera: position => {
                 if (northArrow.current) northArrow.current.style.transform =
                   "rotate(" + Math.atan2(position[0], position[2]) * 180 / Math.PI + "deg)";
@@ -425,8 +436,6 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
           {!isOpen && observed && <label><input type="checkbox" checked={trueColor}
             disabled={!observation}
             onChange={e => setTrueColor(e.target.checked)} /> Sentinel-2 doğal renk</label>}
-          {cropAsset && <label><input type="checkbox" checked={showCrop}
-            onChange={e => setShowCrop(e.target.checked)} /> Temsili bitki modeli</label>}
           {observed && <label><input type="checkbox" checked={showObservations && observationsOnField.length > 0}
             disabled={!observationsOnField.length} onChange={e => setShowObservations(e.target.checked)} /> Saha gözlemleri</label>}
           {variant === "twin" && <label><input type="checkbox" checked={showZones}
@@ -445,7 +454,7 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
         </div>
       </details>}
       {!isMap && view === "3d" && <div className="spatial-coordinate-tag">
-        <span>{terrain ? "DEM · " + exaggeration + "×" : "DÜZ REFERANS"}</span>
+        <span>{terrain ? (terrain.drone ? "DRONE DTM" : "MAPZEN DEM") + " · " + exaggeration + "×" : "DÜZ REFERANS"}</span>
         <span><span className="spatial-north" ref={northArrow}>↑</span> K · {number(frame.span, 0)} m parsel açıklığı</span>
       </div>}
       {contextImagery?.canvas && <a className="spatial-esri-attribution" href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9"
@@ -460,7 +469,9 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
           raster.values.filter(Number.isFinite).length + " geçerli hücre · " + raster.method +
             (previous && comparisons.includes(renderMode) ? " · Karşılaştırma " + dateLabel(previous.date) : "")
           : topography && view === "3d" ? isMap ? "Topoğrafya · Mapzen Terrain Tiles" : terrain ?
-            "Mapzen DEM · yaklaşık " + number(terrain.resolution, 0) + " m döşeme aralığı" +
+            (terrain.drone ? "Drone DTM · görüntüleme aralığı " + number(terrain.resolution, 2) + " m" +
+              (dem?.reference != null ? " · çevre yüksekliği Mapzen DEM" : "") :
+            "Mapzen DEM · yaklaşık " + number(terrain.resolution, 0) + " m döşeme aralığı") +
               (terrain.sources.length ? " · " + terrain.sources.join(", ") : "") + " · Düşey abartı " + exaggeration + "×"
             : dem ? "Yükseklik verisi alınamadı. Düz referans yüzeyi." : "Yükseklik verisi yükleniyor. Düz referans yüzeyi."
             : "Düz referans yüzeyi."}</p>
@@ -470,7 +481,7 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
           raster.provider === openSentinelProvider ? raster.sceneId : raster.provider === "cdse" ? "Copernicus Data Space" : "Sentinel Hub"}</p>}
         {raster?.capturedAt && <p>Çekim {raster.capturedAt.slice(0, 19).replace("T", " ")} UTC</p>}
         {datedImagery && <p>Sentinel‑2 doğal renk · {dateLabel(observation.date)}</p>}
-        {showCrop && cropAsset && <p>Bitki konumu, gelişim evresi ve görsel boyutu temsilidir.</p>}
+        {drone.imagery && view === "3d" && <p>Drone ortomozaik · {dateLabel(drone.selected.capturedOn)} · {drone.selected.source}</p>}
         {contextImagery?.unavailable && <p>Esri altlığı alınamadı. Şematik yüzey gösteriliyor.</p>}
       </div>
       {raster && scale && <div className="spatial-legend" aria-label="Renk skalası">
@@ -484,7 +495,7 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
         <button type="button" className="text-button spatial-clear-point" onClick={() => setPoint(null)}>Seçimi temizle</button>
         <strong>{point.coordinate.toReversed().map(v => number(v, 5)).join(" / ")}</strong>
         <p>{raster ? raster.metric + " " + (Number.isFinite(sampledValue) ? number(sampledValue) + " " + raster.unit : "· geçerli piksel yok") : ""}
-          {Number.isFinite(height) ? " · " + number(height, 1) + " m" : ""}
+          {Number.isFinite(height) ? " · " + number(height, 1) + " m (" + (pointTerrain.drone ? "DTM" : "Mapzen") + ")" : ""}
           {relief ? " · eğim " + number(relief.slope, 1) + "° · bakı " + (relief.aspect === null ? "düz" : number(relief.aspect, 0) + "°") : ""}</p>
         {reference && <p>{dateLabel(reference.date)} · {Number.isFinite(previousValue) ?
           number(previousValue) + " " + reference.unit : "Geçerli piksel yok"}</p>}
@@ -573,7 +584,6 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
       {isOpen && <a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/" target="_blank" rel="noreferrer">
         Earth Search veri kaynağı <ArrowUpRight size={14} /></a>}
       {!isMap && <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noreferrer">Yükseklik kaynağı <ArrowUpRight size={14} /></a>}
-      {showCrop && cropAsset && <a href="/visuals/spatial-models.txt" target="_blank" rel="noreferrer">Bitki modeli lisansı <ArrowUpRight size={14} /></a>}
       {observed && <button className="text-button" onClick={() => onNavigate("temporal", field.id)}>Arazi hafızası <ArrowUpRight size={15} /></button>}
       {variant === "twin" && <button className="text-button" onClick={() => onNavigate("prescriptions", field.id)}>Yönetim bölgeleri <ArrowUpRight size={15} /></button>}
     </footer>

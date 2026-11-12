@@ -11,6 +11,17 @@ let organizationId = "";
 export function setOrganizationId(value) {
   organizationId = value || "";
 }
+export async function apiBinary(path, { signal, body, method = "GET", headers = {} } = {}) {
+  const response = await fetch("/api/" + path, {
+    method, body, signal,
+    headers: { ...headers, ...(organizationId ? { "X-Organization-ID": organizationId } : {}) },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(error.error || "Dosya isteği tamamlanamadı.", response.status, error.code);
+  }
+  return response.blob();
+}
 export async function fetchAnalysisImage(fieldId, { date, layer, analysisId, signal }) {
   const response = await fetch("/api/records/" + encodeURIComponent(fieldId) + "/image", {
     method: "POST",

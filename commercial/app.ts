@@ -35,6 +35,8 @@ import { assistantRoutes } from "./assistant/api";
 import { reportRoutes } from "./reports/api";
 import { recordRoutes } from "./records/api";
 import { simulationRoutes } from "./simulation/api";
+import { terrainRoutes } from "./terrain/api";
+import { terrainUpload } from "../shared/terrain-upload.js";
 import { intelligenceRoutes } from "./intelligence/api";
 import { offlineRoutes } from "./records/offline";
 export async function createCommercialApplication(options: RuntimeOptions) {
@@ -122,7 +124,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
             salesEnabled: false,
           });
         if (path.startsWith("/api/auth/")) return await authRequest(request);
-        const body = await readBody(request);
+        const body = method === "PUT" && terrainUpload.test(path) ? {} : await readBody(request);
         if (
           ["/api/login", "/api/register", "/api/logout"].includes(path) &&
           method === "POST"
@@ -325,7 +327,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
           path,
           method,
         };
-        for (const handler of [assistantRoutes, reportRoutes, recordRoutes, simulationRoutes, intelligenceRoutes, offlineRoutes]) {
+        for (const handler of [assistantRoutes, reportRoutes, recordRoutes, simulationRoutes, intelligenceRoutes, offlineRoutes, terrainRoutes]) {
           const response = await handler(input);
           if (response) return response;
         }

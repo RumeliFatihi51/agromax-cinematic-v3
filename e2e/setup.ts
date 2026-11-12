@@ -160,6 +160,7 @@ export default async function setup() {
   };
   delete env.VERCEL;
   delete env.AGROMAX_DATABASE_URL;
+  delete env.AGROMAX_SUPABASE_BUCKET;
   Object.assign(env, { AGROMAX_DEBUG: "true" });
   Object.assign(env, {
     WORKFLOW_TARGET_WORLD: "local",

@@ -58,10 +58,10 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   await twin.getByText("Katmanlar", { exact: true }).click();
   await twin.getByRole("checkbox", { name: "Parsel sınırı" }).uncheck();
   await twin.getByRole("checkbox", { name: "Parsel sınırı" }).check();
-  const glb = page.waitForResponse(response => response.url().endsWith("/spatial-wheat.glb"));
-  await twin.getByRole("checkbox", { name: "Temsili bitki modeli" }).check();
-  expect((await glb).ok()).toBe(true);
+  await expect(twin.getByRole("checkbox", { name: "Temsili bitki modeli" })).toHaveCount(0);
   await twin.getByText("Katmanlar", { exact: true }).click();
+  await twin.getByRole("button", { name: "Arazi eğimi" }).click();
+  await twin.getByRole("button", { name: "Genel görünüm" }).click();
   await expect(twin).toContainText(process.env.AGROMAX_VERIFY_LIVE_TERRAIN ? "Mapzen DEM" : "Düz referans yüzeyi", { timeout: 14_000 });
   if (process.env.AGROMAX_VERIFY_LIVE_TERRAIN)
     await expect(twin.getByRole("link", { name: /Esri World Imagery/ })).toBeVisible({ timeout: 14_000 });
