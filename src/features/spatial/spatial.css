@@ -91,11 +91,6 @@
 .spatial-north { display: inline-block; font-size: 1rem; }
 .spatial-map-notice { bottom: 40px; left: 12px; max-width: calc(100% - 70px); }
 .spatial-workbench .spatial-map-notice { color: #f1f2db; }
-.spatial-esri-attribution {
-  position: absolute; bottom: 8px; right: 8px; max-width: min(500px, 48%);
-  padding: 4px 6px; border-radius: 4px; background: #18362de8; color: #f1f2db;
-  font-size: .62rem; text-decoration: none;
-}
 .spatial-stage .maplibregl-ctrl-group { background: #f9f7ea; }
 .spatial-stage .maplibregl-ctrl-scale { background: #f9f7ea; color: #19332a; }
 .spatial-readout { align-items: start; background: #faf7ee; font-variant-numeric: tabular-nums; }
@@ -162,8 +157,6 @@
   .spatial-control-deck { gap: 8px; }
   .spatial-camera { right: 8px; top: 64px; }
   .spatial-layers { left: 8px; top: 8px; }
-  .spatial-esri-attribution { bottom: 7px; left: 8px; right: auto; max-width: calc(100% - 16px); }
-  .spatial-coordinate-tag:has(+ .spatial-esri-attribution) { bottom: 36px; }
   .spatial-atlas { grid-template-columns: minmax(0, 1fr); }
   .spatial-atlas-visual { min-height: 235px; order: -1; }
 }
@@ -250,3 +243,26 @@
 .water-compare-tools button[aria-pressed="true"] { background: #cadfc3; color: #17382b; }
 .spatial-stage:has(.spatial-three) { background: radial-gradient(ellipse at 55% 28%, #486650, #192f28 80%); }
 @media (max-width: 550px) { .spatial-drone-form { grid-template-columns: minmax(0, 1fr); } }
+.water-compare-map-views { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.water-compare-map-views > div, .spatial-map { min-height: 0; min-width: 0; position: relative; }
+.water-compare-mirror canvas { display: block; width: 100%; height: 100%; }
+.water-compare-overlays { z-index: 3; }
+.water-compare-panel { padding-bottom: 34px; }
+.spatial-stage:has(.spatial-coordinate-tag) .maplibregl-ctrl-bottom-left { display: none; }
+.spatial-stage:has(.agromax-mapbox-logo) .spatial-coordinate-tag { bottom: 34px; }
+.water-compare-map-views .maplibregl-ctrl-bottom-left { display: none; }
+.water-compare-map-views .maplibregl-ctrl-bottom-right { z-index: 4; }
+.spatial-atlas.spatial-atlas-continuous { display: grid; grid-template-columns: minmax(0,1fr); position: relative; background: #223a30; isolation: isolate; }
+.spatial-atlas-continuous .spatial-atlas-visual { min-height: clamp(400px,49vh,560px); position: absolute; inset: 0; }
+.spatial-atlas-continuous .spatial-atlas-copy { z-index: 2; color: #f9f6e4; background: linear-gradient(90deg,#123127 73%,#183e3100); max-width: 620px; min-height: clamp(400px,49vh,560px); padding: 26px clamp(18px,4vw,70px) 30px; pointer-events: none; }
+.spatial-atlas-continuous .spatial-atlas-copy > * { max-width: 400px; }
+.spatial-atlas-continuous .spatial-atlas-copy :is(button, select) { pointer-events: auto; }
+.spatial-atlas-continuous .spatial-atlas-copy h2 { color: #fffbe9 !important; }
+.spatial-atlas-continuous .spatial-atlas-copy p { color: #e4ecd8; }
+.spatial-atlas-continuous .spatial-atlas-visual .maplibregl-ctrl-scale { display: none; }
+@media(max-width: 760px) {
+  .water-compare-map-views { grid-template-columns: 1fr; grid-template-rows: repeat(2,minmax(0,1fr)); }
+  .spatial-atlas.spatial-atlas-continuous { grid-template-rows: 280px auto; }
+  .spatial-atlas-continuous .spatial-atlas-visual { position: relative; min-height: 280px; }
+  .spatial-atlas-continuous .spatial-atlas-copy { min-height: 0; background: #16362a; }
+}

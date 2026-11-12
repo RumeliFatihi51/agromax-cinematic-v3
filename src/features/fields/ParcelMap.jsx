@@ -31,7 +31,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { validateGeometry } from "../../../shared/geometry";
-import { basemaps, labelsLayer } from "./basemaps";
+import { basemaps, mapboxEnabled, satelliteWithLabels } from "./basemaps";
+import MapboxWordmark from "./MapboxWordmark";
 import MapSearch from "./MapSearch";
 
 function geometries(group) {
@@ -74,7 +75,6 @@ export default function ParcelMap({
     position = useRef(0),
     skip = useRef(false),
     baseLayer = useRef(),
-    labelLayer = useRef(),
     searchMarker = useRef(),
     initialFitDone = useRef(false),
     callbacks = useRef({ onChange, onSelect, onDrawing });
@@ -88,7 +88,7 @@ export default function ParcelMap({
     [tilesLoading, setTilesLoading] = useState(true),
     [tilesSlow, setTilesSlow] = useState(false),
     [tileRevision, setTileRevision] = useState(0),
-    [base, setBase] = useState("satellite"),
+    [base, setBase] = useState(mapboxEnabled ? "satellite" : "road"),
     [labels, setLabels] = useState(false),
     [showInfo, setShowInfo] = useState(false),
     [fullscreen, setFullscreen] = useState(false);
@@ -189,9 +189,6 @@ export default function ParcelMap({
       zoomControl: false,
     });
     instance.current = map;
-    map.createPane("labels");
-    map.getPane("labels").style.zIndex = 450;
-    map.getPane("labels").style.pointerEvents = "none";
     L.control.zoom({ position: "bottomright" }).addTo(map);
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
     map.pm.setLang("tr");
@@ -297,7 +294,7 @@ export default function ParcelMap({
     setTilesLoading(true);
     setTilesSlow(false);
     baseLayer.current?.remove();
-    const config = basemaps[base];
+    const config = base === "satellite" && labels ? satelliteWithLabels : basemaps[base];
     const tile = L.tileLayer(config.url, config.options);
     baseLayer.current = tile;
     let errors = 0;
@@ -323,16 +320,7 @@ export default function ParcelMap({
       window.clearTimeout(slow);
       tile.remove();
     };
-  }, [base, tileRevision]);
-  useEffect(() => {
-    labelLayer.current?.remove();
-    if (labels && base === "satellite")
-      labelLayer.current = L.tileLayer(
-        labelsLayer.url,
-        labelsLayer.options,
-      ).addTo(instance.current);
-    return () => labelLayer.current?.remove();
-  }, [labels, base]);
+  }, [base, labels, tileRevision]);
   useEffect(() => {
     const group = saved.current;
     if (!group) return;
@@ -647,7 +635,7 @@ export default function ParcelMap({
           <button
             type="button"
             className={base === "satellite" ? "active" : ""}
-            onClick={() => setBase("satellite")}
+            onClick={() => setBase("satellite")} disabled={!mapboxEnabled}
             aria-pressed={base === "satellite"}
           >
             <Satellite size={16} />
@@ -666,7 +654,7 @@ export default function ParcelMap({
             type="button"
             className={labels && base === "satellite" ? "active" : ""}
             disabled={base !== "satellite"}
-            onClick={() => setLabels(!labels)}
+            onClick={() => setLabels(!labels)} disabled={!mapboxEnabled || base !== "satellite"}
             title="Yer adlarını göster"
             aria-label="Yer adlarını göster"
             aria-pressed={labels && base === "satellite"}
@@ -784,7 +772,7 @@ export default function ParcelMap({
           </button>
           <button
             type="button"
-            onClick={() => setBase(base === "satellite" ? "road" : "satellite")}
+            onClick={() => setBase(base === "satellite" || !mapboxEnabled ? "road" : "satellite")}
           >
             Diğer altlığı aç
           </button>
@@ -826,7 +814,7 @@ export default function ParcelMap({
           aria-label="Görüntü kaynağı bilgisi"
         >
           <Info size={14} />
-          {base === "satellite" ? "Esri World Imagery" : "OpenStreetMap"}
+          {basemaps[base].label}
         </button>
         {showInfo && (
           <p>
@@ -836,6 +824,7 @@ export default function ParcelMap({
           </p>
         )}
       </div>
+      <MapboxWordmark visible={base === "satellite" && mapboxEnabled} />
     </div>
   );
   return <div className={editable ? "parcel-drawing-layout" : "parcel-map-frame"}>{palette}{mapSurface}</div>;

@@ -1,12 +1,13 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { ArrowDown, Compass, Mountain, RotateCcw } from "lucide-react";
 import { metricFrame } from "../../../shared/spatial";
 import ParcelMap from "../fields/ParcelMap";
-import { ParcelScene, SpatialBoundary } from "./SpatialWorkbench";
-import { useContextImagery } from "./imagery";
-import { loadTerrain } from "./terrain";
+import { GeospatialMap, SpatialBoundary, useMedia } from "./SpatialWorkbench";
+import { useDroneTerrainSource, useTerrainSample } from "./map-terrain";
+import { defaultBasemap } from "../fields/basemaps";
+import MapboxWordmark from "../fields/MapboxWordmark";
 import { compareWaterPlans } from "./water-comparison";
-import { useCombinedTerrain, useDroneTerrain } from "./DroneTerrain";
+import { useDroneTerrain } from "./DroneTerrain";
 
 const format = (value, signed = false) => Number.isFinite(value) ? value.toLocaleString("tr-TR", {
   maximumFractionDigits: 2, signDisplay: signed ? "exceptZero" : "auto",
@@ -16,18 +17,6 @@ const dateLabel = value => value ? new Date(value + "T12:00:00Z").toLocaleDateSt
 }) : "—";
 const series = ["#006b59", "#a74429"];
 const metrics = ["Stres günleri", "Uygulanan sulama · m³", "Kayıtlı su maliyeti · ₺"];
-
-function useMedia(query) {
-  const [matches, setMatches] = useState(() => matchMedia(query).matches);
-  useEffect(() => {
-    const media = matchMedia(query);
-    const update = () => setMatches(media.matches);
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, [query]);
-  return matches;
-}
 
 function ComparisonChart({ rows, date, selectDate, result, stacked }) {
   const width = stacked ? 430 : 760, left = 48, right = width - 25, upper = 18, baseline = 172;
@@ -107,19 +96,10 @@ export default function ScenarioRelief({ field, geometryVersion, result, input, 
   const [command, setCommand] = useState(null);
   const [lost, setLost] = useState(false);
   const [touchOrbit, setTouchOrbit] = useState(false);
-  const [dem, setDem] = useState(null);
-  const imagery = useContextImagery(frame, !lost, stacked);
+  const mirror = useRef(null);
   const drone = useDroneTerrain(field.id, geometryVersion, frame, true, !lost);
-  const terrain = useCombinedTerrain(drone.dtm,
-    dem?.frame === frame && Number.isFinite(dem.terrain?.reference) ? dem.terrain : null, frame);
-  useEffect(() => {
-    if (lost) return;
-    const controller = new AbortController();
-    loadTerrain(frame, AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]))
-      .then(terrain => { if (!controller.signal.aborted) setDem({ frame, terrain }); })
-      .catch(() => { if (!controller.signal.aborted) setDem({ frame, terrain: null }); });
-    return () => controller.abort();
-  }, [lost, frame]);
+  const dem = useTerrainSample(frame, !lost && !!drone.dtm);
+  const terrainDefinition = useDroneTerrainSource(frame, drone.dtm, dem);
   const plans = indices.map(index => result.scenarios[index]);
   const comparison = useMemo(() => result.scenarios.length >= 2
     ? compareWaterPlans(result.scenarios[indices[0]], result.scenarios[indices[1]], input, areaM2) : null,
@@ -148,9 +128,12 @@ export default function ScenarioRelief({ field, geometryVersion, result, input, 
     <div className="water-compare-stage">
       <div className="water-compare-panels" aria-label="Eşzamanlı parsel görünümleri">
         {lost ? fallback : <SpatialBoundary fallback={fallback}><Suspense fallback={<p role="status">Ortak arazi yükleniyor…</p>}>
-          <ParcelScene {...{ frame, field, terrain, stacked, command, reduced }} split compact={stacked}
-            interaction={!stacked || touchOrbit} droneImagery={drone.imagery}
-            contextImagery={imagery?.canvas} onContextLoss={() => setLost(true)} fallback={fallback} />
+          <div className="water-compare-map-views">
+            <div><GeospatialMap {...{ frame, field, command, reduced, mirror, terrainDefinition }}
+              compact={stacked} interaction={!stacked || touchOrbit} droneImagery={drone.imagery}
+              onError={() => setLost(true)} /></div>
+            <div className="water-compare-mirror" aria-hidden="true"><canvas ref={mirror} /><MapboxWordmark /></div>
+          </div>
         </Suspense></SpatialBoundary>}
         <div className="water-compare-overlays">
           {plans.map((plan, side) => {
@@ -187,9 +170,8 @@ export default function ScenarioRelief({ field, geometryVersion, result, input, 
     </label>}
     <p className="spatial-scenario-source">
       {drone.imagery && <>Drone ortomozaik · {drone.selected.source} · </>}
-      {terrain?.drone ? "Drone DTM" : terrain
-        ? <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen yüksekliği</a> : "Düz yükseklik referansı"}
-      {imagery?.canvas && <> · <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">Esri World Imagery · Esri, Vantor, Earthstar Geographics, GIS User Community</a></>}
+      {terrainDefinition ? "Drone DTM · " : ""}<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen yükseklik kaynağı</a>
+      {" · "}{defaultBasemap.label}
     </p>
     {active ? <ComparisonChart {...{ rows, result, stacked }} date={active.date} selectDate={setDate} />
       : <p role="status">Bu planların ortak model günü yok. Dönem toplamları kendi tarih aralıklarına aittir.</p>}

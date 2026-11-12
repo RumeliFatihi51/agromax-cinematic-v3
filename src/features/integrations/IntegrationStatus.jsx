@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { api } from "../../api";
+import { mapboxEnabled } from "../fields/basemaps";
 import StatusIndicator from "../../components/ui/StatusIndicator";
 import {
   indices,
@@ -83,7 +84,7 @@ export default function IntegrationStatus({ status }) {
           [
             Map,
             "Parsel haritası",
-            "Etkin · Esri World Imagery",
+            mapboxEnabled ? "Mapbox Satellite · Yapılandırıldı" : "OpenStreetMap · Mapbox anahtarı eksik",
             "Çizim, köşe düzenleme, kesme, taşıma, döndürme ve GeoJSON işlemleri. Ticari ölçek için harita sunucusu kapasitesi ayrıca planlanmalı.",
           ],
           [

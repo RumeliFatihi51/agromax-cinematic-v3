@@ -55,9 +55,9 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   await expect(comparison.locator(".water-compare-panel")).toHaveCount(2);
   await comparison.getByRole("slider", { name: "Model günü" }).press("End");
   await expect(comparison.getByRole("slider", { name: "Model günü" })).toHaveAttribute("aria-valuetext", /3 Oca/);
-  await expect(comparison.locator("canvas")).toHaveCount(1);
+  await expect(comparison.locator(".maplibregl-canvas")).toHaveCount(1);
   if (process.env.AGROMAX_VERIFY_LIVE_TERRAIN)
-    await expect(comparison.getByRole("link", { name: "Mapzen yüksekliği" })).toBeVisible({ timeout: 14000 });
+    await expect(comparison.getByRole("link", { name: "Mapzen yükseklik kaynağı" })).toBeVisible({ timeout: 14000 });
   await comparison.screenshot({ path: info.outputPath("spatial-decision.png"), animations: "disabled" });
   await balance.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath("scenarios-1440.png"), animations: "disabled" });

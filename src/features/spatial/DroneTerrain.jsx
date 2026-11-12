@@ -209,7 +209,7 @@ export function useCombinedTerrain(dtm, dem, frame) {
     }
     const offset = offsets.sort((a, b) => a - b)[Math.floor(offsets.length / 2)] ?? dtm.reference - (dem?.reference ?? dtm.reference);
     const seamWidth = Math.max(8, Math.min(45, frame.span * 0.17));
-    return { ...dtm, sample: (x, z) => {
+    return { ...dtm, datumOffset: offset, sample: (x, z) => {
       const local = dtm.sample(x, z);
       const surrounding = dem?.sample(x, z);
       const backdrop = Number.isFinite(surrounding) ? surrounding + offset : dtm.reference;

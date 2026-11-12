@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import PreferenceProvider from "./components/PreferenceProvider";
 import useWorkspacePage from "./components/useWorkspacePage";
 import { platformPages } from "../shared/platform";
+const FieldStudio = lazy(() => import("./features/spatial/FieldStudio"));
 const PlatformWorkspace = lazy(() => import("./features/platform/PlatformWorkspace"));
 const Dashboard = lazy(() => import("./features/overview/Dashboard"));
 const FieldsWorkspace = lazy(() => import("./features/fields/FieldsWorkspace"));
@@ -72,6 +73,7 @@ export default function App() {
     [notifications, setNotifications] = useState(null),
     [historyFocus, setHistoryFocus] = useState(null),
     [taskDate, setTaskDate] = useState(""),
+    [taskField, setTaskField] = useState(""),
     [commercial, setCommercial] = useState(null),
     [commercialError, setCommercialError] = useState(""),
     [operationPage, setOperationPage] = useState("seasons");
@@ -256,7 +258,8 @@ export default function App() {
     setReady(false);
     setPage("overview");
   }
-  function openTask(date) {
+  function openTask(date, fieldId = "") {
+    setTaskField(fieldId);
     setTaskDate(typeof date === "string" ? date : "");
     setError("");
     setModal(true);
@@ -349,6 +352,10 @@ export default function App() {
         }
       />
     );
+  else if (page === "field-studio")
+    content = <FieldStudio key={activeWorkspace?.id || user.id} fields={fields} tasks={tasks} initialFieldId={destinationField} initialMetric={location.metric}
+      commercial={!!activeWorkspace} canWrite={!activeWorkspace || activeWorkspace.role !== "viewer"}
+      onNavigate={navigate} onCreateTask={openTask} onToggleTask={toggle} onCreateField={create} />;
   else if (platformPages.includes(page))
     content = <PlatformWorkspace
       key={`${activeWorkspace?.id || user.id}:${page}`}
@@ -412,7 +419,7 @@ export default function App() {
         onConnections={() => navigate("integrations")}
         onAssistant={(fieldId) => navigate("assistant", fieldId)}
         onTwin={(fieldId) => navigate("twin", fieldId)}
-        onSpatial={(fieldId) => navigate("satellite", fieldId)}
+        onSpatial={(fieldId) => setPage("field-studio", { field: fieldId, metric: "NDVI" })}
         analysisMode={page === "satellite"}
         onSaved={(record) =>
           setRecords((v) =>
@@ -608,7 +615,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
         {modal && (
-          <TaskModal initialDate={taskDate} fields={fields}
+          <TaskModal initialDate={taskDate} initialFieldId={taskField} fields={fields}
             onClose={() => setModal(false)}
             onSave={saveTask}
             busy={saving}

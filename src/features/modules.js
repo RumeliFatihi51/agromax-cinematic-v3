@@ -1,6 +1,7 @@
 ﻿import { platformFeatures, platformPages } from '../../shared/platform.js';
 export const modules = [
   ['overview','Genel bakış','LayoutDashboard','green'],
+  ['field-studio','3D Saha Stüdyosu','LandPlot','green'],
   ['platform','Platform merkezi','Layers3','green'],
   ['fields','Parseller ve analiz','Sprout','green'],
   ...platformFeatures.filter(feature=>feature.id!=='fields').map(feature=>[feature.id,feature.title,feature.icon,feature.group==='assure'?'blue':'green']),
@@ -15,7 +16,7 @@ export const modules = [
   ['integrations','Veri bağlantıları','Cable','purple'],
   ['settings','Hesap ve işletme','ShieldCheck','green'],
 ];
-const legacyPages=new Set(['overview','fields','history','weather','tasks','notifications','assistant','integrations',...platformPages]);
+const legacyPages=new Set(['overview','field-studio','fields','history','weather','tasks','notifications','assistant','integrations',...platformPages]);
 export const availableModules=(commercial=false)=>commercial?modules:modules.filter(([id])=>legacyPages.has(id));
 export const navigationGroups = [
   {id:'observe',label:'Araziler ve gözlem',pages:['platform','fields','satellite','temporal','weather','history']},

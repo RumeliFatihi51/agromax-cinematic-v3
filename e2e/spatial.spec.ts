@@ -34,7 +34,7 @@ test("existing-account owners can start standard parcel analysis without commerc
 test("3D geometry, numeric Sentinel layers and dated comparisons work through the isolated API", async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   if (!process.env.AGROMAX_VERIFY_LIVE_TERRAIN) {
-    await page.route("https://services.arcgisonline.com/**", route => route.abort());
+    await page.route("https://api.mapbox.com/**", route => route.abort());
     await page.route("https://s3.amazonaws.com/elevation-tiles-prod/**", route => route.abort());
   }
   const errors: string[] = [];
@@ -53,7 +53,7 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   const observationId = (await savedObservation.json()).record.id;
   await page.goto("/#twin?field=" + id);
   const twin = page.locator('[data-spatial="twin"]');
-  await expect(twin.locator(".spatial-three canvas")).toBeVisible({ timeout: 25_000 });
+  await expect(twin.locator(".maplibregl-canvas")).toBeVisible({ timeout: 25_000 });
   await twin.getByRole("button", { name: "Kuzeye dön" }).click();
   await twin.getByText("Katmanlar", { exact: true }).click();
   await twin.getByRole("checkbox", { name: "Parsel sınırı" }).uncheck();
@@ -63,8 +63,8 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   await twin.getByRole("button", { name: "Arazi eğimi" }).click();
   await twin.getByRole("button", { name: "Genel görünüm" }).click();
   await expect(twin).toContainText(process.env.AGROMAX_VERIFY_LIVE_TERRAIN ? "Mapzen DEM" : "Düz referans yüzeyi", { timeout: 14_000 });
-  if (process.env.AGROMAX_VERIFY_LIVE_TERRAIN)
-    await expect(twin.getByRole("link", { name: /Esri World Imagery/ })).toBeVisible({ timeout: 14_000 });
+  if (process.env.VITE_MAPBOX_ACCESS_TOKEN)
+    await expect(twin.locator(".agromax-mapbox-logo")).toBeVisible({ timeout: 14_000 });
   await twin.getByLabel("Saha gözlemi noktaları").selectOption(observationId);
   await expect(twin).toContainText("Isolated point fixture.");
   await twin.screenshot({ path: info.outputPath("spatial-twin.png") });
@@ -114,9 +114,9 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   await study.getByRole("button", { name: "Bitki sıralarına yaklaş" }).click();
   await study.screenshot({ path: info.outputPath("spatial-study-detail.png") });
   await study.getByRole("button", { name: "Parsel modeline dön" }).click();
-  await expect(twin.locator(".spatial-three canvas")).toBeVisible();
+  await expect(twin.locator(".maplibregl-canvas")).toBeVisible();
   await twin.getByRole("button", { name: "2D" }).click();
-  await expect(twin.locator(".leaflet-container")).toBeVisible();
+  await expect(twin.locator(".maplibregl-canvas")).toBeVisible();
 
   await page.goto("/#satellite?field=" + id);
   const satellite = page.locator('[data-spatial="satellite"]');
@@ -160,7 +160,7 @@ test("revision-bound prescription zones are saved, validated and selectable in 3
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
   await expect(page.locator(".fw-overview-section")).toBeVisible();
-  await page.route("https://services.arcgisonline.com/**", route => route.abort());
+  await page.route("https://api.mapbox.com/**", route => route.abort());
   await page.route("https://s3.amazonaws.com/elevation-tiles-prod/**", route => route.abort());
   const id = (info.project.name === "desktop" ? "a" : "b").repeat(32);
   const otherId = (info.project.name === "desktop" ? "b" : "a").repeat(32);
@@ -178,7 +178,7 @@ test("revision-bound prescription zones are saved, validated and selectable in 3
   } })).status()).toBe(400);
   await page.goto("/#prescriptions?field=" + id);
   const model = page.locator('[data-spatial="prescriptions"]');
-  await expect(model.locator(".spatial-three canvas")).toBeVisible();
+  await expect(model.locator(".maplibregl-canvas")).toBeVisible();
   await page.getByRole("combobox", { name: "Yönetim bölgesi", exact: true }).selectOption({ label: "Güney · 32 m³/ha" });
   await expect(model).toContainText("Güney · 32 m³/ha · Kullanıcı taslağı");
   await page.goto("/#twin?field=" + id);

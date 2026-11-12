@@ -1,6 +1,6 @@
 import { CalendarPlus, X, ArrowRight } from "lucide-react";
 import useDialogFocus from "../../components/useDialogFocus";
-export default function TaskModal({ onClose, onSave, busy, error, initialDate, fields }) {
+export default function TaskModal({ onClose, onSave, busy, error, initialDate, initialFieldId, fields }) {
   const ref = useDialogFocus(() => !busy && onClose());
   return (
     <div className="modal-backdrop" onClick={() => !busy && onClose()}>
@@ -42,7 +42,7 @@ export default function TaskModal({ onClose, onSave, busy, error, initialDate, f
           </label>
           <label>
             Parsel (isteğe bağlı)
-            <select name="fieldId" defaultValue="">
+            <select name="fieldId" defaultValue={initialFieldId || ""}>
               <option value="">Parsel seçilmedi</option>
               {fields.map((field) => <option value={field.id} key={field.id}>{field.name}</option>)}
             </select>

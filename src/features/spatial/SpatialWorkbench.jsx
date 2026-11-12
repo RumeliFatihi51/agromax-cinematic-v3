@@ -8,12 +8,12 @@ import { changeOutliers, compareRasters, containsPoint, metricFrame, pixelIndex 
 import ParcelMap from "../fields/ParcelMap";
 import { colorScale, rgb } from "./colors";
 import { loadTerrain, slopeAspect } from "./terrain";
-import { useContextImagery } from "./imagery";
+import { defaultBasemap } from "../fields/basemaps";
+import { useDroneTerrainSource } from "./map-terrain";
 import { DroneTerrainControls, useCombinedTerrain, useDroneTerrain } from "./DroneTerrain";
 import "./spatial.css";
 
-export const ParcelScene = lazy(() => import("./ParcelScene"));
-const GeospatialMap = lazy(() => import("./GeospatialMap"));
+export const GeospatialMap = lazy(() => import("./GeospatialMap"));
 const FieldStudy = lazy(() => import("./FieldStudy"));
 const RegionalInsights = lazy(() => import("./RegionalInsights"));
 const PixelArea = lazy(() => import("./RegionalInsights").then(module => ({ default: module.PixelArea })));
@@ -31,7 +31,7 @@ export class SpatialBoundary extends Component {
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
-function useMedia(query) {
+export function useMedia(query) {
   const [matches, setMatches] = useState(() => matchMedia(query).matches);
   useEffect(() => {
     const media = matchMedia(query);
@@ -48,7 +48,7 @@ function openArchivePath(fieldId, geometryHash, path, params) {
   return "platform/fields/" + fieldId + "/spatial/earth-search" + path + "?" + query;
 }
 
-function useOpenCatalog(fieldId, geometryHash, month) {
+export function useOpenCatalog(fieldId, geometryHash, month) {
   const [result, setResult] = useState(null);
   useEffect(() => {
     if (!month) return;
@@ -61,7 +61,7 @@ function useOpenCatalog(fieldId, geometryHash, month) {
   return month && result?.month === month ? result : null;
 }
 
-function useRaster(fieldId, geometryHash, observation, layer, enabled) {
+export function useRaster(fieldId, geometryHash, observation, layer, enabled) {
   const date = observation?.date, id = observation?.id;
   const isOpen = observation?.provider === openSentinelProvider && Array.isArray(observation.available);
   const key = enabled && date && id ? [fieldId, geometryHash, id, date, layer].join("/") : "";
@@ -198,10 +198,10 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
   const stage = useRef(null);
   const [full, setFull] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
-  const contextImagery = useContextImagery(frame, !isMap && view === "3d" && basemap, compact);
   const supportsDrone = variant === "twin" && droneEnabled;
   const drone = useDroneTerrain(field.id, context.geometryHash, frame, supportsDrone, true);
   const combinedTerrain = useCombinedTerrain(drone.dtm, Number.isFinite(dem?.reference) ? dem : null, frame);
+  const terrainDefinition = useDroneTerrainSource(frame, drone.dtm, dem);
   const isOpen = selection.source === openSentinelProvider;
   const openMonth = selection.month || new Date().toISOString().slice(0, 7);
   const openCatalog = useOpenCatalog(field.id, context.geometryHash, observed && isOpen ? openMonth : "");
@@ -226,14 +226,14 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
   }, [field.id, observed]);
 
   useEffect(() => {
-    if (isMap || !topography || view !== "3d") return;
+    if (!topography || view !== "3d") return;
     const controller = new AbortController();
     const timeout = AbortSignal.timeout(12000);
     loadTerrain(frame, AbortSignal.any([controller.signal, timeout]))
       .then(data => { if (!controller.signal.aborted) setDem(data); })
       .catch(() => { if (!controller.signal.aborted) setDem({ error: true }); });
     return () => controller.abort();
-  }, [frame, isMap, topography, view]);
+  }, [frame, topography, view]);
 
   useEffect(() => {
     const sync = () => setFull(document.fullscreenElement === stage.current);
@@ -304,7 +304,8 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
   }
 
   function selectPoint(value) {
-    setPoint({ ...value, zone: twinZones.find(zone => containsPoint(zone.geometry, value.coordinate)) });
+    const [x, z] = frame.local(value.coordinate);
+    setPoint({ x, z, ...value, zone: twinZones.find(zone => containsPoint(zone.geometry, value.coordinate)) });
     if (!onZone) return;
     const zone = zones.find(item => item.contains(value.coordinate));
     onZone(zone?.id || "");
@@ -400,25 +401,19 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
       Açık arşiv, yuvarlanmış arama alanını Earth Search’e gönderir. İncelemeler analiz geçmişine eklenmez.
     </p>}
     <div className="spatial-stage" ref={stage}>
-      {view === "2d" && (!isMap || mapUnavailable) ? mapFallback : view === "fallback" ? fallback : <SpatialBoundary fallback={fallback}>
+      {view === "2d" && mapUnavailable ? mapFallback : view === "fallback" ? fallback : <SpatialBoundary fallback={fallback}>
         <Suspense fallback={<div className="spatial-loading" role="status">Görünüm hazırlanıyor…</div>}>
-          {isMap ? <GeospatialMap {...{ field, frame, command, boundary, raster, comparison: reference, scale,
+          <GeospatialMap {...{ field, frame, command, boundary, raster, comparison: reference, scale,
             opacity, blend, mode: renderMode, terrain: topography && view === "3d", flat: view === "2d",
             exaggeration, basemap, reduced, highlight, markers, onPoint: selectPoint,
-            imagery: datedImagery, selection: point?.coordinate,
+            imagery: datedImagery, droneImagery: drone.imagery, selection: point?.coordinate,
+            zones: variant === "twin" ? twinZones : zones, compact, terrainDefinition,
+            interaction: variant !== "twin" || !compact || touchOrbit,
+            onHeading: bearing => {
+              if (northArrow.current) northArrow.current.style.transform = "rotate(" + (-bearing) + "deg)";
+            },
             reviewGeometry: reviewRegion && reviewRegion.raster === raster ? reviewRegion.geometry : null }}
-            onError={() => { setMapUnavailable(true); setView("fallback"); }} /> :
-            <ParcelScene {...{ field, frame, terrain, exaggeration, raster, scale, opacity, boundary, command,
-              imagery: datedImagery, selection: point?.coordinate,
-              zones: variant === "twin" ? twinZones : zones, activeZone: point?.zone?.id || activeZone,
-              contextImagery: contextImagery?.canvas, droneImagery: drone.imagery, markers,
-              interaction: variant !== "twin" || !compact || touchOrbit,
-              onCamera: position => {
-                if (northArrow.current) northArrow.current.style.transform =
-                  "rotate(" + Math.atan2(position[0], position[2]) * 180 / Math.PI + "deg)";
-              },
-              onContextLoss: () => setView("fallback"),
-              onPoint: selectPoint, reduced, compact, fallback }} />}
+            onError={() => { setMapUnavailable(true); setView("fallback"); }} />
         </Suspense>
       </SpatialBoundary>}
       {view !== "2d" && view !== "fallback" && <div className="spatial-camera" role="group" aria-label="Kamera kontrolleri">
@@ -432,7 +427,7 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
         <div>
           <label><input type="checkbox" checked={boundary} onChange={e => setBoundary(e.target.checked)} /> Parsel sınırı</label>
           <label><input type="checkbox" checked={basemap}
-            onChange={e => setBasemap(e.target.checked)} /> Esri uydu altlığı</label>
+            onChange={e => setBasemap(e.target.checked)} /> {defaultBasemap.label} altlığı</label>
           {!isOpen && observed && <label><input type="checkbox" checked={trueColor}
             disabled={!observation}
             onChange={e => setTrueColor(e.target.checked)} /> Sentinel-2 doğal renk</label>}
@@ -440,13 +435,13 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
             disabled={!observationsOnField.length} onChange={e => setShowObservations(e.target.checked)} /> Saha gözlemleri</label>}
           {variant === "twin" && <label><input type="checkbox" checked={showZones}
             disabled={!zonePlan} onChange={e => { setShowZones(e.target.checked); setPoint(null); }} /> Reçete bölgeleri</label>}
-          <label><input type="checkbox" checked={topography && renderMode !== "columns"} disabled={renderMode === "columns"}
+          <label><input type="checkbox" checked={topography}
             onChange={e => setTopography(e.target.checked)} /> Yükseklik modeli</label>
           {observed && <label><input type="checkbox" checked={layerEnabled} disabled={!layer}
             onChange={e => setLayerEnabled(e.target.checked)} /> {layer || "İndeks yüzeyi"}</label>}
           <label>Katman saydamlığı <input aria-label="Katman saydamlığı" type="range" min="0" max="1" step="0.01"
             value={opacity} onChange={e => setOpacity(Number(e.target.value))} /></label>
-          {topography && renderMode !== "columns" && <label>Düşey abartı · {exaggeration}×
+          {topography && <label>Düşey abartı · {exaggeration}×
             <input aria-label="Düşey abartı" type="range" min="1" max="3" step="0.5" value={exaggeration}
               onChange={e => setExaggeration(Number(e.target.value))} /></label>}
           {mode === "blend" && <label>Karşılaştırma saydamlığı<input aria-label="Karşılaştırma saydamlığı"
@@ -457,8 +452,6 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
         <span>{terrain ? (terrain.drone ? "DRONE DTM" : "MAPZEN DEM") + " · " + exaggeration + "×" : "DÜZ REFERANS"}</span>
         <span><span className="spatial-north" ref={northArrow}>↑</span> K · {number(frame.span, 0)} m parsel açıklığı</span>
       </div>}
-      {contextImagery?.canvas && <a className="spatial-esri-attribution" href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9"
-        target="_blank" rel="noreferrer">Esri World Imagery · Esri, Vantor, Earthstar Geographics, GIS User Community</a>}
       {fullscreenError && <p className="spatial-map-notice" role="status">{fullscreenError}</p>}
     </div>
     <div className="spatial-readout">
@@ -482,7 +475,6 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
         {raster?.capturedAt && <p>Çekim {raster.capturedAt.slice(0, 19).replace("T", " ")} UTC</p>}
         {datedImagery && <p>Sentinel‑2 doğal renk · {dateLabel(observation.date)}</p>}
         {drone.imagery && view === "3d" && <p>Drone ortomozaik · {dateLabel(drone.selected.capturedOn)} · {drone.selected.source}</p>}
-        {contextImagery?.unavailable && <p>Esri altlığı alınamadı. Şematik yüzey gösteriliyor.</p>}
       </div>
       {raster && scale && <div className="spatial-legend" aria-label="Renk skalası">
         <span>{renderMode === "columns" ? "Sütun yüksekliği indeks ölçeğidir." :
@@ -546,7 +538,7 @@ function ParcelWorkbench({ field, context, variant, selection = {}, onSelection,
       {outliers?.values.some(Number.isFinite) && <button className="text-button" onClick={() => onNavigate("investigation", field.id)}>
         Saha incelemesine geç <ArrowUpRight size={15} /></button>}
     </div>}
-    {renderMode === "columns" && <p className="spatial-status">Analitik sütunlar düz referanstan yükselir. Topoğrafyayı görmek için arazi üstü moduna dönün.</p>}
+    {renderMode === "columns" && <p className="spatial-status">Analitik sütunlar indeks ölçeğini gösterir. Yükseklik modeli araziyi ayrı olarak gösterir.</p>}
     {raster && scale && <details className="spatial-distribution">
       <summary>Görüntüleme aralığı</summary>
       <form className="spatial-range" key={layer + renderMode} onSubmit={event => {

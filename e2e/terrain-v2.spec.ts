@@ -26,7 +26,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
   await page.setViewportSize({ width: mobile ? 390 : 1440, height: mobile ? 844 : 1000 });
   await page.emulateMedia({ reducedMotion: evidence || gpu ? "no-preference" : "reduce" });
   if (!real) {
-    await page.route("https://services.arcgisonline.com/**", route => route.abort());
+    await page.route("https://api.mapbox.com/**", route => route.abort());
     await page.route("https://s3.amazonaws.com/elevation-tiles-prod/**", route => route.abort());
   }
   const failures: string[] = [];
@@ -72,8 +72,8 @@ test("paired scenarios share the terrain and select the same date; drone layers 
   await page.goto("/#scenarios?field=" + fieldId);
   if (real) await page.reload();
   const comparison = page.getByRole("region", { name: "Su dengesi senaryolarının 3D karşılaştırması" });
-  await expect(comparison.locator("canvas")).toBeVisible({ timeout: 15_000 });
-  await expect(comparison.locator("canvas")).toHaveCount(1);
+  await expect(comparison.locator(".maplibregl-canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(comparison.locator(".maplibregl-canvas")).toHaveCount(1);
   const panels = comparison.locator(".water-compare-panel");
   const a = (await panels.nth(0).boundingBox())!, b = (await panels.nth(1).boundingBox())!;
   expect(mobile ? b.y > a.y && b.x === a.x : b.x > a.x && b.y === a.y).toBe(true);
@@ -90,7 +90,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
   await chart.click({ position: { x: chartBounds.width * 0.45, y: chartBounds.height * 0.36 } });
   await expect(slider).not.toHaveAttribute("aria-valuetext", /21 Mar/);
   await comparison.getByRole("button", { name: "Arazi eğimi" }).click();
-  if (real) await expect(comparison.getByRole("link", { name: /Esri World Imagery/ })).toBeVisible({ timeout: 14_000 });
+  if (real && process.env.VITE_MAPBOX_ACCESS_TOKEN) await expect(comparison.locator(".agromax-mapbox-logo").first()).toBeVisible({ timeout: 14_000 });
   await comparison.getByRole("button", { name: "Genel görünüm" }).click();
   if (evidence) await comparison.screenshot({ path: info.outputPath("senaryo-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
 
@@ -189,11 +189,11 @@ test("paired scenarios share the terrain and select the same date; drone layers 
   }
   await page.goto("/#scenarios?field=" + fieldId);
   await expect(comparison.getByLabel("Ortak arazi kaynağı")).toHaveValue(selected);
-  await expect(comparison.locator(".spatial-scenario-source")).toContainText("Drone DTM");
+  await expect(comparison.locator(".spatial-scenario-source")).toContainText("Drone ortomozaik");
   if (evidence) await comparison.screenshot({ path: info.outputPath("senaryo-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
   if (gpu) {
     if (mobile) await comparison.getByRole("button", { name: "Kamera hareketi" }).click();
-    const comparisonPerformance = await measure(comparison.locator("canvas"));
+    const comparisonPerformance = await measure(comparison.locator(".maplibregl-canvas"));
     const cdp = await browser.newBrowserCDPSession();
     const hardware = await cdp.send("SystemInfo.getInfo");
     await cdp.detach();
@@ -202,7 +202,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     }, null, 2));
   }
   if (!real && !gpu && !mobile) {
-    const lost = await comparison.locator("canvas").evaluate((element: HTMLCanvasElement) => {
+    const lost = await comparison.locator(".maplibregl-canvas").evaluate((element: HTMLCanvasElement) => {
       const extension = element.getContext("webgl2")?.getExtension("WEBGL_lose_context");
       extension?.loseContext();
       return !!extension;
@@ -211,5 +211,17 @@ test("paired scenarios share the terrain and select the same date; drone layers 
       await expect(comparison.getByText("3D açılamadı. Ortak parsel 2D haritada gösteriliyor.")).toBeVisible();
       await expect(comparison.getByRole("table")).toBeVisible();
     }
+  }
+  if (real && evidence) {
+    await page.goto("/#field-studio?field=" + fieldId);
+    const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+    await expect(studio.locator(".maplibregl-canvas")).toBeVisible();
+    await expect(studio.getByText(/Drone ortomozaik ·/)).toBeVisible({ timeout: 15_000 });
+    await expect(studio.locator('[data-terrain="drone"]')).toBeVisible({ timeout: 15_000 });
+    await studio.screenshot({ path: info.outputPath("saha-studyosu-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
+    await page.goto("/#platform?field=" + fieldId);
+    const atlas = page.getByRole("region", { name: "Üç boyutlu arazi atlası" });
+    await expect(atlas).toContainText("Drone ortomozaik");
+    await atlas.screenshot({ path: info.outputPath("arazi-atlasi-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
   }
 });
