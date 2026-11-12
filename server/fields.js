@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { validateGeometry } from "../shared/geometry.js";
 import { fetchImage, fetchSpatialRaster, comparisonRange } from "./satellite.js";
-import { parcelSatelliteStatus, openRasterImage } from "./parcel-satellite.js";
+import { parcelSatelliteStatus, openRasterImage, openTrueColorImage } from "./parcel-satellite.js";
 import { readOpenSentinel } from "./open-sentinel.js";
 import { openSentinelMethod, openSentinelProvider } from "../shared/open-sentinel.js";
 import { geometryHash } from "./analysis-jobs.js";
@@ -222,8 +222,9 @@ export async function fieldRoutes({
       );
       const layer = body.layer || (analysis.provider === openSentinelProvider ? "NDVI" : "RGB");
       const open = analysis.provider === openSentinelProvider;
+      const openRgb = open && layer === "RGB" && body.format !== "values";
       let openRaster;
-      if (open) {
+      if (open && !openRgb) {
         if (!Number.isFinite(day?.stats?.[layer]?.mean)) {
           reply(422, { error: "Bu tarih ve indeks için geçerli gözlem kaydı yok." });
           return true;
@@ -246,6 +247,7 @@ export async function fieldRoutes({
       }
       const scale = day?.stats?.[layer];
       const { image, bounds, legend, validPixels, totalPixels } =
+        openRgb ? await openTrueColorImage(geometry, scene.id, analysis.resolution) :
         openRaster ? openRasterImage(openRaster) : await fetchImage(geometry, body.date, layer, {
           scale,
           timeRange: day ? { from: day.from, to: day.to } : undefined,

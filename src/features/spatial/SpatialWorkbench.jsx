@@ -14,6 +14,7 @@ import "./spatial.css";
 
 export const ParcelScene = lazy(() => import("./ParcelScene"));
 const GeospatialMap = lazy(() => import("./GeospatialMap"));
+const FieldStudy = lazy(() => import("./FieldStudy"));
 const RegionalInsights = lazy(() => import("./RegionalInsights"));
 const PixelArea = lazy(() => import("./RegionalInsights").then(module => ({ default: module.PixelArea })));
 const noMarkers = [];
@@ -149,8 +150,18 @@ function hasMetric(observation, layer) {
   return observation?.available?.includes(layer) || Number.isFinite(observation?.metrics?.[layer]);
 }
 
-export default function SpatialWorkbench({ field, context, variant, selection = {}, onSelection,
-  onNavigate, onField, zones = [], activeZone, onZone, markerText, highlight = false,
+export default function SpatialWorkbench(props) {
+  const [study, setStudy] = useState(false);
+  const compact = useMedia("(max-width: 700px)");
+  const poster = <img className="spatial-study-poster" src="/visuals/spatial-field-study.webp" alt="Temsili buğday tarlası" />;
+  if (study && props.variant === "twin") return <SpatialBoundary fallback={
+    <section className="spatial-workbench">{poster}<button className="secondary" onClick={() => setStudy(false)}>Parsel modeline dön</button></section>
+  }><Suspense fallback={poster}><FieldStudy compact={compact} onBack={() => setStudy(false)} /></Suspense></SpatialBoundary>;
+  return <ParcelWorkbench {...props} onStudy={props.variant === "twin" ? () => setStudy(true) : null} />;
+}
+
+function ParcelWorkbench({ field, context, variant, selection = {}, onSelection, onStudy,
+  onNavigate, onField, zones = noMarkers, activeZone, onZone, markerText, highlight = false,
   waterBalance, observationsOnField = noMarkers, zonePlan }) {
   const area = useAreaFormat();
   const isMap = variant === "satellite" || variant === "intelligence";
@@ -262,7 +273,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
     [raster, reference, renderMode]);
   const scale = useMemo(() => baseline && range?.layer === layer && range?.mode === renderMode
     ? { ...baseline, min: range.min, max: range.max } : baseline, [baseline, layer, range, renderMode]);
-  const rgbKey = !isMap && trueColor && observation && observation.provider !== openSentinelProvider && view === "3d"
+  const rgbKey = trueColor && observation && !isOpen &&
+    (view === "3d" || isMap && view === "2d" && !mapUnavailable)
     ? observation.id + observation.date : "";
   useEffect(() => {
     if (!rgbKey) return;
@@ -310,6 +322,7 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
   const sampledValue = point && raster ? (renderMode === "columns" ? point.value :
     raster.values[sampledIndex]) : null;
   const previousValue = point && reference ? reference.values[pixelIndex(reference, point.coordinate)] : null;
+  const datedImagery = imagery?.key === rgbKey && imagery.bitmap ? imagery : null;
   const title = isMap ? variant === "intelligence" ? "Sahada gözlemi konumlandır" : "Yörüngeden parsele"
     : variant === "prescriptions" ? "Uygulama bölgeleri" : "Parselin üç boyutlu atlası";
   return <section className="spatial-workbench" data-spatial={variant} aria-label={variant === "twin" ? "Parsel modeli ve kaynakları" : title}>
@@ -319,6 +332,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
         <p>{field.name} <span>·</span> {area.format(field.area)} <span>·</span> {field.crop || "Ürün belirtilmedi"}</p>
         {variant === "twin" && <p>{[field.location, waterBalance && "FAO-56 su dengesi pilotu"].filter(Boolean).join(" · ")}</p>}
       </div>
+      <div className="spatial-header-actions">
+      {onStudy && <button className="secondary spatial-study-link" type="button" onClick={onStudy}>Temsili tarla etüdü</button>}
       <div className="spatial-view-toggle" role="group" aria-label="Harita görünümü">
         <button type="button" aria-pressed={view === "2d"} onClick={() => {
           setView("2d"); setCommand({ type: "top" }); setPoint(null);
@@ -326,6 +341,7 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
         <button type="button" aria-pressed={view === "3d"} onClick={() => {
           setMapUnavailable(false); setView("3d"); setCommand({ type: "tilt" }); setPoint(null);
         }}><Box size={16} /> 3D</button>
+      </div>
       </div>
     </header>
     {observed && <div className="spatial-control-deck">
@@ -379,10 +395,11 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
           {isMap ? <GeospatialMap {...{ field, frame, command, boundary, raster, comparison: reference, scale,
             opacity, blend, mode: renderMode, terrain: topography && view === "3d", flat: view === "2d",
             exaggeration, basemap, reduced, highlight, markers, onPoint: selectPoint,
+            imagery: datedImagery, selection: point?.coordinate,
             reviewGeometry: reviewRegion && reviewRegion.raster === raster ? reviewRegion.geometry : null }}
             onError={() => { setMapUnavailable(true); setView("fallback"); }} /> :
             <ParcelScene {...{ field, frame, terrain, exaggeration, raster, scale, opacity, boundary, command,
-              imagery: imagery?.key === rgbKey ? imagery?.bitmap && imagery : null,
+              imagery: datedImagery, selection: point?.coordinate,
               zones: variant === "twin" ? twinZones : zones, activeZone: point?.zone?.id || activeZone,
               contextImagery: contextImagery?.canvas, cropAsset: showCrop ? cropAsset : null, markers,
               onCamera: position => {
@@ -405,8 +422,8 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
           <label><input type="checkbox" checked={boundary} onChange={e => setBoundary(e.target.checked)} /> Parsel sınırı</label>
           <label><input type="checkbox" checked={basemap}
             onChange={e => setBasemap(e.target.checked)} /> Esri uydu altlığı</label>
-          {!isMap && !isOpen && observed && <label><input type="checkbox" checked={trueColor}
-            disabled={!observation || observation.provider === openSentinelProvider}
+          {!isOpen && observed && <label><input type="checkbox" checked={trueColor}
+            disabled={!observation}
             onChange={e => setTrueColor(e.target.checked)} /> Sentinel-2 doğal renk</label>}
           {cropAsset && <label><input type="checkbox" checked={showCrop}
             onChange={e => setShowCrop(e.target.checked)} /> Temsili bitki modeli</label>}
@@ -452,6 +469,7 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
         {raster && <p>Yakın komşu örnekleme · {raster.mask || "bulut ve NoData maskeli"} · {
           raster.provider === openSentinelProvider ? raster.sceneId : raster.provider === "cdse" ? "Copernicus Data Space" : "Sentinel Hub"}</p>}
         {raster?.capturedAt && <p>Çekim {raster.capturedAt.slice(0, 19).replace("T", " ")} UTC</p>}
+        {datedImagery && <p>Sentinel‑2 doğal renk · {dateLabel(observation.date)}</p>}
         {showCrop && cropAsset && <p>Bitki konumu, gelişim evresi ve görsel boyutu temsilidir.</p>}
         {contextImagery?.unavailable && <p>Esri altlığı alınamadı. Şematik yüzey gösteriliyor.</p>}
       </div>
@@ -461,8 +479,9 @@ export default function SpatialWorkbench({ field, context, variant, selection = 
         <i style={{ background: "linear-gradient(90deg," + scale.palette.map(rgb).join(",") + ")" }} />
         <div><span>{number(scale.min)}</span><span>{number((scale.min + scale.max) / 2)}</span><span>{number(scale.max)}</span></div>
       </div>}
-      {point && <div role="status">
+      {point && <div className="spatial-point-readout" role="status">
         <small className="spatial-eyebrow">SEÇİLEN NOKTA</small>
+        <button type="button" className="text-button spatial-clear-point" onClick={() => setPoint(null)}>Seçimi temizle</button>
         <strong>{point.coordinate.toReversed().map(v => number(v, 5)).join(" / ")}</strong>
         <p>{raster ? raster.metric + " " + (Number.isFinite(sampledValue) ? number(sampledValue) + " " + raster.unit : "· geçerli piksel yok") : ""}
           {Number.isFinite(height) ? " · " + number(height, 1) + " m" : ""}

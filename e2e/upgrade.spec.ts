@@ -52,6 +52,13 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   await balance.getByRole("button", { name: "3D karşılaştırmayı aç" }).click();
   await expect(balance.getByRole("region", { name: "Su dengesi senaryolarının 3D karşılaştırması" }))
     .toContainText("Alternatif");
+  const comparison = balance.getByRole("region", { name: "Su dengesi senaryolarının 3D karşılaştırması" });
+  await comparison.getByLabel("3D yüzeyde gösterilen plan").selectOption("Alternatif");
+  await expect(comparison.locator(".spatial-scenario-canvas")).toHaveAttribute("aria-label", "Alternatif · parsel yüzeyi");
+  await expect(comparison.locator("canvas")).toHaveCount(1);
+  if (process.env.AGROMAX_VERIFY_LIVE_TERRAIN)
+    await expect(comparison.getByRole("link", { name: "Mapzen yüksekliği" })).toBeVisible({ timeout: 14000 });
+  await comparison.screenshot({ path: info.outputPath("spatial-decision.png"), animations: "disabled" });
   await balance.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath("scenarios-1440.png"), animations: "disabled" });
 

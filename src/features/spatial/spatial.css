@@ -20,6 +20,8 @@
 }
 .spatial-workbench-header { justify-content: space-between; padding-block: 22px; }
 .spatial-workbench-header > div { min-width: 0; }
+.spatial-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.spatial-study-link { min-height: 44px; }
 .spatial-workbench-header h2, .spatial-atlas h2, .spatial-scenario h3 {
   font-size: clamp(1.35rem, 3vw, 2.25rem);
   letter-spacing: -.045em;
@@ -47,8 +49,11 @@
 .spatial-stage {
   position: relative; isolation: isolate; min-width: 0; height: clamp(360px, 57vh, 660px);
   color: #f4f4df;
-  background: radial-gradient(ellipse at 42% 26%, #476e5e 0, #213d35 46%, #112b27 100%);
+  background: radial-gradient(ellipse at 44% 26%, #557361 0, #293f37 54%, #142721 100%);
 }
+.spatial-study .spatial-stage { background: radial-gradient(ellipse at 48% 33%, #57604b, #242e25 72%); }
+.spatial-study-poster { display: block; width: 100%; height: 100%; max-height: 660px; object-fit: cover; }
+.spatial-study .secondary { display: inline-flex; align-items: center; gap: 8px; }
 .spatial-stage:fullscreen { width: 100%; height: 100%; }
 .px-workspace > .spatial-workbench, .spatial-prescriptions { margin-block: 0 20px; }
 .spatial-prescriptions > .spatial-control-deck { border: 1px solid #d4d7c8; border-radius: 12px 12px 0 0; }
@@ -96,6 +101,8 @@
 .spatial-readout { align-items: start; background: #faf7ee; font-variant-numeric: tabular-nums; }
 .spatial-readout > div { flex: 1 1 210px; min-width: 0; }
 .spatial-readout strong { display: block; overflow-wrap: anywhere; }
+.spatial-point-readout { border-inline-start: 2px solid #a9824a; padding-inline-start: 12px; }
+.spatial-clear-point { display: block; margin-block: 3px; min-height: 34px; }
 .spatial-readout p, .spatial-status p, .spatial-footer, .spatial-timeline p { color: var(--sp-muted); font-size: .81rem; }
 .spatial-legend { display: grid; gap: 6px; font-size: .75rem; }
 .spatial-legend > i { height: 10px; border-radius: 3px; }

@@ -1,5 +1,32 @@
 # AgroMax 3D çalışma alanları
 
+## 12 Kasım revizyonu
+
+Başlangıç `b7989f7`, yerel dal `codex/agromax-3d-revision`. İncelenen başlangıç yolları Dijital İkiz, Çok Kaynaklı Uydu, Tarla Zekâsı, Reçete Planları, Senaryo Laboratuvarı ve 3D atlası kapsıyor. Önceki sahnede yüksek ışık ve kalın sınır çizgisi renkleri yıkıyor, düz DEM yedeğindeki düzenli ızgara tarla algısını zayıflatıyor ve senaryo karşılaştırması iki WebGL tuvali açıyordu. WGS84 dönüşümü, mevcut Leaflet çizimi, katman tarihleri ve sayısal piksel API’leri korunuyor.
+
+- **Dijital İkiz.** Kayıtlı sınır, Esri bağlamı, Mapzen DEM ve tarihli görüntü mevcut arazi ağına konumlanır. Seçilen nokta sahnede işaretlenir. Yükseklik eksikse düz referans kullanılır. Optik analiz rengi ışık ve film tonlamasından korunur.
+- **Temsili etüt.** Dijital İkiz’den ayrı açılır. Blender 5.2’de olgun buğday aşaması ayrıldı, taban geometrisi temizlendi, normaller yeniden hesaplandı, ağ sadeleştirildi ve doku boyutu düşürüldü. Kavisli bitki sıraları, PBR toprak ve aydınlatma ayrı çalışıldı. Web GLB yaklaşık 711 KB ve 539 üçgenli 468 buğday örneği içerir. Ayrıntılı buğday varlığı 212 KB ve 2.076 üçgendir. WebP ve GPU instancing kullanılır. Mobilde ve yazılımsal WebGL’de örnek yoğunluğu ve piksel oranı azaltılır, gölge kapalıdır. WebGL açılamadığında render posteri gösterilir.
+- **Uydu incelemesi.** MapLibre üzerinden kayıtlı ve desteklenen Sentinel‑2 doğal renk PNG’si coğrafi köşelerine yerleştirilir. Earth Search ile kaydedilen sonuçlarda B04/B03/B02 ortak geçerli pikselleri kullanılır. 0–0,28 yüzey yansıtımı aralığı sRGB ekran rengine eşlenir. Sayısal indeks değerleri bu görüntü işlemesinden ayrı kalır. Seçim işareti ve sayısal değer ayrı gösterilir. Dönem farkı, NDMI/NDRE, kapsama, açık arşiv ve sağlayıcı ayrımları mevcut API’lerden gelir.
+- **Karar desteği.** Kaynaklı gözlem, seçili nokta ve varsa reçete bölgesi aynı parsel bağlamında görünür. FAO‑56 3D karşılaştırması, planı ve günü tek tuvalde değiştirir. Plan sonuçları birlikte okunabilir. Model rengi tüm parselin tek değerini ifade eder.
+
+### Referans ve varlık seçimi
+
+İstenen Sketchfab köy/kanal kaydı API’de 404 döndü. Kırsal fotogrametri ve mısır kayıtları CC Attribution ve indirilebilir olarak listelendi. Kırsal fotogrametri yaklaşık 3,96 milyon yüz, mısır 55 bin yüz içeriyor. Buğday fenotipleme kaydı da CC Attribution ve indirilebilir olarak listelendi. Bu üç paket bu derlemeye alınmadı. Fab referansında satın alma seçenekleri vardı ve ücretsiz yeniden dağıtım doğrulanamadı. Cesium World Terrain yaklaşımı ve deck.gl TerrainLayer, GeoJsonLayer ve HexagonLayer dokümanları incelendi. Var olan MapLibre DEM ve deck.gl paylaşımı korunarak yeni harita motoru ve erişim anahtarı gereksiniminden kaçınıldı.
+
+- [Buğday kaynak GLB ve lisansı](https://grab3d.com/models/nature/wheat-crop-stages/) · [Paket lisansı ve üretim açıklaması](https://grab3d.com/dl/wheat-crop-stages/LICENSE.txt)
+- [Poly Haven toprak](https://polyhaven.com/a/dirt) · [Tarla HDRI](https://polyhaven.com/a/farm_field) · [Ağaç](https://polyhaven.com/a/tree_small_02) · [CC0 lisansı](https://polyhaven.com/license)
+- [Fab örneği](https://www.fab.com/listings/ac7fa331-e125-4ce8-a6f9-3c2f6b5a2ef1) · [Cesium World Terrain](https://cesium.com/platform/cesium-ion/content/cesium-world-terrain/) · [deck.gl TerrainLayer](https://deck.gl/docs/api-reference/geo-layers/terrain-layer)
+
+Blender yeniden üretimi için kaynak buğdayı `data/spatial-source/wheat-source.glb` yoluna, toprak haritalarını `soil-color.jpg`, `soil-normal.jpg`, `soil-rough.jpg` adlarıyla, 1K HDR’yi `farm-field.hdr` adıyla koyun. İsteğe bağlı ağaç için Poly Haven 1K glTF, `.bin` ve doku klasörü `data/spatial-source/tree` altında saklanır. Ana glTF dosyası `tree.gltf` olmalı. Depo kökünden `blender --background --python scripts/prepare-field-study.py` çalıştırılır. Blender kaynağı ve render `../../outputs/agromax-3d`, GLB’ler `public/visuals` altında oluşturulur. Varlıkların atıf kaydı `public/visuals/spatial-models.txt` içindedir.
+
+### Kabul kanıtı ve açık işler
+
+- 73 sunucu ve 23 ticari test, tip kontrolü ve iki üretim derlemesi geçti. 3D, açık Sentinel arşivi, senaryo ve reçete paketi 9 geçiş ve mobilde masaüstüne özel 1 atlama ile tamamlandı. Son sahne ayarları masaüstü/mobilde, plan geçişi ve tek tuval masaüstünde ayrıca sınandı.
+- Canlı sağlayıcı doğrulaması Mapzen DEM, Esri altlığı ve Earth Search sayısal COG arşivini kapsadı. Ayrı doğal renk doğrulamasında `S2C_T35TNF_20250630T090706_L2A` sahnesinden 88 ortak geçerli RGB pikseli geldi. Reçete, FAO‑56 ve kayıtlı Copernicus katmanları izole test kayıtlarıyla sınandı.
+- Playwright Chromium, ANGLE/SwiftShader ile çalıştı. 44 `requestAnimationFrame` aralığında masaüstü 1440×1000 için medyan 16,7 ms ve p95 116,7 ms, mobil 412×839 için medyan 16,7 ms ve p95 16,8 ms. Masaüstü yazılımsal WebGL, 33,3 ms hedefini sürekli karşılamadı. Donanım hızlandırmalı tarayıcı ve gerçek telefon FPS kabulü açık.
+- Blender 5.2.2 kaynak dosyası yeniden açıldı. Sahne 473 nesne ve 25 paketli görüntü içerir. Web sahnesi yaklaşma açısında yakındaki buğday kümelerini ayrıntılı ağla değiştirir. Kaydedilmemiş açık arşiv RGB seçimi ve gerçek parsel içi bitki yoğunluğu ölçümü kapsam dışındaki açık maddelerdir.
+- Önce/sonra görüntüleri, tarla etüdünün iki kamera açısı, mobil kanıt, FAO‑56 sahnesi ve ham kare ölçümleri `../../outputs/agromax-3d` altında. Canlı dağıtım ayrı yayın kararı gerektirir.
+
 ## Veri yolları
 
 Leaflet mevcut parsel çizimini ve düzenlemeyi sürdürür. Dijital İkiz, kayıtlı WGS84 sınırını metreye ölçeklenmiş yerel Web Mercator düzlemine alır. Mevcut geodezik parsel alanı korunur. Aynı sınırın Polygon ve MultiPolygon parçaları ile iç boşlukları 3D yüzeyde maske olarak kullanılır.

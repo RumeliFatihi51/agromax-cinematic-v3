@@ -105,3 +105,25 @@ export function openRasterImage(raster) {
     legend: { min, max, unit: raster.unit, method: "Sahnedeki geçerli piksel aralığı",
       colors: ["#30668c", "#b9df55"] } };
 }
+
+export async function openTrueColorImage(geometry, sceneId, resolution) {
+  const layers = await readOpenSentinelLayers(geometry, sceneId, ["B04", "B03", "B02"], undefined, resolution);
+  const channels = [layers.B04, layers.B03, layers.B02];
+  const [raster] = channels;
+  const png = new PNG({ width: raster.width, height: raster.height });
+  const toColor = reflectance => {
+    const linear = Math.max(0, Math.min(1, reflectance / 0.28));
+    return Math.round(255 * (linear < 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055));
+  };
+  let validPixels = 0;
+  for (let i = 0; i < raster.values.length; i++) {
+    const pixel = channels.map(channel => channel.values[i]);
+    if (!pixel.every(Number.isFinite)) continue;
+    png.data.set([...pixel.map(toColor), 255], i * 4);
+    validPixels++;
+  }
+  if (!validPixels) throw failure("Bu sahnede doğal renk için ortak geçerli piksel yok.", 422);
+  const [west, south, east, north] = raster.bounds;
+  return { image: PNG.sync.write(png), bounds: [...unproject([west, south]), ...unproject([east, north])],
+    validPixels, totalPixels: raster.parcelPixels, legend: null };
+}

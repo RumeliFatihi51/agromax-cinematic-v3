@@ -16,10 +16,12 @@ export default function CropInstances({ asset, frame, geometry, terrain, exagger
   }, [scene]);
   const locations = useMemo(() => {
     const points = [];
-    const side = compact ? 12 : 21;
-    for (let z = 0; z < side; z++) for (let x = 0; x < side; x++) {
-      const east = ((x + 0.5) / side - 0.5) * frame.width;
-      const south = ((z + 0.5) / side - 0.5) * frame.depth;
+    const density = compact ? 11 : 16;
+    for (let z = 0; z < density; z++) for (let x = 0; x < density; x++) {
+      const seed = ((x * 2971 + z * 7213 + 13) % 101) / 101;
+      const east = ((x + 0.25 + seed * 0.5) / density - 0.5) * frame.width;
+      const south = ((z + 0.5 + Math.sin(x / 5 + z / 9) * 0.19) / density - 0.5) * frame.depth;
+      if (seed < 0.045) continue;
       if (containsPoint(geometry, frame.coordinate(east, south))) points.push([east, south]);
     }
     return points;
@@ -34,7 +36,7 @@ export default function CropInstances({ asset, frame, geometry, terrain, exagger
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
     const height = Math.max(size.y, 0.001);
-    const displayScale = (compact ? 0.038 : 0.028) / height;
+    const displayScale = Math.min(0.042, 2.5 / frame.span) / height;
     const instance = new Object3D();
     for (let groupIndex = 0; groupIndex < meshes.length; groupIndex++) {
       const target = groups.current[groupIndex];
@@ -43,7 +45,8 @@ export default function CropInstances({ asset, frame, geometry, terrain, exagger
         const y = Number.isFinite(ground) ? (ground - terrain.reference) * exaggeration / frame.span : 0;
         instance.position.set(x / frame.span - center.x * displayScale,
           y - box.min.y * displayScale, z / frame.span - center.z * displayScale);
-        instance.scale.setScalar(displayScale);
+        instance.scale.setScalar(displayScale * (0.83 + (index * 31 % 17) / 50));
+        instance.rotation.y = (index * 37 % 83) / 83 * Math.PI * 2;
         instance.updateMatrix();
         target.setMatrixAt(index, instance.matrix.multiply(meshes[groupIndex].matrixWorld));
       }

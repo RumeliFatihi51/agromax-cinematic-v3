@@ -64,7 +64,7 @@ function Camera({ command, sync, onCamera, onContextLoss, reduced, frame, terrai
       end.add(endTarget).sub(startTarget);
     }
     if (command.type === "fit") {
-      end.set(1.28, 1.23, 1.38).multiplyScalar(Math.max(1, 1.06 / camera.aspect));
+      end.set(1.04, 0.96, 1.30).multiplyScalar(Math.max(1, 1.06 / camera.aspect));
       endTarget.set(0, 0, 0);
     }
     if (command.type === "north") end.set(0, Math.max(0.28, start.y),
@@ -103,40 +103,30 @@ function trace(ctx, geometry, xy) {
   }
 }
 
-function createTexture({ frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone }) {
+function createTexture({ frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact }) {
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 768;
+  const size = compact ? 512 : 896;
+  canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
   const xy = (point) => {
     const [x, z] = frame.local(point);
     return [(x / width + 0.5) * canvas.width, (z / depth + 0.5) * canvas.height];
   };
-  const wash = ctx.createLinearGradient(0, 0, 768, 768);
-  wash.addColorStop(0, "#718471");
-  wash.addColorStop(1, "#394d43");
+  const wash = ctx.createLinearGradient(0, 0, size, size);
+  wash.addColorStop(0, "#697665");
+  wash.addColorStop(1, "#35453d");
   ctx.fillStyle = wash;
-  ctx.fillRect(0, 0, 768, 768);
+  ctx.fillRect(0, 0, size, size);
   if (contextImagery) {
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(contextImagery, 0, 0, 768, 768);
-    ctx.globalAlpha = 1;
-  } else {
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "#c1d9b32d";
-    for (let cell = 0; cell <= 768; cell += 32) {
-      ctx.beginPath();
-      ctx.moveTo(cell, 0); ctx.lineTo(cell, 768);
-      ctx.moveTo(0, cell); ctx.lineTo(768, cell);
-      ctx.stroke();
-    }
+    ctx.drawImage(contextImagery, 0, 0, size, size);
   }
 
   trace(ctx, field.geometry, xy);
   ctx.save();
   ctx.clip("evenodd");
-  ctx.fillStyle = tone || "#738852";
-  ctx.globalAlpha = contextImagery && !tone ? 0.18 : 1;
-  ctx.fillRect(0, 0, 768, 768);
+  ctx.fillStyle = tone || "#a5aa78";
+  ctx.globalAlpha = contextImagery && !tone ? 0.09 : 1;
+  ctx.fillRect(0, 0, size, size);
   ctx.globalAlpha = 1;
   if (imagery) {
     const [west, south, east, north] = imagery.bounds;
@@ -144,14 +134,6 @@ function createTexture({ frame, field, width, depth, raster, scale, opacity, bou
     ctx.globalAlpha = opacity;
     ctx.drawImage(imagery.bitmap, left, top, right - left, bottom - top);
     ctx.globalAlpha = 1;
-  } else if (!contextImagery) {
-    // Fine engraved lines are the cartographic surface, not measured crop rows.
-    ctx.strokeStyle = "#f5f7c529";
-    for (let line = -320; line < 1060; line += 9) {
-      ctx.beginPath();
-      ctx.moveTo(line, 0); ctx.lineTo(line + 300, 768);
-      ctx.stroke();
-    }
   }
   if (raster && scale) {
     ctx.globalAlpha = opacity;
@@ -176,8 +158,12 @@ function createTexture({ frame, field, width, depth, raster, scale, opacity, bou
   ctx.restore();
   if (boundary) {
     trace(ctx, field.geometry, xy);
-    ctx.strokeStyle = "#eef7c9";
-    ctx.lineWidth = 4;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#162d29";
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.strokeStyle = "#f5e8ac";
+    ctx.lineWidth = 2.8;
     ctx.stroke();
   }
   const texture = new CanvasTexture(canvas);
@@ -226,8 +212,8 @@ function Surface({ frame, field, terrain, exaggeration, raster, scale, opacity, 
     return geometry;
   }, [surface, segments]);
   const texture = useMemo(() => createTexture({
-    frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone,
-  }), [frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone]);
+    frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact,
+  }), [frame, field, width, depth, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, compact]);
   useEffect(() => () => surface.dispose(), [surface]);
   useEffect(() => () => skirt.dispose(), [skirt]);
   useEffect(() => () => texture.dispose(), [texture]);
@@ -238,11 +224,21 @@ function Surface({ frame, field, terrain, exaggeration, raster, scale, opacity, 
     const coordinate = frame.coordinate(x, z);
     if (containsPoint(field.geometry, coordinate)) onPoint({ x, z, coordinate });
   }}>
-    <meshStandardMaterial map={texture} roughness={0.94} />
+    {raster || imagery || tone ? <meshBasicMaterial map={texture} toneMapped={false} /> :
+      <meshStandardMaterial map={texture} roughness={0.9} />}
   </mesh></>;
 }
 
 const emptyZones = [];
+function SelectionPin({ selection, frame, terrain, exaggeration }) {
+  const [x, z] = frame.local(selection);
+  const height = terrain?.sample(x, z);
+  const y = Number.isFinite(height) ? (height - terrain.reference) * exaggeration / frame.span : 0;
+  return <mesh position={[x / frame.span, y + 0.037, z / frame.span]} rotation={[-Math.PI / 2, 0, 0]}>
+    <ringGeometry args={[0.015, 0.022, 28]} />
+    <meshBasicMaterial color="#ffde8c" side={2} toneMapped={false} />
+  </mesh>;
+}
 function ObservationMarkers({ markers, frame, terrain, exaggeration, onPoint }) {
   return markers.map(marker => {
     const [x, z] = frame.local(marker.coordinate);
@@ -263,9 +259,9 @@ function ObservationMarkers({ markers, frame, terrain, exaggeration, onPoint }) 
 export default function ParcelScene({ frame, field, terrain = null, exaggeration = 1, raster = null,
   scale = null, opacity = 0.84, boundary = true, imagery = null, contextImagery = null, zones = emptyZones, activeZone,
   tone, command, sync, onCamera, onContextLoss, onPoint, cropAsset, markers = emptyZones,
-  reduced = false, compact = false, fallback = null }) {
+  reduced = false, compact = false, fallback = null, selection = null }) {
   const camera = useMemo(() => ({
-    position: compact ? [1.73, 1.66, 1.86] : [1.28, 1.23, 1.38], fov: 40, near: 0.012, far: 28,
+    position: compact ? [1.35, 1.36, 1.76] : [1.04, 0.96, 1.30], fov: 42, near: 0.012, far: 28,
   }), [compact]);
   return <Canvas
     className="spatial-three"
@@ -275,13 +271,14 @@ export default function ParcelScene({ frame, field, terrain = null, exaggeration
     gl={{ antialias: !compact, powerPreference: "low-power" }}
     fallback={fallback}
   >
-    <ambientLight intensity={1.45} />
-    <directionalLight position={[-3, 5, -2]} intensity={2.1} color="#fff2d7" />
+    <hemisphereLight args={["#e6eef7", "#82725a", 1.13]} />
+    <directionalLight position={[-3, 3.5, -2]} intensity={1.52} color="#ffedcc" />
     <Surface {...{ frame, field, terrain, exaggeration, raster, scale, opacity, boundary, imagery, contextImagery, zones, activeZone, tone, onPoint, compact }} />
     {cropAsset && <Suspense fallback={null}>
       <CropInstances asset={cropAsset} geometry={field.geometry} {...{ frame, terrain, exaggeration, compact }} />
     </Suspense>}
     <ObservationMarkers {...{ markers, frame, terrain, exaggeration, onPoint }} />
+    {selection && <SelectionPin {...{ selection, frame, terrain, exaggeration }} />}
     <Camera {...{ command, sync, onCamera, onContextLoss, reduced, frame, terrain, exaggeration }} />
   </Canvas>;
 }

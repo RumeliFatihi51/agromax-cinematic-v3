@@ -1,10 +1,22 @@
 AgroMax crop illustrations
 
-spatial-wheat.glb — Wheat by Quaternius
-https://poly.pizza/m/lPspzfC8Pu
+spatial-wheat.glb — Wheat Crop Stages by Grab3D, ripe stage adapted in Blender
+https://grab3d.com/models/nature/wheat-crop-stages/
+https://grab3d.com/dl/wheat-crop-stages/LICENSE.txt
+Original package notes: procedurally built with AI-assisted scripting.
 
 spatial-corn.glb — Corn by Quaternius
 https://poly.pizza/m/IhhB7kGaAQ
 
-Both models are CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
-Their positions, visual sizes and growth stages are illustrative, not field observations.
+spatial-field-study.glb — AgroMax Blender study using the adapted Grab3D wheat and:
+Dirt by Charlotte Baglioni (soil color, normal and roughness)
+https://polyhaven.com/a/dirt
+
+The Blender authoring file and poster also use:
+Farm Field by Dimitrios Savva and Jarod Guest (HDRI)
+https://polyhaven.com/a/farm_field
+Tree Small 02 by Rico Cilliers
+https://polyhaven.com/a/tree_small_02
+
+Third-party assets above are CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
+Model positions, visual sizes, growth stages, study relief and camera framing are illustrative.

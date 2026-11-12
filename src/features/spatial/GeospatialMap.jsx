@@ -16,6 +16,7 @@ const style = {
     parcel,
     review: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
     observations: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+    selection: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
   },
   layers: [
     { id: "ground", type: "background", paint: { "background-color": "#213d34" } },
@@ -23,12 +24,15 @@ const style = {
     { id: "parcel-fill", type: "fill", source: "parcel",
       paint: { "fill-color": "#cbd99a", "fill-opacity": 0.12 } },
     { id: "parcel-line", type: "line", source: "parcel",
-      paint: { "line-color": "#f3ffd2", "line-width": 2.5 } },
+      paint: { "line-color": "#f7efcb", "line-width": 2.5 } },
     { id: "review-line", type: "line", source: "review",
       paint: { "line-color": "#ffd070", "line-width": 3.5, "line-dasharray": [2, 1] } },
     { id: "observations", type: "circle", source: "observations",
       paint: { "circle-radius": 7, "circle-color": "#ffc169", "circle-stroke-width": 2,
         "circle-stroke-color": "#254037" } },
+    { id: "selection", type: "circle", source: "selection",
+      paint: { "circle-radius": 11, "circle-color": "transparent", "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffde8c", "circle-pitch-alignment": "map" } },
   ],
 };
 
@@ -83,7 +87,8 @@ function useRasterImage(map, ready, id, raster, scale, geometry, opacity) {
 }
 
 export default function GeospatialMap({ field, frame, command, boundary, raster, comparison, scale,
-  opacity, blend, mode, terrain, flat, exaggeration, basemap, reduced, highlight, markers, reviewGeometry, onPoint, onError }) {
+  opacity, blend, mode, terrain, flat, exaggeration, basemap, reduced, highlight, markers, reviewGeometry,
+  imagery, selection, onPoint, onError }) {
   const element = useRef(null);
   const handlers = useRef({ onPoint, onError });
   handlers.current = { onPoint, onError };
@@ -170,8 +175,13 @@ export default function GeospatialMap({ field, frame, command, boundary, raster,
     map.setLayoutProperty("imagery", "visibility", basemap ? "visible" : "none");
     for (const layer of ["parcel-fill", "parcel-line"])
       map.setLayoutProperty(layer, "visibility", boundary ? "visible" : "none");
-    map.setPaintProperty("parcel-line", "line-color", highlight ? "#ffcf77" : "#f3ffd2");
+    map.setPaintProperty("parcel-line", "line-color", highlight ? "#ffcf77" : "#f7efcb");
   }, [map, ready, boundary, basemap, highlight]);
+  useEffect(() => {
+    if (!ready) return;
+    map.getSource("selection").setData({ type: "FeatureCollection", features: selection
+      ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: selection } }] : [] });
+  }, [map, ready, selection]);
   useEffect(() => {
     if (ready) map.getSource("observations").setData({ type: "FeatureCollection", features: markers.map(marker => ({
       type: "Feature", properties: { id: marker.id },
@@ -197,6 +207,23 @@ export default function GeospatialMap({ field, frame, command, boundary, raster,
     }
   }, [map, ready, terrain, mode, exaggeration]);
 
+  useEffect(() => {
+    if (!ready || !imagery) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = imagery.bitmap.width;
+    canvas.height = imagery.bitmap.height;
+    canvas.getContext("2d").drawImage(imagery.bitmap, 0, 0);
+    const [west, south, east, north] = imagery.bounds;
+    const id = "dated-sentinel";
+    map.addSource(id, { type: "image", url: canvas.toDataURL("image/png"),
+      coordinates: [[west, north], [east, north], [east, south], [west, south]] });
+    map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 0 } },
+      map.getLayer("primary-raster") ? "primary-raster" : "parcel-line");
+    return () => {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    };
+  }, [map, ready, imagery]);
   useRasterImage(map, ready, "primary-raster", mode === "columns" ? null : raster, scale, field.geometry, opacity);
   useRasterImage(map, ready, "earlier-raster", mode === "columns" ? null : comparison, scale, field.geometry, opacity * blend);
 

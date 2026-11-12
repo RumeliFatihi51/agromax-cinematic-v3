@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 test.use({ launchOptions: { args: ["--enable-webgl", "--enable-unsafe-swiftshader"] } });
 
@@ -67,6 +68,53 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   await twin.getByLabel("Saha gözlemi noktaları").selectOption(observationId);
   await expect(twin).toContainText("Isolated point fixture.");
   await twin.screenshot({ path: info.outputPath("spatial-twin.png") });
+  await twin.getByRole("button", { name: "Seçimi temizle" }).click();
+  await expect(twin.getByText("SEÇİLEN NOKTA", { exact: true })).toHaveCount(0);
+  const studyAsset = page.waitForResponse(response => response.url().endsWith("/spatial-field-study.glb"));
+  await twin.getByRole("button", { name: "Temsili tarla etüdü" }).click();
+  const study = page.getByRole("region", { name: "Temsili tarla etüdü" });
+  expect((await studyAsset).status()).toBe(200);
+  const studyCanvas = study.locator("canvas");
+  await expect(studyCanvas).toBeVisible();
+  await expect(study).toContainText("Bitkiler, eğim ve konumlar örnektir.");
+  await expect(page.locator("canvas.spatial-three, .spatial-three canvas")).toHaveCount(1);
+  const frame = (await studyCanvas.boundingBox())!;
+  await studyCanvas.scrollIntoViewIfNeeded();
+  const visible = (await studyCanvas.boundingBox())!;
+  await page.mouse.move(visible.x + frame.width / 2, visible.y + frame.height / 2);
+  await page.mouse.down();
+  await page.evaluate(() => {
+    const times: number[] = [];
+    (window as any).__studyFrames = new Promise<number[]>(resolve => {
+      function sample(time: number) {
+        times.push(time);
+        if (times.length === 45) resolve(times);
+        else requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+  });
+  await page.mouse.move(visible.x + frame.width * 0.6, visible.y + frame.height * 0.46, { steps: 36 });
+  await page.mouse.up();
+  const times: number[] = await page.evaluate(() => (window as any).__studyFrames);
+  const intervals = times.slice(1).map((time, i) => time - times[i]!).sort((a, b) => a - b);
+  const renderer = await studyCanvas.evaluate(canvas => {
+    const gl = (canvas as HTMLCanvasElement).getContext("webgl2");
+    const info = gl?.getExtension("WEBGL_debug_renderer_info");
+    return gl && info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : null;
+  });
+  const profile = JSON.stringify({
+    samples: intervals.length, medianMs: intervals[22], p95Ms: intervals[41],
+    over33Ms: intervals.filter(interval => interval > 1000 / 30).length,
+    renderer, viewport: page.viewportSize(), source: "Chromium requestAnimationFrame during scripted orbit",
+  }, null, 2);
+  await writeFile(info.outputPath("study-frame-intervals.json"), profile);
+  await info.attach("study-frame-intervals", { contentType: "application/json", body: profile });
+  await study.screenshot({ path: info.outputPath("spatial-study.png") });
+  await study.getByRole("button", { name: "Bitki sıralarına yaklaş" }).click();
+  await study.screenshot({ path: info.outputPath("spatial-study-detail.png") });
+  await study.getByRole("button", { name: "Parsel modeline dön" }).click();
+  await expect(twin.locator(".spatial-three canvas")).toBeVisible();
   await twin.getByRole("button", { name: "2D" }).click();
   await expect(twin.locator(".leaflet-container")).toBeVisible();
 
@@ -75,6 +123,11 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   await expect(satellite.locator(".maplibregl-canvas")).toBeVisible({ timeout: 25_000 });
   await expect(satellite.getByText("EXPLICIT SYNTHETIC BROWSER FIXTURE", { exact: false })).toBeVisible();
   await expect(satellite.getByLabel("Renk skalası")).toBeVisible();
+  await satellite.getByText("Katmanlar", { exact: true }).click();
+  await satellite.getByRole("checkbox", { name: "Sentinel-2 doğal renk" }).check();
+  await expect(satellite.getByText(/Sentinel.2 doğal renk ·/)).toBeVisible();
+  await satellite.getByText("Katmanlar", { exact: true }).click();
+  await satellite.screenshot({ path: info.outputPath("spatial-satellite.png") });
   const rasterResponse = page.waitForResponse(response =>
     response.url().endsWith("/image") && response.request().postDataJSON().layer === "NDRE");
   await satellite.getByLabel("Analiz katmanı").selectOption("NDRE");
