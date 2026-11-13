@@ -12,6 +12,7 @@ import { terrainAttribution, terrainTiles } from "./terrain";
 setWorkerUrl(mapWorkerUrl);
 const parcel = { type: "geojson", data: { type: "FeatureCollection", features: [] } };
 const imagery = defaultBasemap;
+const archive = basemaps.archive;
 const collection = features => ({ type: "FeatureCollection", features });
 const noItems = [];
 const style = {
@@ -23,8 +24,10 @@ const style = {
   sources: {
     imagery: { type: "raster", tiles: [imagery.url], tileSize: 256,
       maxzoom: imagery.options.maxNativeZoom, attribution: imagery.options.attribution },
-    ...(mapboxEnabled && { "road-imagery": { type: "raster", tiles: [basemaps.road.url], tileSize: 256,
-      maxzoom: basemaps.road.options.maxNativeZoom, attribution: basemaps.road.options.attribution } }),
+    ...(mapboxEnabled && { "archive-imagery": { type: "raster", tiles: [archive.url], tileSize: 256,
+      maxzoom: archive.options.maxNativeZoom, attribution: archive.options.attribution } }),
+    "road-imagery": { type: "raster", tiles: [basemaps.road.url], tileSize: 256,
+      maxzoom: basemaps.road.options.maxNativeZoom, attribution: basemaps.road.options.attribution },
     parcel,
     neighbors: { type: "geojson", data: collection([]) },
     zones: { type: "geojson", data: collection([]) },
@@ -35,7 +38,8 @@ const style = {
   layers: [
     { id: "ground", type: "background", paint: { "background-color": "#213d34" } },
     { id: "imagery", type: "raster", source: "imagery", paint: { "raster-fade-duration": 0 } },
-    ...(mapboxEnabled ? [{ id: "road-imagery", type: "raster", source: "road-imagery", layout: { visibility: "none" } }] : []),
+    ...(mapboxEnabled ? [{ id: "archive-imagery", type: "raster", source: "archive-imagery", layout: { visibility: "none" } }] : []),
+    { id: "road-imagery", type: "raster", source: "road-imagery", layout: { visibility: "none" } },
     { id: "parcel-fill", type: "fill", source: "parcel",
       paint: { "fill-color": "#cbd99a", "fill-opacity": 0.12 } },
     { id: "neighbor-fill", type: "fill", source: "neighbors",
@@ -114,22 +118,21 @@ function useRasterImage(map, ready, id, raster, scale, geometry, opacity) {
 export default function GeospatialMap({ field, frame, command, boundary = true, raster, comparison, scale,
   opacity = 0.85, blend = 0.5, mode = "surface", terrain = true, flat, exaggeration = 1, basemap = true, reduced,
   highlight, markers = noItems, reviewGeometry, imagery, droneImagery, selection, onPoint, onError,
-  neighbors = noItems, zones = noItems, anchors = noItems, onParcel, onHeading, mirror,
+  neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror,
   interaction = true, terrainDefinition, compact = false, studio = false, atlas = false }) {
   const element = useRef(null);
   const handlers = useRef(null);
-  handlers.current = { onPoint, onError, onParcel, onHeading };
+  handlers.current = { onPoint, onError, onParcel, onHeading, onAnchorPoints };
   const current = useRef(null);
   current.current = { raster, mode, markers, anchors, mirror };
-  const anchorNodes = useRef(new globalThis.Map());
   const [map, setMap] = useState(null);
   const [ready, setReady] = useState(false);
   const [tileMessage, setTileMessage] = useState("");
-  const [roadFallback, setRoadFallback] = useState(false);
+  const [activeImagery, setActiveImagery] = useState("imagery");
 
   useEffect(() => {
     setReady(false);
-    setRoadFallback(false);
+    setActiveImagery("imagery");
     setTileMessage("");
     const [west, south, east, north] = geometryBounds(field.geometry);
     const padding = atlas && !compact ? {
@@ -150,22 +153,30 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     }
     const fit = () => {
       instance.getSource("parcel").setData({ type: "Feature", geometry: field.geometry, properties: {} });
-      if (studio && !flat) instance.jumpTo({ pitch: 53, bearing: -24, zoom: Math.max(0, instance.getZoom() - 0.25) });
+      if (studio && !flat) instance.jumpTo({ pitch: compact ? 53 : 63, bearing: -24, zoom: Math.max(0, instance.getZoom() - (compact ? 0.3 : 0.88)) });
       setReady(true);
     };
     instance.on("style.load", fit);
-    let usingRoad = !mapboxEnabled;
-    instance.on("error", (event) => {
-      if (event.sourceId === "imagery" && !usingRoad) {
-        usingRoad = true;
-        instance.setLayoutProperty("imagery", "visibility", "none");
-        instance.setLayoutProperty("road-imagery", "visibility", "visible");
-        setRoadFallback(true);
-        setTileMessage("Mapbox Satellite yüklenemedi. Yol haritası açık.");
-      }
-      else if (event.sourceId === "road-imagery" || event.sourceId === "imagery") {
+    let visibleSource = "imagery";
+    const loadedImagery = new Set();
+    instance.on("sourcedata", event => {
+      if (event.tile?.state === "loaded") loadedImagery.add(event.sourceId);
+    });
+    instance.on("idle", () => {
+      if (loadedImagery.has(visibleSource) || !instance.getLayer(visibleSource) ||
+        instance.getLayoutProperty(visibleSource, "visibility") === "none") return;
+      if (visibleSource !== "road-imagery") {
+        visibleSource = mapboxEnabled && visibleSource === "imagery" ? "archive-imagery" : "road-imagery";
+        setActiveImagery(visibleSource);
+        setTileMessage(visibleSource === "archive-imagery"
+          ? "Mapbox Satellite yüklenemedi. 2016 Sentinel-2 mozaiği açık."
+          : "Uydu altlığı yüklenemedi. Yol haritası açık.");
+      } else {
         setTileMessage("Yol altlığı alınamadı. Parsel sınırları ve analiz katmanları açık.");
-      } else if (event.sourceId === "terrain") {
+      }
+    });
+    instance.on("error", event => {
+      if (event.sourceId === "terrain") {
         instance.setTerrain(null);
         setTileMessage("Yükseklik döşemeleri alınamadı. Düz yüzey gösteriliyor.");
       }
@@ -174,13 +185,20 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     instance.on("rotate", () => handlers.current.onHeading?.(instance.getBearing()));
     instance.on("render", () => {
       const { anchors, mirror } = current.current;
-      for (const anchor of anchors) {
-        const node = anchorNodes.current.get(anchor.id);
-        if (!node || !element.current) continue;
-        const { x, y } = instance.project(anchor.coordinate);
-        const visible = x > 12 && y > 65 && x < element.current.clientWidth - 12 && y < element.current.clientHeight - 46;
-        node.hidden = !visible;
-        if (visible) node.style.transform = "translate3d(" + Math.round(x) + "px," + Math.round(y) + "px,0)";
+      if (handlers.current.onAnchorPoints && element.current) {
+        const { clientWidth: width, clientHeight: height } = element.current;
+        const points = {};
+        for (const anchor of anchors) {
+          const { x, y } = instance.project(anchor.coordinate);
+          if (width && height && x > 0 && y > 0 && x < width && y < height) {
+            points[anchor.id] = [Math.round(x / width * 1000) / 10, Math.round(y / height * 1000) / 10];
+          }
+        }
+        handlers.current.onAnchorPoints(previous => {
+          const keys = Object.keys(points);
+          return keys.length === Object.keys(previous).length && keys.every(key =>
+            previous[key]?.[0] === points[key][0] && previous[key]?.[1] === points[key][1]) ? previous : points;
+        });
       }
       if (mirror?.current) {
         const source = instance.getCanvas(), target = mirror.current;
@@ -253,12 +271,13 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
 
   useEffect(() => {
     if (!ready) return;
-    map.setLayoutProperty("imagery", "visibility", basemap && !roadFallback ? "visible" : "none");
-    if (mapboxEnabled) map.setLayoutProperty("road-imagery", "visibility", basemap && roadFallback ? "visible" : "none");
+    for (const id of ["imagery", "archive-imagery", "road-imagery"]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", basemap && activeImagery === id ? "visible" : "none");
+    }
     for (const layer of ["parcel-fill", "parcel-halo", "parcel-line"])
       map.setLayoutProperty(layer, "visibility", boundary ? "visible" : "none");
     map.setPaintProperty("parcel-line", "line-color", highlight ? "#ffcf77" : "#f7efcb");
-  }, [map, ready, boundary, basemap, highlight, roadFallback]);
+  }, [map, ready, boundary, basemap, highlight, activeImagery]);
   useEffect(() => {
     if (!ready) return;
     map.getSource("selection").setData({ type: "FeatureCollection", features: selection
@@ -375,13 +394,9 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     if (ready && map.getLayer("index-columns")) map.setPaintProperty("index-columns", "fill-extrusion-opacity", opacity);
   }, [map, ready, mode, raster, scale, opacity]);
 
-  return <div className="spatial-map" data-terrain={terrain ? terrainDefinition ? "drone" : "mapzen" : "flat"}>
+  return <div className="spatial-map" data-basemap={activeImagery === "road-imagery" ? "road" : activeImagery === "archive-imagery" || !mapboxEnabled ? "archive" : "mapbox"} data-terrain={terrain ? terrainDefinition ? "drone" : "mapzen" : "flat"}>
     <div ref={element} className="spatial-map-canvas" aria-label="Etkileşimli eğimli parsel haritası" />
-    {anchors.length > 0 && <div className="geo-map-anchors">{anchors.map(anchor =>
-      <div key={anchor.id} className="geo-map-anchor" ref={node => {
-        if (node) anchorNodes.current.set(anchor.id, node); else anchorNodes.current.delete(anchor.id);
-      }}>{anchor.content}</div>)}</div>}
-    <MapboxWordmark visible={mapboxEnabled && basemap && !roadFallback} />
+    <MapboxWordmark visible={mapboxEnabled && basemap && activeImagery === "imagery"} />
     {tileMessage && <p className="spatial-map-notice" role="status">{tileMessage}</p>}
   </div>;
 }

@@ -186,4 +186,17 @@ test("revision-bound prescription zones are saved, validated and selectable in 3
   await twin.getByText("Katmanlar", { exact: true }).click();
   await twin.getByRole("checkbox", { name: "Reçete bölgeleri" }).check();
   await expect(twin).toContainText("EXPLICIT TEST REGION PLAN · v1 · Kullanıcı reçete taslağı");
+  if (info.project.name === "desktop") {
+    await page.goto("/#field-studio?field=" + id);
+    const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+    await studio.getByRole("spinbutton", { name: "Güney oranı" }).fill("41");
+    await studio.getByRole("button", { name: "Oranları kaydet" }).click();
+    await expect(studio.getByRole("status").filter({ hasText: "Oranlar kaydedildi." })).toBeVisible();
+    const bundle = await page.request.get("/api/platform/fields/" + id);
+    const { records }: { records: { name: string; version: number; payload: typeof input.payload }[] } = await bundle.json();
+    const plan = records.find(record => record.name === input.name);
+    if (!plan) throw new Error("Saved prescription missing");
+    expect(plan.version).toBe(2);
+    expect(plan.payload.zones[0].rate).toBe(41);
+  }
 });

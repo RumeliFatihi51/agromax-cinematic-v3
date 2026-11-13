@@ -31,7 +31,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { validateGeometry } from "../../../shared/geometry";
-import { basemaps, mapboxEnabled, satelliteWithLabels } from "./basemaps";
+import { basemaps, defaultBasemap, mapboxEnabled, satelliteWithLabels } from "./basemaps";
 import MapboxWordmark from "./MapboxWordmark";
 import MapSearch from "./MapSearch";
 
@@ -88,7 +88,8 @@ export default function ParcelMap({
     [tilesLoading, setTilesLoading] = useState(true),
     [tilesSlow, setTilesSlow] = useState(false),
     [tileRevision, setTileRevision] = useState(0),
-    [base, setBase] = useState(mapboxEnabled ? "satellite" : "road"),
+    [base, setBase] = useState("satellite"),
+    [archiveFallback, setArchiveFallback] = useState(false),
     [labels, setLabels] = useState(false),
     [showInfo, setShowInfo] = useState(false),
     [fullscreen, setFullscreen] = useState(false);
@@ -294,7 +295,8 @@ export default function ParcelMap({
     setTilesLoading(true);
     setTilesSlow(false);
     baseLayer.current?.remove();
-    const config = base === "satellite" && labels ? satelliteWithLabels : basemaps[base];
+    const config = base === "road" ? basemaps.road : archiveFallback ? basemaps.archive
+      : labels && mapboxEnabled ? satelliteWithLabels : defaultBasemap;
     const tile = L.tileLayer(config.url, config.options);
     baseLayer.current = tile;
     let errors = 0;
@@ -305,7 +307,18 @@ export default function ParcelMap({
     tile.on("loading", () => setTilesLoading(true));
     tile.on("load", () => setTilesLoading(false));
     tile.on("tileerror", () => {
-      if (++errors >= 3) setTileError(true);
+      if (++errors >= 3) {
+        setTileError(true);
+        if (base === "satellite" && !loaded) {
+          if (mapboxEnabled && !archiveFallback) {
+            setNotice("Mapbox Satellite yüklenemedi. 2016 Sentinel-2 mozaiği açılıyor.");
+            setArchiveFallback(true);
+          } else {
+            setNotice("Uydu mozaiği yüklenemedi. Yol haritası açıldı.");
+            setBase("road");
+          }
+        }
+      }
     });
     tile.on("tileload", () => {
       loaded = true;
@@ -320,7 +333,7 @@ export default function ParcelMap({
       window.clearTimeout(slow);
       tile.remove();
     };
-  }, [base, labels, tileRevision]);
+  }, [base, labels, tileRevision, archiveFallback]);
   useEffect(() => {
     const group = saved.current;
     if (!group) return;
@@ -635,7 +648,7 @@ export default function ParcelMap({
           <button
             type="button"
             className={base === "satellite" ? "active" : ""}
-            onClick={() => setBase("satellite")} disabled={!mapboxEnabled}
+            onClick={() => { setArchiveFallback(false); setBase("satellite"); }}
             aria-pressed={base === "satellite"}
           >
             <Satellite size={16} />
@@ -653,8 +666,7 @@ export default function ParcelMap({
           <button
             type="button"
             className={labels && base === "satellite" ? "active" : ""}
-            disabled={base !== "satellite"}
-            onClick={() => setLabels(!labels)} disabled={!mapboxEnabled || base !== "satellite"}
+            onClick={() => setLabels(!labels)} disabled={!mapboxEnabled || archiveFallback || base !== "satellite"}
             title="Yer adlarını göster"
             aria-label="Yer adlarını göster"
             aria-pressed={labels && base === "satellite"}
@@ -772,7 +784,7 @@ export default function ParcelMap({
           </button>
           <button
             type="button"
-            onClick={() => setBase(base === "satellite" || !mapboxEnabled ? "road" : "satellite")}
+            onClick={() => setBase(base === "satellite" ? "road" : "satellite")}
           >
             Diğer altlığı aç
           </button>
@@ -814,7 +826,7 @@ export default function ParcelMap({
           aria-label="Görüntü kaynağı bilgisi"
         >
           <Info size={14} />
-          {basemaps[base].label}
+          {base === "satellite" ? (archiveFallback ? basemaps.archive.label : defaultBasemap.label) : basemaps.road.label}
         </button>
         {showInfo && (
           <p>
@@ -824,7 +836,7 @@ export default function ParcelMap({
           </p>
         )}
       </div>
-      <MapboxWordmark visible={base === "satellite" && mapboxEnabled} />
+      <MapboxWordmark visible={base === "satellite" && mapboxEnabled && !archiveFallback} />
     </div>
   );
   return <div className={editable ? "parcel-drawing-layout" : "parcel-map-frame"}>{palette}{mapSurface}</div>;

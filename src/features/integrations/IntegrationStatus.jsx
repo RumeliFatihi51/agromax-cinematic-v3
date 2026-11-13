@@ -84,7 +84,7 @@ export default function IntegrationStatus({ status }) {
           [
             Map,
             "Parsel haritası",
-            mapboxEnabled ? "Mapbox Satellite · Yapılandırıldı" : "OpenStreetMap · Mapbox anahtarı eksik",
+            mapboxEnabled ? "Mapbox Satellite · Yapılandırıldı" : "Sentinel-2 Cloudless 2016 · Mapbox anahtarı eksik",
             "Çizim, köşe düzenleme, kesme, taşıma, döndürme ve GeoJSON işlemleri. Ticari ölçek için harita sunucusu kapasitesi ayrıca planlanmalı.",
           ],
           [

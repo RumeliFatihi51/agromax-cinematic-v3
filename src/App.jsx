@@ -353,7 +353,8 @@ export default function App() {
       />
     );
   else if (page === "field-studio")
-    content = <FieldStudio key={activeWorkspace?.id || user.id} fields={fields} tasks={tasks} initialFieldId={destinationField} initialMetric={location.metric}
+    content = <FieldStudio key={`${activeWorkspace?.id || user.id}:${destinationField}:${location.metric || ""}`}
+      fields={fields} tasks={tasks} initialFieldId={destinationField} initialMetric={location.metric}
       commercial={!!activeWorkspace} canWrite={!activeWorkspace || activeWorkspace.role !== "viewer"}
       onNavigate={navigate} onCreateTask={openTask} onToggleTask={toggle} onCreateField={create} />;
   else if (platformPages.includes(page))

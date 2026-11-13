@@ -18,7 +18,21 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await expect(page.locator(".fw-overview-section")).toBeVisible();
 
   const id = "e".repeat(32);
-  await page.goto("/#field-studio?field=" + id);
+  await page.goto("/#field-studio");
+  const preview = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+  await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toBeVisible();
+  await expect(preview.locator(".scene-card")).toHaveCount(5);
+  await expect(preview.getByRole("button", { name: "Örnek indeks parselleri" })).toHaveCount(1);
+  await preview.screenshot({ path: info.outputPath("studio-reference.png"), animations: "disabled" });
+  await preview.getByRole("button", { name: "Sonraki büyüme evresi" }).click();
+  await expect(preview.getByText("Sapa kalkma", { exact: true })).toBeVisible();
+  const total = preview.locator('[data-slot="zones"] .scene-zone-labels').last();
+  const initialTotal = await total.textContent();
+  await preview.getByRole("spinbutton", { name: "Yüksek canlılık oranı" }).fill("99");
+  await expect(total).not.toHaveText(initialTotal || "");
+  await preview.getByRole("button", { name: "Önce görünümüne geç" }).click();
+  await expect(preview.locator(".scene-reference")).toHaveAttribute("data-before", "true");
+  await preview.getByRole("button", { name: "Canlı parsellerim" }).click();
   const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
   await expect(studio.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
   await expect(studio.getByLabel("Saha stüdyosu parseli")).toHaveValue(id);
@@ -46,7 +60,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await task.getByLabel("Görev adı").fill("3D saha kontrolü " + info.project.name);
   await task.getByLabel("Planlanan tarih").fill("2026-11-13");
   await task.getByRole("button", { name: "Görevi planla" }).click();
-  await expect(studio.getByText("3D saha kontrolü " + info.project.name)).toBeVisible();
+  await expect(studio.getByRole("complementary", { name: "Saha faaliyetleri" }).getByText("3D saha kontrolü " + info.project.name)).toBeVisible();
   await studio.getByRole("button", { name: "Paneli kapat" }).click();
   await studio.getByRole("button", { name: "Doğal renk", exact: true }).click();
   await expect(studio.locator(".maplibregl-canvas")).toHaveCount(1);
@@ -57,7 +71,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   const atlas = page.getByRole("region", { name: "Üç boyutlu arazi atlası" });
   await expect(atlas.locator(".maplibregl-canvas")).toBeVisible();
   await atlas.getByRole("button", { name: "3D Saha Stüdyosu" }).click();
-  await expect(studio).toBeVisible();
+  await expect(studio.locator(".maplibregl-canvas")).toBeVisible();
   expect(esri).toEqual([]);
   expect(errors).toEqual([]);
 });

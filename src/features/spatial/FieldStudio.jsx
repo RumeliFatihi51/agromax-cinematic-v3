@@ -1,21 +1,26 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, CalendarDays, ChartNoAxesCombined, CloudSun, Compass, Droplets, Crosshair, Layers3, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
-import { api } from "../../api";
+import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
+import { api, fetchAnalysisImage } from "../../api";
 import { availableMetrics, indices } from "../../../shared/metrics";
 import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
 import { compareRasters, containsPoint, metricFrame, pixelIndex } from "../../../shared/spatial";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 import ParcelMap from "../fields/ParcelMap";
 import { mapboxEnabled } from "../fields/basemaps";
-import { colorScale, rgb } from "./colors";
+import { colorFor, colorScale, rgb } from "./colors";
 import { GeospatialMap, SpatialBoundary, useMedia, useOpenCatalog, useRaster } from "./SpatialWorkbench";
 import { useDroneTerrain } from "./DroneTerrain";
 import { useDroneTerrainSource, useTerrainSample } from "./map-terrain";
+import { condition } from "../weather/weather-format";
+import StudioReference from "./StudioReference";
+import { SceneCards, SceneLeaders, WeatherBand, sceneSlots } from "./StudioOverlay";
 import "./field-studio.css";
+import "./studio-composition.css";
 
 const DraftEditor = lazy(() => import("../platform/PlatformWorkspace").then(module => ({ default: module.DraftEditor })));
 const PixelArea = lazy(() => import("./RegionalInsights").then(module => ({ default: module.PixelArea })));
 const noItems = [];
+const anchorOffsets = [[-0.25, -0.24], [-0.04, -0.12], [0.24, 0.12], [0.25, -0.2], [-0.24, 0.25]];
 const format = (value, digits = 2) => Number.isFinite(value)
   ? value.toLocaleString("tr-TR", { maximumFractionDigits: digits }) : "Veri yok";
 const shortDate = value => value ? new Date(value.length === 10 ? value + "T12:00:00Z" : value)
@@ -40,15 +45,35 @@ function useFieldResource(path, fallback) {
 
 function WeatherStrip({ forecast, loading, error }) {
   const point = forecast?.points.find(item => Date.parse(item.time) >= Date.now() - 3600000);
-  const precipitation = point?.periods.find(item => item.hours === 1)?.values.precipitation_amount;
-  return <div className="field-studio-weather" aria-label="Parsel hava tahmini">
-    <div className="field-studio-weather-now"><CloudSun size={24} />
-      <div><small>{point ? "En yakın tahmin" : "MET Norway"}</small><strong>{point ? format(point.values.air_temperature, 1) + " °C" : loading ? "Yükleniyor…" : error ? "Bağlantı hatası" : "Tahmin yok"}</strong></div>
-    </div>
-    {point && [["Yağış", precipitation, " mm"], ["Bağıl nem", point.values.relative_humidity, "%"],
-      ["Bulut", point.values.cloud_area_fraction, "%"], ["Rüzgâr", point.values.wind_speed, " m/sn"]].map(([label, value, unit]) =>
-        <div key={label}><small>{label}</small><strong>{format(value, 1)}{Number.isFinite(value) ? unit : ""}</strong></div>)}
-  </div>;
+  const period = point?.periods.find(item => item.hours === 1) || point?.periods[0];
+  const { Icon, label } = condition(period?.symbol);
+  return <WeatherBand Icon={Icon} condition={label} status={loading ? "Yükleniyor…" : error ? "Bağlantı hatası" : "Tahmin yok"}
+    values={point && {
+      temperature: point.values.air_temperature, rain: period?.values.precipitation_amount,
+      humidity: point.values.relative_humidity, cloud: point.values.cloud_area_fraction, wind: point.values.wind_speed,
+    }} />;
+}
+
+function useNaturalImage(fieldId, observation, enabled) {
+  const [result, setResult] = useState(null);
+  const id = enabled && observation?.provider !== openSentinelProvider ? observation?.id : null;
+  const date = observation?.date;
+  useEffect(() => {
+    if (!id || !date) return;
+    const controller = new AbortController();
+    let bitmap;
+    fetchAnalysisImage(fieldId, { date, analysisId: id, layer: "RGB", signal: controller.signal })
+      .then(async image => {
+        try {
+          const response = await fetch(image.url, { signal: controller.signal });
+          bitmap = await createImageBitmap(await response.blob());
+          if (controller.signal.aborted) bitmap.close();
+          else setResult({ fieldId, id, date, bounds: image.bounds, bitmap });
+        } finally { URL.revokeObjectURL(image.url); }
+      }).catch(() => {});
+    return () => { controller.abort(); bitmap?.close(); };
+  }, [fieldId, id, date]);
+  return id && result?.id === id && result?.date === date && result?.fieldId === fieldId ? result : null;
 }
 
 function Sparkline({ values }) {
@@ -63,18 +88,17 @@ function Sparkline({ values }) {
 export default function FieldStudio({ fields, tasks, initialFieldId, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask, onCreateField }) {
   const drawn = useMemo(() => fields.filter(field => field.geometry), [fields]);
   const [fieldId, setFieldId] = useState(initialFieldId || "");
-  useEffect(() => { if (initialFieldId) setFieldId(initialFieldId); }, [initialFieldId]);
+  const [view, setView] = useState(initialFieldId || initialMetric ? "live" : "reference");
   const field = drawn.find(item => item.id === fieldId) || drawn[0];
   return <section className="field-studio" aria-label="3D Saha Stüdyosu">
-    {field ? <StudioScene key={field.id + ":" + (initialMetric || "")} {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
-      onField={setFieldId} /> : <div className="field-studio-empty">
-      <div><Sprout size={29} /><h1>3D Saha Stüdyosu</h1><p>Bir parsel sınırı kaydedince gerçek arazi ve katmanları burada açabilirsin.</p>
-        <button className="primary" onClick={onCreateField}>Parsel çiz <ArrowUpRight size={16} /></button></div>
-    </div>}
+    {view === "reference" || !field ? <StudioReference empty={!field}
+      onLive={() => field ? setView("live") : onCreateField()} /> :
+      <StudioScene key={field.id + ":" + (initialMetric || "")} {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
+        onField={setFieldId} onReference={() => setView("reference")} />}
   </section>;
 }
 
-function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask, onField }) {
+function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask, onField, onReference }) {
   const area = useAreaFormat();
   const compact = useMedia("(max-width: 760px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
@@ -101,6 +125,12 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const [fullError, setFullError] = useState("");
   const stage = useRef(null);
   const firstPanelButton = useRef(null);
+  const [scenePoints, setScenePoints] = useState({});
+  const [beforeDate, setBeforeDate] = useState("");
+  const [rates, setRates] = useState(null);
+  const [ratePending, setRatePending] = useState(false);
+  const [rateMessage, setRateMessage] = useState("");
+  const seasonResource = useFieldResource(commercial ? "v1/records/season?fieldId=" + field.id : null);
   const open = useOpenCatalog(field.id, geometryVersion, source === "archive" && geometryVersion ? month : "");
   const catalog = source === "archive" ? open : dataMatches ? recorded.value : null;
   const observations = catalog?.observations || noItems;
@@ -121,6 +151,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const index = point && raster ? pixelIndex(raster, point.coordinate) : -1;
   const value = raster?.values[index];
   const drone = useDroneTerrain(field.id, geometryVersion, frame, commercial && !!geometryVersion, !lost);
+  const naturalImage = useNaturalImage(field.id, active, !mapboxEnabled && !drone.imagery && !lost);
   const dem = useTerrainSample(frame, !lost && (panel === "index" || !!drone.dtm));
   const terrainDefinition = useDroneTerrainSource(frame, drone.dtm, dem);
   const selectedPosition = point ? frame.local(point.coordinate) : null;
@@ -130,33 +161,102 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const model = modelRun?.data.geometryVersion === geometryVersion ? modelRun?.data.result : null;
 
   const records = bundle.value?.records || noItems;
-  const current = records.filter(record => record.fieldSnapshot.geometryHash === geometryVersion && record.status !== "archived");
-  const prescriptions = current.filter(record => record.kind === "prescription");
-  const zonePlan = prescriptions.find(record => record.payload.zones?.length);
+  const current = useMemo(() => records.filter(record =>
+    record.fieldSnapshot.geometryHash === geometryVersion && record.status !== "archived"), [records, geometryVersion]);
+  const zonePlan = current.find(record => record.kind === "prescription" && record.payload.zones?.length);
+  const draftRates = rates?.id === zonePlan?.id && rates?.version === zonePlan?.version ? rates?.values : null;
+  const draftQuantity = draftRates && zonePlan.calculation?.zones?.reduce((total, zone, index) =>
+    total + zone.hectares * Number(draftRates[index]), 0);
+
+  function editRate(index, rate) {
+    setRateMessage("");
+    const values = draftRates ? [...draftRates] : zonePlan.payload.zones.map(zone => String(zone.rate));
+    values[index] = rate;
+    setRates({ id: zonePlan.id, version: zonePlan.version, values });
+  }
+
+  async function saveRates() {
+    if (draftRates.some(value => value === "" || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 1e8)) {
+      setRateMessage("Geçerli uygulama oranları gir.");
+      return;
+    }
+    setRatePending(true);
+    setRateMessage("");
+    try {
+      await api("platform/records/" + zonePlan.id, {
+        fieldId: field.id, kind: "prescription", name: zonePlan.name, status: zonePlan.status, version: zonePlan.version,
+        payload: { ...zonePlan.payload, zones: zonePlan.payload.zones.map((zone, index) => ({ ...zone, rate: Number(draftRates[index]) })) },
+      }, "PATCH");
+      setRates(null);
+      setRateMessage("Oranlar kaydedildi.");
+      bundle.refresh();
+    } catch (error) {
+      setRateMessage(error.message);
+      if (error.status === 409) bundle.refresh();
+    } finally {
+      setRatePending(false);
+    }
+  }
   const zones = mode === "zones" ? zonePlan?.payload.zones || noItems : noItems;
-  const markers = current.filter(record => record.kind === "observation" && record.payload.coordinate).map(record => ({
+  const markers = useMemo(() => current.filter(record => record.kind === "observation" && record.payload.coordinate).map(record => ({
     id: record.id, name: record.name, coordinate: record.payload.coordinate, date: record.payload.observedAt, notes: record.payload.notes,
-  }));
-  const fieldTasks = tasks.filter(task => task.fieldId === field.id).toSorted((a, b) => a.date.localeCompare(b.date));
+  })), [current]);
+  const fieldTasks = useMemo(() => tasks.filter(task => task.fieldId === field.id).sort((a, b) =>
+    a.date.localeCompare(b.date)), [tasks, field.id]);
   const average = active?.metrics?.[metric?.id];
   const earlierAverage = previous?.metrics?.[metric?.id];
   const signal = Number.isFinite(average) && Number.isFinite(earlierAverage) ? average - earlierAverage : null;
   const history = observations.toReversed().map(item => item.metrics?.[metric?.id]).filter(Number.isFinite).slice(-20);
-  const positions = [[-0.26, -0.22], [0.22, -0.12], [-0.28, 0.21], [0.29, 0.23]];
-  const anchorCards = [
-    ["season", Sprout, "Ürün ve sezon", field.crop || "Ürün kaydı yok"],
-    ["index", ScanLine, metric?.id || "Uydu indeksi", format(average)],
-    ["tasks", CalendarDays, "Saha faaliyetleri", fieldTasks.length ? fieldTasks.filter(task => !task.done).length + " bekleyen görev" : "Görev kaydı yok"],
-    ["change", ChartNoAxesCombined, "Dönem farkı", Number.isFinite(signal) ? (signal > 0 ? "+" : "") + format(signal) : "Karşılaştırma verisi yok"],
-  ];
-  const anchors = compact || panel ? noItems : anchorCards.map(([id, Icon, title, text], index) => {
-    const [x, z] = positions[index];
-    const coordinate = frame.coordinate(x * frame.width, z * frame.depth);
-    return { id, coordinate: containsPoint(field.geometry, coordinate) ? coordinate : frame.center,
-      content: <button type="button" className="field-studio-anchor" data-anchor={id} onClick={() => setPanel(id)}>
-        <Icon size={17} /><span><small>{title}</small><strong>{text}</strong></span><ArrowUpRight size={13} />
-      </button> };
-  });
+  const measurementScale = useMemo(() => mode !== "change" && scale ? scale
+    : metric ? colorScale({ metric: metric.id, values: [average] }) : null, [mode, scale, metric, average]);
+  const indexPalette = useMemo(() => measurementScale && measurementScale.min < measurementScale.max
+    ? Array.from({ length: 9 }, (_, i) => rgb(colorFor(
+      measurementScale.min + i * (measurementScale.max - measurementScale.min) / 8, measurementScale)))
+    : null, [measurementScale]);
+  const anchors = useMemo(() => sceneSlots.flatMap((slot, index) => {
+    const [x, z] = anchorOffsets[index];
+    for (const weight of [1, 0.75, 0.5, 0.25]) {
+      const coordinate = frame.coordinate(x * frame.width * weight, z * frame.depth * weight);
+      if (containsPoint(field.geometry, coordinate)) return [{ id: slot.id, coordinate }];
+    }
+    return [];
+  }), [frame, field.geometry]);
+  const seasonRecord = seasonResource.value?.records?.find(item => item.fieldId === field.id)?.data;
+  const recordedDates = [seasonRecord?.sowingDate || field.sowingDate, seasonRecord?.harvestDate];
+  const season = {
+    labels: ["Ekim", "Hasat"],
+    selected: recordedDates[1] && Date.parse(recordedDates[1]) <= Date.now() ? 1 : recordedDates[0] && Date.parse(recordedDates[0]) <= Date.now() ? 0 : -1,
+    title: seasonRecord?.crop || field.crop || "Ürün kaydı yok",
+    date: recordedDates[0] ? "Ekim · " + shortDate(recordedDates[0]) : "Ekim kaydı yok",
+    caption: recordedDates[1] ? "Hasat · " + shortDate(recordedDates[1]) : "Hasat kaydı yok",
+  };
+  const cards = {
+    season,
+    zones: { rows: (zonePlan?.payload.zones || noItems).map((zone, index) => ({
+        id: index + 1, name: zone.name, rate: draftRates?.[index] ?? zone.rate,
+        detail: zonePlan.calculation?.zones?.[index] && format(zonePlan.calculation.zones[index].hectares) + " ha",
+      })),
+      unit: zonePlan?.payload.unit?.replace("m3", "m³"), empty: "Kayıtlı uygulama bölgesi yok.",
+      footer: zonePlan?.calculation && { label: "Toplam uygulama", value:
+        format(draftQuantity ?? zonePlan.calculation.quantity) + " " + zonePlan.calculation.unit } },
+    change: { metric: metric?.id || layer, beforeDate: shortDate(previous?.date), afterDate: shortDate(active?.date),
+      before: earlierAverage, after: average, delta: signal },
+    index: { metric: metric?.id || layer, value: average, series: history, palette: indexPalette,
+      band: indexPalette && Number.isFinite(average) ? Math.max(0, Math.min(8, Math.round(
+        8 * (average - measurementScale.min) / (measurementScale.max - measurementScale.min)))) : -1 },
+    tasks: { rows: fieldTasks.map(task => ({ id: task.id, name: task.name, date: shortDate(task.date) })) },
+  };
+  function compareView() {
+    if (beforeDate) {
+      setDate(beforeDate);
+      setBeforeDate("");
+    } else if (previous) {
+      setBeforeDate(active.date);
+      setDate(previous.date);
+    }
+    if (!rasterMode) setMode("surface");
+    setPoint(null);
+  }
   const fallback = <div className="field-studio-fallback">
     <p role="status">3D görünüm açılamadı. Parsel sınırı yol haritasında açık.</p>
     <ParcelMap geometry={field.geometry} fields={drawn} height="100%" compact />
@@ -180,27 +280,35 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   };
 
   return <>
-    <div ref={stage} className="field-studio-scene">
+    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel}>
       <div className="field-studio-map">
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
             <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
-              studio neighbors={drawn} onParcel={onField} mode={mode === "columns" ? "columns" : "surface"}
-              droneImagery={drone.imagery} selection={point?.coordinate} interaction={!compact || interactive}
+              studio onAnchorPoints={setScenePoints} neighbors={drawn} onParcel={onField} mode={mode === "columns" ? "columns" : "surface"}
+              droneImagery={drone.imagery} imagery={naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
                 setPoint(item); setPanel(item.marker ? "observations" : "index");
               }} />
           </Suspense>
         </SpatialBoundary>}
       </div>
-      <header className="field-studio-head">
-        <div><span>AGROMAX / SAHA İSTİHBARATI</span><h1>3D Saha Stüdyosu</h1></div>
+      <h1 className="sr-only">3D Saha Stüdyosu</h1>
+      <div className="scene-view-actions">
         <label><span className="sr-only">Saha stüdyosu parseli</span>
-          <select value={field.id} onChange={event => onField(event.target.value)}>{drawn.map(item =>
+          <select aria-label="Saha stüdyosu parseli" value={field.id} onChange={event => onField(event.target.value)}>{drawn.map(item =>
             <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         </label>
-      </header>
+        {(previous || beforeDate) && <button type="button" onClick={compareView}
+          aria-label={beforeDate ? "Sonra görünümüne geç" : "Önce görünümüne geç"}>{beforeDate ? "Önce" : "Sonra"}</button>}
+        <button type="button" onClick={onReference}>Örnek panorama</button>
+      </div>
       <WeatherStrip forecast={weather.value} loading={weather.loading} error={weather.error} />
+      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel} onSelect={openPanel} />
+      <SceneCards {...cards} selected={panel} onOpen={openPanel}
+        onRate={canWrite && zonePlan ? editRate : undefined} onRateSave={canWrite && draftRates ? saveRates : undefined}
+        {...{ ratePending, rateMessage }} />
+      {naturalImage && <p className="field-studio-orthophoto">Sentinel-2 doğal renk · {shortDate(naturalImage.date)}</p>}
       {drone.imagery && <p className="field-studio-orthophoto">Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
         {[[Compass, "north", "Kuzeye dön"], [Crosshair, "fit", "Parsele odaklan"], [Mountain, "slope", "Ufuk görünümü"],
@@ -222,7 +330,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
             <optgroup label="Bantlar ve yardımcı katmanlar">{metrics.filter(item => !indices.some(ind => ind.id === item.id)).map(item =>
               <option key={item.id} value={item.id}>{item.id} · {item.label}</option>)}</optgroup>
           </select></label>
-          <label><span className="sr-only">Gözlem tarihi</span><select aria-label="Gözlem tarihi" value={active?.date || ""} onChange={event => { setDate(event.target.value); setPoint(null); }}>
+          <label><span className="sr-only">Gözlem tarihi</span><select aria-label="Gözlem tarihi" value={active?.date || ""} onChange={event => { setDate(event.target.value); setBeforeDate(""); setPoint(null); }}>
             {!active && <option value="">Gözlem tarihi yok</option>}
             {observations.map(item => <option key={item.date} value={item.date}>{shortDate(item.date)}</option>)}
           </select></label>
@@ -248,11 +356,11 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         <header><div><small>{field.name}</small><h2>{title}</h2></div>
           <button type="button" ref={firstPanelButton} onClick={() => setPanel("")} aria-label="Paneli kapat"><X size={18} /></button></header>
         {panel === "layers" && <>
-          <label>Analiz kaynağı<select value={source} onChange={event => { setSource(event.target.value); setDate(""); setEarlier(""); setPoint(null); }}>
+          <label>Analiz kaynağı<select value={source} onChange={event => { setSource(event.target.value); setDate(""); setEarlier(""); setBeforeDate(""); setPoint(null); }}>
             <option value="recorded">Kayıtlı analizler</option><option value="archive">Açık Sentinel-2 arşivi</option>
           </select></label>
           {source === "archive" && <label>Arşiv ayı<input type="month" value={month} onChange={event => { setMonth(event.target.value); setDate(""); setPoint(null); }} /></label>}
-          <p>{mapboxEnabled ? "Mapbox Satellite · görsel altlık" : "Mapbox anahtarı eksik · OpenStreetMap yol haritası"} · Mapzen yükseklik</p>
+          <p>{mapboxEnabled ? "Mapbox Satellite · görsel altlık" : "Sentinel-2 Cloudless 2016 · tarihli görsel altlık"} · Mapzen yükseklik</p>
           {(catalog?.error || recorded.error || bundle.error) && <p role="alert">{catalog?.error || recorded.error || bundle.error}</p>}
           <label>İndeks katmanı saydamlığı<input type="range" min="0.15" max="1" step="0.01" value={opacity} onChange={event => setOpacity(Number(event.target.value))} /></label>
           {drone.ready.length > 0 && <label>Arazi görüntüsü<select value={drone.selected?.id || "satellite"} onChange={event => drone.choose(event.target.value)}>
