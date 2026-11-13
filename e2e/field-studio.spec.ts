@@ -38,6 +38,16 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await page.goto("/#field-studio");
   await page.reload();
   const preview = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+  await expect(preview.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
+  await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toHaveCount(0);
+  const liveMap = preview.locator(".spatial-map");
+  if (process.env.AGROMAX_VERIFY_MAPBOX === "true") {
+    await expect(liveMap).toHaveAttribute("data-basemap", "mapbox");
+    await expect(liveMap).toHaveAttribute("data-basemap-loaded", "true", { timeout: 18000 });
+    await expect(preview.getByText("Mapbox Satellite", { exact: true })).toBeVisible();
+  }
+  await preview.getByRole("button", { name: "Kaynaklar", exact: true }).click();
+  await preview.getByRole("button", { name: "Örnek panorama", exact: true }).click();
   await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toBeVisible();
   await expect(preview.locator(".scene-card")).toHaveCount(5);
   await expect(preview.getByRole("button", { name: "Örnek indeks parselleri" })).toHaveCount(1);
@@ -112,4 +122,37 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await expect(studio.locator(".maplibregl-canvas")).toBeVisible();
   expect(esri).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test("Mapbox Satellite shows a real agricultural area in the Field Studio", async ({ page }, info) => {
+  test.skip(process.env.AGROMAX_VERIFY_MAPBOX !== "true", "Live Mapbox token opt-in.");
+  await page.setViewportSize(info.project.name === "mobile" ? { width: 390, height: 844 } : { width: 1440, height: 960 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
+  await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
+  await page.getByRole("button", { name: "Platforma giriş yap" }).click();
+  await expect(page.locator(".fw-overview-section")).toBeVisible();
+  const response = await page.request.post("/api/records", { data: {
+    kind: "field", name: "Trakya · harita doğrulama parseli",
+    geometry: { type: "Polygon", coordinates: [[
+      [27.153, 41.114], [27.155, 41.114], [27.155, 41.116], [27.153, 41.116], [27.153, 41.114],
+    ]] },
+  } });
+  expect(response.status()).toBe(201);
+  const { id } = await response.json();
+  const tile = page.waitForResponse(result => result.ok() &&
+    new URL(result.url()).pathname.startsWith("/styles/v1/mapbox/satellite-v9/tiles/512/"));
+  await page.goto("/#field-studio?field=" + id);
+  await page.reload();
+  const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+  await expect(studio.getByLabel("Saha stüdyosu parseli")).toHaveValue(id);
+  const map = studio.locator('[data-basemap="mapbox"][data-basemap-loaded="true"]');
+  await expect(map.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
+  expect((await tile).headers()["content-type"]).toContain("image/jpeg");
+  await expect(studio.getByText("Mapbox Satellite", { exact: true })).toBeVisible();
+  await studio.getByRole("button", { name: "Yakın inceleme" }).click();
+  await expect(studio.locator('[data-inspecting="true"]')).toBeVisible();
+  await expect(studio.locator(".scene-inspection")).toContainText("Mapbox Satellite");
+  await studio.screenshot({ path: info.outputPath("mapbox-field.png"), animations: "disabled" });
 });

@@ -86,7 +86,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
     </PageHeading>
     {error&&<div className="error" role="alert">{error}<button className="text-button" onClick={()=>setReload(n=>n+1)}>Yeniden dene</button></div>}
     {page==='platform'?<>
-      <Suspense fallback={spatialLoading}><SpatialAtlas field={field} fields={fields} commercial={commercial} onField={setFieldId} onNavigate={onNavigate}/></Suspense>
+      <Suspense fallback={spatialLoading}><SpatialAtlas field={field} fields={fields} onField={setFieldId} onNavigate={onNavigate}/></Suspense>
       <div className="px-catalog-toolbar"><h2>Platform araçları <span>14 yetenek</span></h2><label><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Yetenek ara" aria-label="Platform araçlarında ara"/></label></div>
       <FeatureAtlas features={bootstrap?.features||[]} query={query} onNavigate={onNavigate}/>
       {bootstrap&&!bootstrap.features.some(item=>`${item.title} ${item.summary}`.toLocaleLowerCase('tr-TR').includes(query.toLocaleLowerCase('tr-TR')))&&<p role="status">Aramana uygun yetenek bulunamadı.</p>}

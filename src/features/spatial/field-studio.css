@@ -149,7 +149,7 @@
 .field-studio-sparkline { width: min(100%,140px); }
 .field-studio-sparkline polyline { fill: none; stroke: #b3de94; stroke-width: 2; }
 .field-studio :focus-visible { outline: 2px solid #fae59c; outline-offset: 2px; }
-.field-studio-empty { display: grid; align-items: end; padding: 32px; background: linear-gradient(90deg,#172a22dd,#172a226b),url("/visuals/films/tarim2/relief.webp") center/cover; }
+.field-studio-empty { display: grid; align-items: center; padding: clamp(20px, 5vw, 64px); min-height: min(440px, 70svh); }
 .field-studio-empty p { max-width: 420px; }
 .field-studio-map .agromax-mapbox-logo { bottom: 4px; }
 .field-studio-map .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale { margin-bottom: 26px; }

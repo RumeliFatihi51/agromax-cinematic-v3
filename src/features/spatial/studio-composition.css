@@ -131,6 +131,9 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-live[data-inspecting="true"] .field-studio-map::after {
   background: linear-gradient(180deg, #101f22a3, transparent 29%, transparent 70%, #101f2294);
 }
+.scene-live[data-mapbox="true"] .field-studio-map::after {
+  background: linear-gradient(180deg, #101f2266, transparent 24%, transparent 78%, #101f2266);
+}
 .scene-inspection {
   position: absolute; z-index: 3; top: 14%; left: 14px; display: grid; gap: 4px; max-width: min(45%, 330px);
   padding: 8px 13px; background: #182630ed; border: 1px solid #c3e08b65; border-radius: 7px;

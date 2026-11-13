@@ -72,10 +72,10 @@ const readHeight = (bitmap, metadata, frame) => {
   return { sample, edgeDistance, reference, resolution: metadata.displayResolutionM, sources: [], drone: true };
 };
 
-export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active) {
+export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active, defaultToDrone = true) {
   const path = "v1/fields/" + fieldId + "/terrain-datasets";
   const [catalog, setCatalog] = useState(null);
-  const [selection, setSelection] = useState("");
+  const [selection, setSelection] = useState(null);
   const [loaded, setLoaded] = useState(null);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState("");
@@ -95,7 +95,8 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
   }, [path, enabled, catalogKey, attempt]);
   const currentCatalog = catalogKey && catalog?.catalogKey === catalogKey ? catalog : null;
   const ready = (currentCatalog?.datasets || []).filter(dataset => dataset.state === "ready");
-  const selected = selection === "satellite" ? null : ready.find(item => item.id === selection) || ready[0];
+  const selectedId = selection?.fieldId === fieldId ? selection.value : null;
+  const selected = selectedId === "satellite" ? null : ready.find(item => item.id === selectedId) || (defaultToDrone ? ready[0] : null);
   const datasetId = enabled && active ? selected?.id : null;
   const layers = selected?.layers;
   useEffect(() => {
@@ -140,7 +141,7 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
       if (dataset.canRetry) throw new Error("İşleme kesintiye uğradı. Veri setini listeden yeniden işleyin.");
     }
     saveDataset(dataset);
-    if (dataset.state === "ready") setSelection(dataset.id);
+    if (dataset.state === "ready") setSelection({ fieldId, value: dataset.id });
     else if (dataset.state === "failed") throw new Error(dataset.error);
     else throw new Error("Dosyalar eksik. Yüklemeyi yeniden başlatın.");
   }
@@ -193,7 +194,7 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
       await finish(dataset.id, signal);
     });
   }
-  return { catalog: currentCatalog, ready, selected, choose: value => { setError(""); setSelection(value); }, submit, progress, error,
+  return { catalog: currentCatalog, ready, selected, choose: value => { setError(""); setSelection({ fieldId, value }); }, submit, progress, error,
     refresh: () => setAttempt(value => value + 1),
     retry: id => run(signal => finish(id, signal)),
     imagery: datasetId && loaded?.datasetId === datasetId ? loaded.ortho : null,

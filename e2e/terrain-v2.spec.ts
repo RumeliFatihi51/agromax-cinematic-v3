@@ -216,6 +216,11 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await page.goto("/#field-studio?field=" + fieldId);
     const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
     await expect(studio.locator(".maplibregl-canvas")).toBeVisible();
+    await studio.getByRole("button", { name: "Kaynaklar", exact: true }).click();
+    const imagery = studio.getByLabel("Arazi görüntüsü");
+    await expect(imagery).toHaveValue("satellite");
+    await imagery.selectOption(selected);
+    await studio.getByRole("button", { name: "Paneli kapat" }).click();
     await expect(studio.getByText(/Drone ortomozaik ·/)).toBeVisible({ timeout: 15_000 });
     await expect(studio.locator('[data-terrain="drone"]')).toBeVisible({ timeout: 15_000 });
     await studio.screenshot({ path: info.outputPath("saha-studyosu-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
@@ -233,7 +238,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await expect(inspect).toHaveAttribute("aria-pressed", "false");
     await page.goto("/#platform?field=" + fieldId);
     const atlas = page.getByRole("region", { name: "Üç boyutlu arazi atlası" });
-    await expect(atlas).toContainText("Drone ortomozaik");
+    await expect(atlas.locator(".maplibregl-canvas")).toBeVisible();
     await atlas.screenshot({ path: info.outputPath("arazi-atlasi-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
   }
 });

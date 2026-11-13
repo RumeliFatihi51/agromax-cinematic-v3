@@ -22,8 +22,8 @@ const style = {
     "sky-horizon-blend": 0.45, "horizon-fog-blend": 0.55, "fog-ground-blend": 0.22,
   },
   sources: {
-    imagery: { type: "raster", tiles: [imagery.url], tileSize: 256,
-      maxzoom: imagery.options.maxNativeZoom, attribution: imagery.options.attribution },
+    imagery: { type: "raster", tiles: [imagery.url], tileSize: imagery.options.tileSize || 256,
+      maxzoom: imagery.options.maxNativeZoom + (imagery.options.zoomOffset || 0), attribution: imagery.options.attribution },
     ...(mapboxEnabled && { "archive-imagery": { type: "raster", tiles: [archive.url], tileSize: 256,
       maxzoom: archive.options.maxNativeZoom, attribution: archive.options.attribution } }),
     "road-imagery": { type: "raster", tiles: [basemaps.road.url], tileSize: 256,
@@ -118,7 +118,7 @@ function useRasterImage(map, ready, id, raster, scale, geometry, opacity) {
 export default function GeospatialMap({ field, frame, command, boundary = true, raster, comparison, scale,
   opacity = 0.85, blend = 0.5, mode = "surface", terrain = true, flat, exaggeration = 1, basemap = true, reduced,
   highlight, markers = noItems, reviewGeometry, imagery, droneImagery, selection, onPoint, onError,
-  neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror, summaryColors,
+  neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror, summaryColors, onBasemap,
   interaction = true, terrainDefinition, compact = false, studio = false, atlas = false }) {
   const element = useRef(null);
   const handlers = useRef(null);
@@ -129,11 +129,17 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   const [ready, setReady] = useState(false);
   const [tileMessage, setTileMessage] = useState("");
   const [activeImagery, setActiveImagery] = useState("imagery");
+  const [loadedSource, setLoadedSource] = useState("");
+  const basemapName = activeImagery === "road-imagery" ? "road" : activeImagery === "archive-imagery" || !mapboxEnabled ? "archive" : "mapbox";
+  const basemapStatus = loadedSource === activeImagery ? basemapName : null;
   const mapGeometry = studio ? null : field.geometry;
+
+  useEffect(() => { onBasemap?.(basemapStatus); }, [onBasemap, basemapStatus]);
 
   useEffect(() => {
     setReady(false);
     setActiveImagery("imagery");
+    setLoadedSource("");
     setTileMessage("");
     const { field: openingField, flat: openingFlat } = current.current;
     const [west, south, east, north] = geometryBounds(openingField.geometry);
@@ -162,7 +168,9 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     let visibleSource = "imagery";
     const loadedImagery = new Set();
     instance.on("sourcedata", event => {
-      if (event.tile?.state === "loaded") loadedImagery.add(event.sourceId);
+      if (event.sourceId !== visibleSource || event.tile?.state !== "loaded" || loadedImagery.has(visibleSource)) return;
+      loadedImagery.add(visibleSource);
+      setLoadedSource(visibleSource);
     });
     instance.on("idle", () => {
       if (loadedImagery.has(visibleSource) || !instance.getLayer(visibleSource) ||
@@ -424,9 +432,9 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     if (ready && map.getLayer("index-columns")) map.setPaintProperty("index-columns", "fill-extrusion-opacity", opacity);
   }, [map, ready, mode, raster, scale, opacity]);
 
-  return <div className="spatial-map" data-basemap={activeImagery === "road-imagery" ? "road" : activeImagery === "archive-imagery" || !mapboxEnabled ? "archive" : "mapbox"} data-terrain={terrain ? terrainDefinition ? "drone" : "mapzen" : "flat"}>
+  return <div className="spatial-map" data-basemap={basemapName} data-basemap-loaded={!!basemapStatus} data-terrain={terrain ? terrainDefinition ? "drone" : "mapzen" : "flat"}>
     <div ref={element} className="spatial-map-canvas" aria-label="Etkileşimli eğimli parsel haritası" />
-    <MapboxWordmark visible={mapboxEnabled && basemap && activeImagery === "imagery"} />
+    <MapboxWordmark visible={basemap && basemapStatus === "mapbox"} />
     {tileMessage && <p className="spatial-map-notice" role="status">{tileMessage}</p>}
   </div>;
 }

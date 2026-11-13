@@ -159,13 +159,19 @@ function Sparkline({ values }) {
 export default function FieldStudio({ fields, tasks, initialFieldId, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask, onCreateField }) {
   const drawn = useMemo(() => fields.filter(field => field.geometry), [fields]);
   const [fieldId, setFieldId] = useState(initialFieldId || "");
-  const [view, setView] = useState(initialFieldId || initialMetric ? "live" : "reference");
+  const [view, setView] = useState("live");
   const field = drawn.find(item => item.id === fieldId) || drawn[0];
   return <section className="field-studio" aria-label="3D Saha Stüdyosu">
-    {view === "reference" || !field ? <StudioReference empty={!field}
-      onLive={() => field ? setView("live") : onCreateField()} /> :
-      <StudioScene {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
-        onField={setFieldId} onReference={() => setView("reference")} />}
+    {view === "reference" ? <StudioReference empty={!field}
+      onLive={() => field ? setView("live") : onCreateField()} /> : field
+      ? <StudioScene {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
+        onField={setFieldId} onReference={() => setView("reference")} />
+      : <div className="field-studio-empty">
+        <div><h1>3D Saha Stüdyosu</h1><p>Gerçek uydu haritasını açmak için bir parsel sınırı kaydet.</p>
+          <button className="field-studio-link" type="button" onClick={onCreateField}>Parsel çiz <ArrowUpRight size={15} /></button>
+          <button className="field-studio-link" type="button" onClick={() => setView("reference")}>Örnek panorama <ArrowUpRight size={15} /></button>
+        </div>
+      </div>}
   </section>;
 }
 
@@ -226,9 +232,10 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const scale = useMemo(() => raster ? colorScale(raster, null, mode === "change") : null, [raster, mode]);
   const index = point && raster ? pixelIndex(raster, point.coordinate) : -1;
   const value = raster?.values[index];
-  const drone = useDroneTerrain(field.id, geometryVersion, frame, commercial && !!geometryVersion, !lost);
+  const drone = useDroneTerrain(field.id, geometryVersion, frame, commercial && !!geometryVersion, !lost, false);
+  const [basemapStatus, setBasemapStatus] = useState(null);
   const landscape = useLandscape(field.id, geometryVersion, active,
-    !mapboxEnabled && !lost && (source === "archive" ? !!catalog : !recorded.loading));
+    (!mapboxEnabled || (basemapStatus && basemapStatus !== "mapbox")) && !lost && (source === "archive" ? !!catalog : !recorded.loading));
   const naturalImage = useNaturalImage(field.id, active, !!landscape.error && !drone.imagery && !lost);
   const dem = useTerrainSample(frame, !lost && (panel === "index" || !!drone.dtm));
   const terrainDefinition = useDroneTerrainSource(frame, drone.dtm, dem);
@@ -423,12 +430,13 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   }
 
   return <>
-    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide} data-inspecting={inspecting}>
+    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide}
+      data-inspecting={inspecting} data-mapbox={basemapStatus === "mapbox" && !drone.imagery}>
       <div className="field-studio-map">
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
             <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
-              studio onAnchorPoints={setScenePoints} neighbors={drawn} summaryColors={comparison?.colors}
+              studio onBasemap={setBasemapStatus} onAnchorPoints={setScenePoints} neighbors={drawn} summaryColors={comparison?.colors}
               onParcel={id => selectParcel(id, true)} mode={mode === "columns" ? "columns" : "surface"}
               droneImagery={drone.imagery} imagery={landscape.image || naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
@@ -446,7 +454,6 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         </label>
         {(previous || beforeDate) && <button type="button" onClick={compareView}
           aria-label={beforeDate ? "Sonra görünümüne geç" : "Önce görünümüne geç"}>{beforeDate ? "Önce" : "Sonra"}</button>}
-        <button type="button" onClick={onReference}>Örnek panorama</button>
       </div>
       <WeatherStrip forecast={weather.value} loading={weather.loading} error={weather.error} />
       <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel && !wide && !inspecting} onSelect={openPanel} />
@@ -486,11 +493,13 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       {!drone.imagery && (landscape.image || naturalImage) && <p className="field-studio-orthophoto">
         {landscape.image ? "Sentinel-2 çevre görüntüsü · " + shortDate(landscape.image.date) : "Sentinel-2 doğal renk · " + shortDate(naturalImage.date)}
       </p>}
+      {!drone.imagery && basemapStatus === "mapbox" && <p className="field-studio-orthophoto">Mapbox Satellite</p>}
       {drone.imagery && <p className="field-studio-orthophoto" title={drone.selected.source}>
         Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
       {inspecting && <div className="scene-inspection" role="status">
         <span>YAKIN İNCELEME</span><strong>{field.name}</strong>
-        <small>{drone.imagery ? "Drone ortomozaik" : "Uydu görüntüsü"} · {terrainDefinition ? "Drone yükseklik modeli" : "Mapzen yükseklik kaynağı"}</small>
+        <small>{drone.imagery ? "Drone ortomozaik" : basemapStatus === "mapbox" ? "Mapbox Satellite" : "Harita görüntüsü"}
+          {terrainDefinition && " · Drone yükseklik modeli"}</small>
         {drone.imagery && <small>{format(drone.selected.layers.ortho.displayResolutionM)} m örnekleme</small>}
       </div>}
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
@@ -549,15 +558,19 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
             <option value="recorded">Kayıtlı analizler</option><option value="archive">Açık Sentinel-2 arşivi</option>
           </select></label>
           {source === "archive" && <label>Arşiv ayı<input type="month" value={month} onChange={event => { setMonth(event.target.value); setDate(""); setPoint(null); }} /></label>}
-          <p>{mapboxEnabled ? "Mapbox Satellite · görsel altlık" : "Sentinel-2 Cloudless 2016 · tarihli görsel altlık"} · Mapzen yükseklik</p>
+          <p>{basemapStatus === "mapbox" ? "Mapbox Satellite · görsel altlık"
+            : basemapStatus === "road" ? "OpenStreetMap · yol altlığı"
+            : basemapStatus === "archive" ? "Sentinel-2 Cloudless 2016 · tarihli görsel altlık"
+            : "Harita altlığı yükleniyor…"} · Mapzen yükseklik</p>
           {landscape.loading && <p role="status">Tarihli çevre görüntüsü hazırlanıyor…</p>}
           {landscape.image && <p>Sentinel-2 L2A · {shortDate(landscape.image.date)} · {format(Math.max(...landscape.image.resolution), 0)} m örnekleme</p>}
           {landscape.error && <p>{landscape.error} <button type="button" onClick={landscape.retry}>Çevre görüntüsünü yeniden dene</button></p>}
           {(catalog?.error || recorded.error || bundle.error) && <p role="alert">{catalog?.error || recorded.error || bundle.error}</p>}
           <label>İndeks katmanı saydamlığı<input type="range" min="0.15" max="1" step="0.01" value={opacity} onChange={event => setOpacity(Number(event.target.value))} /></label>
           {drone.ready.length > 0 && <label>Arazi görüntüsü<select value={drone.selected?.id || "satellite"} onChange={event => drone.choose(event.target.value)}>
-            <option value="satellite">Harita altlığı</option>{drone.ready.map(item => <option key={item.id} value={item.id}>{item.capturedOn} · {item.source}</option>)}
+            <option value="satellite">Uydu haritası</option>{drone.ready.map(item => <option key={item.id} value={item.id}>{item.capturedOn} · {item.source}</option>)}
           </select></label>}
+          <button type="button" className="field-studio-link" onClick={onReference}>Örnek panorama <ArrowUpRight size={15} /></button>
           <button className="field-studio-link" onClick={() => onNavigate("twin", field.id)}>Drone dosyalarını yönet <ArrowUpRight size={15} /></button>
         </>}
         {panel === "index" && <>
