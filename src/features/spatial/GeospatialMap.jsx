@@ -330,8 +330,8 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     const id = "dated-sentinel";
     map.addSource(id, { type: "image", url: canvas.toDataURL("image/png"),
       coordinates: [[west, north], [east, north], [east, south], [west, south]] });
-    map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 0 } },
-      map.getLayer("primary-raster") ? "primary-raster" : "parcel-line");
+    const firstOverlay = ["drone-imagery", "primary-raster", "parcel-fill"].find(layer => map.getLayer(layer));
+    map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 0 } }, firstOverlay);
     return () => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
@@ -355,7 +355,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     const id = "drone-imagery";
     map.addSource(id, { type: "image", url: canvas.toDataURL("image/png"),
       coordinates: [[west, north], [east, north], [east, south], [west, south]].map(unproject) });
-    const firstOverlay = ["dated-sentinel", "primary-raster", "parcel-fill"].find(layer => map.getLayer(layer));
+    const firstOverlay = ["primary-raster", "parcel-fill"].find(layer => map.getLayer(layer));
     map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 140 } }, firstOverlay);
     return () => {
       if (map.getLayer(id)) map.removeLayer(id);

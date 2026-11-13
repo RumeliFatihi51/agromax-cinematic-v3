@@ -12,6 +12,9 @@ export function setOrganizationId(value) {
   organizationId = value || "";
 }
 export async function apiBinary(path, { signal, body, method = "GET", headers = {} } = {}) {
+  return (await apiBinaryResponse(path, { signal, body, method, headers })).blob();
+}
+export async function apiBinaryResponse(path, { signal, body, method = "GET", headers = {} } = {}) {
   const response = await fetch("/api/" + path, {
     method, body, signal,
     headers: { ...headers, ...(organizationId ? { "X-Organization-ID": organizationId } : {}) },
@@ -20,7 +23,7 @@ export async function apiBinary(path, { signal, body, method = "GET", headers = 
     const error = await response.json().catch(() => ({}));
     throw new ApiError(error.error || "Dosya isteği tamamlanamadı.", response.status, error.code);
   }
-  return response.blob();
+  return response;
 }
 export async function fetchAnalysisImage(fieldId, { date, layer, analysisId, signal }) {
   const response = await fetch("/api/records/" + encodeURIComponent(fieldId) + "/image", {

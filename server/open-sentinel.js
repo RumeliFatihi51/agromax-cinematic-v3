@@ -148,7 +148,7 @@ async function readBand(item, band, epsg, locations, signal) {
   }
 }
 
-export async function readOpenSentinelLayers(geometry, id, layers, parentSignal, minimumResolution = 20) {
+export async function readOpenSentinelLayers(geometry, id, layers, parentSignal, minimumResolution = 20, maxAxisPixels = 96) {
   const metrics = layers.map(layer => openSentinelMetrics.find(candidate => candidate.id === layer));
   if (typeof id !== "string" || !sceneId.test(id) || !metrics.length || metrics.some(metric => !metric))
     throw fail("Arşiv sahnesi veya analiz katmanı geçersiz.", 400);
@@ -161,7 +161,7 @@ export async function readOpenSentinelLayers(geometry, id, layers, parentSignal,
     if (!scene || scene.id !== id || layers.some(layer => !scene.available.includes(layer)) ||
         !/^(326|327)(0[1-9]|[1-5][0-9]|60)$/.test(String(epsg)) || !overlap(geometryBounds(geometry), item.bbox))
       throw fail("Sahne bu parseli kapsamıyor veya gereken bantlar bulunmuyor.", 422);
-    const grid = rasterGrid(geometry, Math.max(minimumResolution, ...metrics.map(metric => metric.resolution)));
+    const grid = rasterGrid(geometry, Math.max(minimumResolution, ...metrics.map(metric => metric.resolution)), maxAxisPixels);
     const projection = proj4("EPSG:4326", "+proj=utm +zone=" + (epsg % 100) +
       (epsg >= 32700 ? " +south" : "") + " +datum=WGS84 +units=m +no_defs");
     const locations = Array.from({ length: grid.width * grid.height }, (_, index) => {

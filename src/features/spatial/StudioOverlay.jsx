@@ -1,12 +1,12 @@
 import { useId } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, CircleAlert, CloudSun, Layers3, ScanLine, Sprout } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, CircleAlert, CloudSun, Flame, Layers3, ScanLine, Sprout } from "lucide-react";
 
 export const sceneSlots = [
-  { id: "season", x: 5.3, y: 14.4, width: 21.5, anchor: [16.2, 42], color: "#ecd47c" },
+  { id: "season", x: 5.3, y: 14.4, width: 21.5, anchor: [15.9, 42], color: "#ecd47c" },
   { id: "zones", x: 30.4, y: 21.5, width: 18.2, anchor: [39.5, 66.5], color: "#d7e99a" },
-  { id: "change", x: 53.1, y: 41, width: 17.4, anchor: [61.7, 74.5], color: "#ffd48a" },
-  { id: "index", x: 76, y: 38, width: 16.2, anchor: [84.1, 73], color: "#a2e983" },
-  { id: "tasks", x: 10, y: 59.2, width: 16.5, anchor: [18.2, 85.2], color: "#c6e0f6" },
+  { id: "change", x: 53.1, y: 41, width: 17.4, anchor: [61.6, 73.7], color: "#ffd48a" },
+  { id: "index", x: 76, y: 38, width: 16.2, anchor: [83.8, 72.7], color: "#a2e983" },
+  { id: "tasks", x: 10, y: 59.2, width: 16.5, anchor: [17.2, 84.5], color: "#c6e0f6" },
 ];
 
 const formats = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
@@ -81,7 +81,7 @@ export function SceneCards({ season, zones, change, index, tasks, onOpen, select
           </div>
         </div>}
         {id === "index" && <div className="scene-card-body">
-          <div className="scene-index-value"><div><small>{data.metric}</small><strong>{fmt(data.value)}</strong></div>
+          <div className="scene-index-value"><div><small>{data.metric}</small><strong>{data.loading ? "…" : fmt(data.value)}</strong></div>
             <div className="scene-index-bars" aria-hidden="true">{(data.series || []).slice(-5).map((value, i) =>
               <i key={i} style={{ width: Math.max(5, Math.min(100, (value + 1) * 50)) + "%" }} />)}</div></div>
           {(data.palette || onPalette) && <div className="scene-palette" aria-label="İndeks renk ölçeği">
@@ -119,20 +119,25 @@ export function SceneLeaders({ points, selected, onSelect, visible = true }) {
       season: "Sezon noktasını aç", zones: "Uygulama bölgelerini aç", change: "Değişim noktasını aç",
       index: "İndeks noktasını aç", tasks: "Faaliyet noktasını aç",
     }[slot.id]} aria-pressed={selected === slot.id} onClick={() => onSelect(slot.id)}
-      style={{ left: points[slot.id][0] + "%", top: points[slot.id][1] + "%", "--leader-color": slot.color }}><i /></button>)}
+      data-emblem={slot.id === "season" || slot.id === "change"}
+      style={{ left: points[slot.id][0] + "%", top: points[slot.id][1] + "%", "--leader-color": slot.color }}>
+      {slot.id === "season" ? <Sprout size={16} /> : slot.id === "change" ? <Flame size={16} /> : <i />}
+    </button>)}
   </div>;
 }
 
 export function ReferenceParcels({ selected, onSelect, before, band, mobile }) {
   const patternId = useId().replaceAll(":", "");
   const shapes = {
-    season: ["119,360 176,348 195,336 244,339 294,332 337,357 334,381 291,414 244,423 210,410 172,413 179,387 112,374"],
-    zones: ["337,659 359,615 394,575 416,554 452,563 480,541 502,555 472,599 448,635 421,668 375,676"],
-    change: ["532,690 555,648 599,674 627,670 685,701 662,727 634,749 606,780 544,773 525,751"],
-    index: ["773,610 811,567 866,545 893,566 871,648 871,696 846,723 813,677",
-      "878,701 906,682 954,729 973,823 955,854 903,814 856,782",
-      "782,719 807,700 846,735 860,771 843,809 798,846 766,833 778,783"],
-    tasks: ["85,743 180,751 278,766 276,803 249,877 161,905 38,907 56,859 66,815"],
+    season: ["91,409 121,390 150,374 184,381 234,403 232,426 223,441 198,453 168,477 145,470 108,469 129,424 94,416"],
+    zones: ["299,662 327,631 379,603 408,590 467,588 452,623 442,648 449,657 428,718 389,713 348,713 321,727"],
+    change: ["552,726 590,669 708,716 677,762 659,762 627,850 585,855 545,846 552,786 566,739"],
+    index: ["771,675 805,682 822,777 780,768 776,740",
+      "772,774 825,788 840,860 826,885 769,879",
+      "809,673 843,646 869,688 897,827 852,815 835,783",
+      "847,638 868,597 910,588 905,736 926,838 898,823 875,698",
+      "848,830 926,852 949,958 816,907 838,886"],
+    tasks: ["102,766 275,789 254,855 262,872 247,942 49,949 70,871 87,846 83,829"],
   };
   const names = { season: "Örnek sezon parseli", zones: "Örnek reçete parseli", change: "Örnek değişim parseli",
     index: "Örnek indeks parselleri", tasks: "Örnek faaliyet parseli" };

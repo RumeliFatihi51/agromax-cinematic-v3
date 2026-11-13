@@ -46,12 +46,12 @@ export function metricFrame(geometry) {
   };
 }
 
-export function rasterGrid(geometry, sourceMeters) {
+export function rasterGrid(geometry, sourceMeters, maxAxisPixels = 96) {
   const { bounds, width, depth, ground } = metricFrame(geometry);
   const minimumGroundScale = Math.cos(Math.max(
     ...[bounds[1], bounds[3]].map(y => Math.abs(unproject([0, y])[1])),
   ) * Math.PI / 180);
-  const spacing = Math.max(sourceMeters * ground / minimumGroundScale, width / 96, depth / 96);
+  const spacing = Math.max(sourceMeters * ground / minimumGroundScale, width / maxAxisPixels, depth / maxAxisPixels);
   const columns = Math.max(1, Math.floor(width / spacing));
   const rows = Math.max(1, Math.floor(depth / spacing));
   // Expand sub-pixel axes instead of claiming sub-native ground resolution.

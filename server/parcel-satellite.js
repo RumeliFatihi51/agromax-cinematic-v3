@@ -2,7 +2,7 @@ import { PNG } from "pngjs";
 import { comparisonRange, fetchAnalysis, satelliteStatus, summarize } from "./satellite.js";
 import { readOpenSentinelLayers, searchOpenSentinel } from "./open-sentinel.js";
 import { openSentinelMethod, openSentinelMetrics, openSentinelProvider, openSentinelSource } from "../shared/open-sentinel.js";
-import { unproject } from "../shared/spatial.js";
+import { metricFrame, unproject } from "../shared/spatial.js";
 
 const archiveEnabled = () => process.env.AGROMAX_SENTINEL_OPEN_ANALYSIS === "true";
 const archiveHealth = { lastSuccessAt: null, lastError: null };
@@ -108,6 +108,55 @@ export function openRasterImage(raster) {
 
 export async function openTrueColorImage(geometry, sceneId, resolution) {
   const layers = await readOpenSentinelLayers(geometry, sceneId, ["B04", "B03", "B02"], undefined, resolution);
+  return trueColorPng(layers);
+}
+
+export async function openLandscapeImage(geometry, requestedDate, exactScene) {
+  const reference = requestedDate ? new Date(requestedDate + "T12:00:00Z") : new Date();
+  if (requestedDate && (!/^20\d{2}-\d{2}-\d{2}$/.test(requestedDate) ||
+    !Number.isFinite(reference.valueOf()) || reference.toISOString().slice(0, 10) !== requestedDate))
+    throw failure("Geçerli bir görüntü tarihi seç.", 400);
+  const frame = metricFrame(geometry);
+  const padding = Math.min(1400, Math.max(300, frame.span * 2));
+  const x = frame.width / 2 + padding;
+  const y = frame.depth / 2 + padding;
+  const ring = [[-x, y], [x, y], [x, -y], [-x, -y], [-x, y]].map(point => frame.coordinate(...point));
+  if (ring.some(([lon, lat]) => Math.abs(lon) >= 180 || Math.abs(lat) >= 85))
+    throw failure("Bu parsel için çevre görüntüsü oluşturulamadı.", 422);
+  const landscape = { type: "Polygon", coordinates: [ring] };
+  const signal = AbortSignal.timeout(30000);
+  let candidates = exactScene ? [exactScene] : [];
+  if (!exactScene) {
+    const previous = new Date(reference);
+    previous.setUTCDate(0);
+    const months = [reference, previous].map(date => date.toISOString().slice(0, 7));
+    const catalogues = await Promise.allSettled(months.map(month => searchOpenSentinel(geometry, month, signal)));
+    if (catalogues.every(result => result.status === "rejected")) throw catalogues[0].reason;
+    candidates = catalogues.flatMap(result => result.status === "fulfilled" ? result.value.observations : [])
+      .filter(scene => scene.date <= reference.toISOString().slice(0, 10) && ["B04", "B03", "B02"].every(band => scene.available.includes(band)))
+      .sort((a, b) => {
+        const score = scene => (scene.cloud ?? 100) + (reference - Date.parse(scene.date)) / dayMs;
+        return score(a) - score(b);
+      }).slice(0, 2).map(scene => scene.id);
+  }
+  let rejected;
+  for (const sceneId of candidates) {
+    try {
+      const layers = await readOpenSentinelLayers(landscape, sceneId, ["B04", "B03", "B02"], signal, 10, 256);
+      if (requestedDate && exactScene && layers.B04.date !== requestedDate)
+        throw failure("Görüntünün çekim tarihi seçili sahneyle eşleşmiyor.", 422);
+      const image = trueColorPng(layers, true);
+      if (image.validPixels / image.totalPixels < 0.35) throw failure("Çevre görüntüsünün büyük bölümü maskeli.", 422);
+      return { ...image, date: layers.B04.date, resolution: layers.B04.resolution, sceneId };
+    } catch (error) {
+      if (signal.aborted || ![422, 404].includes(error.status)) throw error;
+      rejected = error;
+    }
+  }
+  throw rejected || failure("Bu parselin çevresi için açık uydu görüntüsü bulunamadı.", 404);
+}
+
+function trueColorPng(layers, fadeEdge = false) {
   const channels = [layers.B04, layers.B03, layers.B02];
   const [raster] = channels;
   const png = new PNG({ width: raster.width, height: raster.height });
@@ -119,7 +168,10 @@ export async function openTrueColorImage(geometry, sceneId, resolution) {
   for (let i = 0; i < raster.values.length; i++) {
     const pixel = channels.map(channel => channel.values[i]);
     if (!pixel.every(Number.isFinite)) continue;
-    png.data.set([...pixel.map(toColor), 255], i * 4);
+    const column = i % raster.width, row = Math.floor(i / raster.width);
+    const edge = Math.min(column, row, raster.width - column - 1, raster.height - row - 1);
+    const opacity = fadeEdge ? Math.min(1, edge / Math.max(2, Math.min(raster.width, raster.height) * 0.09)) : 1;
+    png.data.set([...pixel.map(toColor), Math.round(opacity * 255)], i * 4);
     validPixels++;
   }
   if (!validPixels) throw failure("Bu sahnede doğal renk için ortak geçerli piksel yok.", 422);

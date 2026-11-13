@@ -81,12 +81,16 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-task small { white-space: nowrap; }
 .scene-leaders { z-index: 2; pointer-events: none; }
 .scene-leaders[hidden] { display: none; }
-.scene-leaders svg { width: 100%; height: 100%; overflow: visible; }
-.scene-leaders path { fill: none; stroke: #f5f5dd; stroke-width: 1.2; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .86; }
-.scene-leaders path[data-selected="true"] { stroke: var(--leader-color); stroke-width: 2; }
+.scene-leaders > svg { width: 100%; height: 100%; overflow: visible; }
+.scene-leaders > svg path { fill: none; stroke: #f5f5dd; stroke-width: 1.2; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .86; }
+.scene-leaders > svg path[data-selected="true"] { stroke: var(--leader-color); stroke-width: 2; }
 .scene-leaders > button { position: absolute; display: grid; place-items: center; width: 35px; height: 35px; padding: 0; transform: translate(-50%,-50%); border: 0; border-radius: 50%; background: transparent; pointer-events: auto; }
 .scene-leaders > button i { width: 8px; height: 8px; border-radius: 50%; background: #f9ffec; box-shadow: 0 0 0 3px #f4f9d945; }
 .scene-leaders > button:hover i, .scene-leaders > button[aria-pressed="true"] i { background: var(--leader-color); box-shadow: 0 0 0 5px #1a3531bd; }
+.scene-leaders > button[data-emblem="true"] { background: #182832; color: var(--leader-color); border: 1px solid #e1e7d782; }
+.scene-leaders > button[data-emblem="true"]:hover, .scene-leaders > button[data-emblem="true"][aria-pressed="true"] {
+  color: #182832; background: var(--leader-color);
+}
 .scene-reference-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: absolute; z-index: 4; bottom: 9px; left: 10px; right: 10px; }
 .scene-reference-footer > span, .scene-reference-footer button { display: inline-flex; align-items: center; gap: 7px; background: #172631ed; color: #f2f6fb; border: 1px solid #8092a268; padding: 6px 9px; border-radius: 6px; font-size: .76rem; }
 .scene-reference-footer button { min-height: 42px; font-weight: 800; }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
-import { api, fetchAnalysisImage } from "../../api";
+import { api, apiBinaryResponse, fetchAnalysisImage } from "../../api";
 import { availableMetrics, indices } from "../../../shared/metrics";
 import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
 import { compareRasters, containsPoint, metricFrame, pixelIndex } from "../../../shared/spatial";
@@ -26,6 +26,13 @@ const format = (value, digits = 2) => Number.isFinite(value)
 const shortDate = value => value ? new Date(value.length === 10 ? value + "T12:00:00Z" : value)
   .toLocaleDateString("tr-TR", { day: "numeric", month: "short", timeZone: "Europe/Istanbul" }) : "Veri yok";
 const known = (observation, metric) => observation?.available?.includes(metric) || Number.isFinite(observation?.metrics?.[metric]);
+function rasterMean(data) {
+  let sum = 0, count = 0;
+  for (const value of data?.values || noItems) {
+    if (Number.isFinite(value)) { sum += value; count++; }
+  }
+  return count ? sum / count : null;
+}
 
 function useFieldResource(path, fallback) {
   const [result, setResult] = useState(null);
@@ -56,7 +63,7 @@ function WeatherStrip({ forecast, loading, error }) {
 
 function useNaturalImage(fieldId, observation, enabled) {
   const [result, setResult] = useState(null);
-  const id = enabled && observation?.provider !== openSentinelProvider ? observation?.id : null;
+  const id = enabled && !observation?.available ? observation?.id : null;
   const date = observation?.date;
   useEffect(() => {
     if (!id || !date) return;
@@ -74,6 +81,37 @@ function useNaturalImage(fieldId, observation, enabled) {
     return () => { controller.abort(); bitmap?.close(); };
   }, [fieldId, id, date]);
   return id && result?.id === id && result?.date === date && result?.fieldId === fieldId ? result : null;
+}
+
+function useLandscape(fieldId, geometryVersion, observation, enabled) {
+  const [result, setResult] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const date = observation?.date || "";
+  const scene = observation?.sceneId || (observation?.available ? observation.id : "");
+  const path = enabled && geometryVersion ? "platform/fields/" + fieldId + "/spatial/earth-search/landscape?" +
+    new URLSearchParams({ geometry: geometryVersion, ...(date && { date }), ...(scene && { scene }) }) : "";
+  useEffect(() => {
+    if (!path) return;
+    const controller = new AbortController();
+    let bitmap;
+    apiBinaryResponse(path, { signal: controller.signal }).then(async response => {
+      const bounds = JSON.parse(response.headers.get("X-Image-Bounds"));
+      const resolution = JSON.parse(response.headers.get("X-Image-Resolution"));
+      const date = response.headers.get("X-Image-Date");
+      if (bounds?.length !== 4 || !bounds.every(Number.isFinite) || resolution?.length !== 2 ||
+        !resolution.every(value => Number.isFinite(value) && value >= 10) || !date)
+        throw new Error("Çevre görüntüsünün kaynak bilgisi doğrulanamadı.");
+      bitmap = await createImageBitmap(await response.blob());
+      if (controller.signal.aborted) bitmap.close();
+      else setResult({ path, attempt, image: { bounds, date, bitmap, resolution } });
+    }).catch(error => {
+      if (!controller.signal.aborted) setResult({ path, attempt, error: error.message });
+    });
+    return () => { controller.abort(); bitmap?.close(); };
+  }, [path, attempt]);
+  const fresh = path && result?.path === path && result.attempt === attempt;
+  return { image: fresh ? result.image : null, error: fresh ? result.error : null,
+    loading: !!path && !fresh, retry: () => setAttempt(value => value + 1) };
 }
 
 function Sparkline({ values }) {
@@ -142,16 +180,19 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     item.method === active.method && known(item, metric?.id));
   const previous = past.find(item => item.date === earlier) || past[0];
   const rasterMode = ["surface", "columns", "change"].includes(mode);
-  const primary = useRaster(field.id, geometryVersion, active, metric?.id, rasterMode && !!metric);
-  const baseline = useRaster(field.id, geometryVersion, previous, metric?.id, mode === "change" && !!metric);
-  const change = useMemo(() => primary.data && baseline.data ? compareRasters(primary.data, baseline.data) : null,
-    [primary.data, baseline.data]);
-  const raster = mode === "change" ? change : primary.data;
+  const archiveReadings = source === "archive" && (mode === "natural" || mode === "zones");
+  const primary = useRaster(field.id, geometryVersion, active, metric?.id, (rasterMode || archiveReadings) && !!metric);
+  const baseline = useRaster(field.id, geometryVersion, previous, metric?.id, (mode === "change" || archiveReadings) && !!metric);
+  const change = useMemo(() => mode === "change" && primary.data && baseline.data ? compareRasters(primary.data, baseline.data) : null,
+    [mode, primary.data, baseline.data]);
+  const raster = mode === "change" ? change : rasterMode ? primary.data : null;
   const scale = useMemo(() => raster ? colorScale(raster, null, mode === "change") : null, [raster, mode]);
   const index = point && raster ? pixelIndex(raster, point.coordinate) : -1;
   const value = raster?.values[index];
   const drone = useDroneTerrain(field.id, geometryVersion, frame, commercial && !!geometryVersion, !lost);
-  const naturalImage = useNaturalImage(field.id, active, !mapboxEnabled && !drone.imagery && !lost);
+  const landscape = useLandscape(field.id, geometryVersion, active,
+    !mapboxEnabled && !lost && (source === "archive" ? !!catalog : !recorded.loading));
+  const naturalImage = useNaturalImage(field.id, active, !!landscape.error && !drone.imagery && !lost);
   const dem = useTerrainSample(frame, !lost && (panel === "index" || !!drone.dtm));
   const terrainDefinition = useDroneTerrainSource(frame, drone.dtm, dem);
   const selectedPosition = point ? frame.local(point.coordinate) : null;
@@ -203,12 +244,13 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   })), [current]);
   const fieldTasks = useMemo(() => tasks.filter(task => task.fieldId === field.id).sort((a, b) =>
     a.date.localeCompare(b.date)), [tasks, field.id]);
-  const average = active?.metrics?.[metric?.id];
-  const earlierAverage = previous?.metrics?.[metric?.id];
+  const average = useMemo(() => active?.metrics?.[metric?.id] ?? rasterMean(primary.data), [active, metric, primary.data]);
+  const earlierAverage = useMemo(() => previous?.metrics?.[metric?.id] ?? rasterMean(baseline.data), [previous, metric, baseline.data]);
   const signal = Number.isFinite(average) && Number.isFinite(earlierAverage) ? average - earlierAverage : null;
   const history = observations.toReversed().map(item => item.metrics?.[metric?.id]).filter(Number.isFinite).slice(-20);
   const measurementScale = useMemo(() => mode !== "change" && scale ? scale
-    : metric ? colorScale({ metric: metric.id, values: [average] }) : null, [mode, scale, metric, average]);
+    : metric ? colorScale(primary.data || { metric: metric.id, values: [average] }) : null,
+    [mode, scale, metric, average, primary.data]);
   const indexPalette = useMemo(() => measurementScale && measurementScale.min < measurementScale.max
     ? Array.from({ length: 9 }, (_, i) => rgb(colorFor(
       measurementScale.min + i * (measurementScale.max - measurementScale.min) / 8, measurementScale)))
@@ -241,7 +283,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         format(draftQuantity ?? zonePlan.calculation.quantity) + " " + zonePlan.calculation.unit } },
     change: { metric: metric?.id || layer, beforeDate: shortDate(previous?.date), afterDate: shortDate(active?.date),
       before: earlierAverage, after: average, delta: signal },
-    index: { metric: metric?.id || layer, value: average, series: history, palette: indexPalette,
+    index: { metric: metric?.id || layer, value: average, series: history.length ? history : [earlierAverage, average].filter(Number.isFinite),
+      palette: indexPalette, loading: archiveReadings && primary.loading,
       band: indexPalette && Number.isFinite(average) ? Math.max(0, Math.min(8, Math.round(
         8 * (average - measurementScale.min) / (measurementScale.max - measurementScale.min)))) : -1 },
     tasks: { rows: fieldTasks.map(task => ({ id: task.id, name: task.name, date: shortDate(task.date) })) },
@@ -286,7 +329,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
             <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
               studio onAnchorPoints={setScenePoints} neighbors={drawn} onParcel={onField} mode={mode === "columns" ? "columns" : "surface"}
-              droneImagery={drone.imagery} imagery={naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
+              droneImagery={drone.imagery} imagery={landscape.image || naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
                 setPoint(item); setPanel(item.marker ? "observations" : "index");
               }} />
@@ -308,7 +351,9 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       <SceneCards {...cards} selected={panel} onOpen={openPanel}
         onRate={canWrite && zonePlan ? editRate : undefined} onRateSave={canWrite && draftRates ? saveRates : undefined}
         {...{ ratePending, rateMessage }} />
-      {naturalImage && <p className="field-studio-orthophoto">Sentinel-2 doğal renk · {shortDate(naturalImage.date)}</p>}
+      {!drone.imagery && (landscape.image || naturalImage) && <p className="field-studio-orthophoto">
+        {landscape.image ? "Sentinel-2 çevre görüntüsü · " + shortDate(landscape.image.date) : "Sentinel-2 doğal renk · " + shortDate(naturalImage.date)}
+      </p>}
       {drone.imagery && <p className="field-studio-orthophoto">Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
         {[[Compass, "north", "Kuzeye dön"], [Crosshair, "fit", "Parsele odaklan"], [Mountain, "slope", "Ufuk görünümü"],
@@ -361,6 +406,9 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
           </select></label>
           {source === "archive" && <label>Arşiv ayı<input type="month" value={month} onChange={event => { setMonth(event.target.value); setDate(""); setPoint(null); }} /></label>}
           <p>{mapboxEnabled ? "Mapbox Satellite · görsel altlık" : "Sentinel-2 Cloudless 2016 · tarihli görsel altlık"} · Mapzen yükseklik</p>
+          {landscape.loading && <p role="status">Tarihli çevre görüntüsü hazırlanıyor…</p>}
+          {landscape.image && <p>Sentinel-2 L2A · {shortDate(landscape.image.date)} · {format(Math.max(...landscape.image.resolution), 0)} m örnekleme</p>}
+          {landscape.error && <p>{landscape.error} <button type="button" onClick={landscape.retry}>Çevre görüntüsünü yeniden dene</button></p>}
           {(catalog?.error || recorded.error || bundle.error) && <p role="alert">{catalog?.error || recorded.error || bundle.error}</p>}
           <label>İndeks katmanı saydamlığı<input type="range" min="0.15" max="1" step="0.01" value={opacity} onChange={event => setOpacity(Number(event.target.value))} /></label>
           {drone.ready.length > 0 && <label>Arazi görüntüsü<select value={drone.selected?.id || "satellite"} onChange={event => drone.choose(event.target.value)}>

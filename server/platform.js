@@ -2,7 +2,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { platformFeatures, sourceAdapters, droneAdapters } from '../shared/platform.js';
 import { parseDraft, scenarioTotals } from '../shared/platform-contracts.js';
 import { satelliteStatus } from './satellite.js';
-import { parcelSatelliteStatus } from './parcel-satellite.js';
+import { openLandscapeImage, parcelSatelliteStatus } from './parcel-satellite.js';
 import { openSentinelMethod, openSentinelMetrics, openSentinelProvider } from '../shared/open-sentinel.js';
 import { geometryHash } from './analysis-jobs.js';
 import { availableMetrics } from '../shared/metrics.js';
@@ -124,7 +124,7 @@ export async function createPlatformService(db, { ownership = 'account_private' 
         if (byDate.has(date)) continue;
         const day = observations.find(observation => instant >= observation.from && instant < observation.to);
         if (!day || !Object.keys(day.metrics).length) continue;
-        byDate.set(date, { id: row.id, date, metrics: day.metrics, source: analysis.source,
+        byDate.set(date, { id: row.id, date, metrics: day.metrics, source: analysis.source, sceneId: open ? scene.id : undefined,
           provider: analysis.provider, method: analysis.method });
       }
     }
@@ -146,13 +146,25 @@ export async function createPlatformService(db, { ownership = 'account_private' 
         reply(200, await spatialCatalog(session.id, spatial[1]));
         return true;
       }
-      const archive = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/spatial\/earth-search(?:\/(raster))?$/);
+      const archive = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/spatial\/earth-search(?:\/(raster|landscape))?$/);
       if (archive && req.method === "GET") {
         const field = await ownField(db, session.id, archive[1]);
         const hash = geometryHash(field.geometry);
         if (!field.geometry) throw fail("Önce parsel sınırını kaydet.", 422);
         if (hash !== url.searchParams.get("geometry"))
           throw fail("Parsel sınırı değişti. Çalışma alanını yeniden aç.", 409);
+        if (archive[2] === "landscape") {
+          const result = await openLandscapeImage(field.geometry, url.searchParams.get("date"), url.searchParams.get("scene"));
+          res.setHeader("Content-Type", "image/png");
+          res.setHeader("Cache-Control", "private, no-store");
+          res.setHeader("X-Image-Bounds", JSON.stringify(result.bounds));
+          res.setHeader("X-Image-Date", result.date);
+          res.setHeader("X-Image-Resolution", JSON.stringify(result.resolution));
+          res.setHeader("X-Image-Scene", result.sceneId);
+          res.statusCode = 200;
+          res.end(result.image);
+          return true;
+        }
         const { searchOpenSentinel, readOpenSentinel } = await import("./open-sentinel.js");
         const data = archive[2]
           ? await readOpenSentinel(field.geometry, url.searchParams.get("scene"), url.searchParams.get("layer"))
