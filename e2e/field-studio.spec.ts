@@ -39,6 +39,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await page.reload();
   const preview = page.getByRole("region", { name: "3D Saha Stüdyosu" });
   await expect(preview.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
+  await expect(preview.locator(".scene-live")).toHaveAttribute("data-camera-pitch", info.project.name === "mobile" ? "69" : "76");
   await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toHaveCount(0);
   const liveMap = preview.locator(".spatial-map");
   if (process.env.AGROMAX_VERIFY_MAPBOX === "true") {
@@ -46,6 +47,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
     await expect(liveMap).toHaveAttribute("data-basemap-loaded", "true", { timeout: 18000 });
     await expect(preview.getByText("Mapbox Satellite", { exact: true })).toBeVisible();
   }
+  if (info.project.name === "mobile") await preview.getByRole("button", { name: "Katmanlar ve saha verisi" }).click();
   await preview.getByRole("button", { name: "Kaynaklar", exact: true }).click();
   await preview.getByRole("button", { name: "Örnek panorama", exact: true }).click();
   await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toBeVisible();
@@ -67,7 +69,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await parcels.selectOption(id);
   await expect(parcels).toHaveValue(id);
   const canvas = await studio.locator(".maplibregl-canvas").elementHandle();
-  await studio.getByRole("button", { name: "Parsel çevresini göster" }).click();
+  if (info.project.name === "mobile") await studio.getByRole("button", { name: "Katmanlar ve saha verisi" }).click();
   const neighbor = studio.getByRole("button", { name: neighboringName + " parselini aç" });
   await expect(neighbor).toBeVisible();
   await studio.getByRole("button", { name: "Parselleri kıyasla" }).click();
@@ -141,6 +143,13 @@ test("Mapbox Satellite shows a real agricultural area in the Field Studio", asyn
   } });
   expect(response.status()).toBe(201);
   const { id } = await response.json();
+  const nearby = await page.request.post("/api/records", { data: {
+    kind: "field", name: "Trakya · komşu parsel",
+    geometry: { type: "Polygon", coordinates: [[
+      [27.156, 41.115], [27.158, 41.115], [27.158, 41.117], [27.156, 41.117], [27.156, 41.115],
+    ]] },
+  } });
+  expect(nearby.status()).toBe(201);
   const tile = page.waitForResponse(result => result.ok() &&
     new URL(result.url()).pathname.startsWith("/styles/v1/mapbox/satellite-v9/tiles/512/"));
   await page.goto("/#field-studio?field=" + id);
@@ -151,8 +160,25 @@ test("Mapbox Satellite shows a real agricultural area in the Field Studio", asyn
   await expect(map.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
   expect((await tile).headers()["content-type"]).toContain("image/jpeg");
   await expect(studio.getByText("Mapbox Satellite", { exact: true })).toBeVisible();
+  const scene = studio.locator(".scene-live");
+  await expect(scene).toHaveAttribute("data-camera-pitch", info.project.name === "mobile" ? "69" : "76");
+  const size = await scene.boundingBox();
+  if (info.project.name === "desktop") expect(size!.width / size!.height).toBeGreaterThan(1.7);
+  else await expect(studio.getByRole("group", { name: "Saha verisi" })).toBeHidden();
+  await expect(studio.getByRole("button", { name: "Trakya · komşu parsel parselini aç" })).toBeVisible();
+  await studio.screenshot({ path: info.outputPath("mapbox-panorama.png"), animations: "disabled" });
+  await studio.getByRole("button", { name: "Üstten görünüm", exact: true }).click();
+  await expect(scene).toHaveAttribute("data-camera-pitch", "0");
+  await studio.getByRole("button", { name: "Parsel çevresini göster" }).click();
+  await expect(scene).toHaveAttribute("data-camera-pitch", info.project.name === "mobile" ? "69" : "76");
   await studio.getByRole("button", { name: "Yakın inceleme" }).click();
   await expect(studio.locator('[data-inspecting="true"]')).toBeVisible();
   await expect(studio.locator(".scene-inspection")).toContainText("Mapbox Satellite");
   await studio.screenshot({ path: info.outputPath("mapbox-field.png"), animations: "disabled" });
+  if (info.project.name === "mobile") {
+    await page.setViewportSize({ width: 844, height: 390 });
+    await studio.getByRole("button", { name: "Parsel çevresini göster" }).click();
+    await expect(scene).toHaveAttribute("data-camera-pitch", "76");
+    await studio.screenshot({ path: info.outputPath("mapbox-panorama-landscape.png"), animations: "disabled" });
+  }
 });

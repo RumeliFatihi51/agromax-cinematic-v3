@@ -118,6 +118,14 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-live .scene-view-actions label { min-width: 0; flex: 1 1 auto; }
 .scene-live .scene-view-actions select { max-width: 162px; text-overflow: ellipsis; }
 .scene-live .scene-view-actions button { white-space: nowrap; padding-inline: 8px; font-size: .72rem; }
+.scene-title {
+  position: absolute; top: 3.5%; left: 2%; z-index: 4; display: grid; gap: 5px;
+  padding: 7px 10px; background: #16232ce8; border: 1px solid #a1bec34d; border-radius: 6px;
+}
+.studio-shell .field-studio .scene-title h1 { margin: 0; font-size: clamp(.84rem, 1.25vw, 1.18rem); letter-spacing: -.025em; line-height: 1.2; }
+.scene-title span { font-size: .69rem; color: #c9dfba; }
+.scene-mobile-controls { display: none; }
+.field-studio-bottom[hidden] { display: none; }
 .scene-live .field-studio-bottom { left: 9px; bottom: 48px; }
 .scene-live .field-studio-status { top: 11%; }
 .studio-shell .scene-live .field-studio-orthophoto { left: 9px; bottom: 29px; }
@@ -134,6 +142,7 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-live[data-mapbox="true"] .field-studio-map::after {
   background: linear-gradient(180deg, #101f2266, transparent 24%, transparent 78%, #101f2266);
 }
+.scene-live[data-wide="true"] .spatial-map-canvas { background: #c3d2ce; }
 .scene-inspection {
   position: absolute; z-index: 3; top: 14%; left: 14px; display: grid; gap: 4px; max-width: min(45%, 330px);
   padding: 8px 13px; background: #182630ed; border: 1px solid #c3e08b65; border-radius: 7px;
@@ -174,15 +183,18 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 }
 .scene-neighbors button[data-offset="true"]::before, .scene-neighbors button[data-offset="true"]::after { left: 83%; }
 @media (min-width: 761px) {
-  .scene-live[data-wide="true"] .scene-card[data-slot="change"] { top: 29%; }
-  .scene-live[data-wide="true"] .scene-card[data-slot="index"] { top: 26%; }
+  .scene-live[data-wide="true"]:not(:fullscreen) { min-height: 620px; aspect-ratio: 16 / 9; }
+  .scene-live[data-wide="true"] .scene-card[data-slot="change"] { top: 36%; }
+  .scene-live[data-wide="true"] .scene-card[data-slot="index"] { top: 33%; }
+  .scene-live[data-wide="true"] .field-studio-camera { top: 23%; gap: 3px; }
+  .scene-live[data-wide="true"] .field-studio-camera button { min-width: 38px; min-height: 38px; }
 }
 .scene-live .field-studio-drawer { background: #182630fb; border-color: #75899995; }
 @media (min-width: 761px) and (max-width: 1150px) {
   .scene-live .scene-view-actions { max-width: 47%; }
 }
 @media (max-width: 760px) {
-  .scene-live { min-height: max(730px, calc(100svh - 130px)); }
+  .scene-live { min-height: max(540px, calc(100svh - 145px)); }
   .scene-live .scene-cards { display: none; }
   .scene-live .scene-view-actions { top: 12%; right: 6px; max-width: calc(100% - 12px); }
   .scene-live .field-studio-bottom { left: 5px; right: 5px; bottom: 55px; }
@@ -209,6 +221,31 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
     left: clamp(58px, var(--parcel-x), calc(100% - 110px)); max-width: 115px; min-height: 38px; font-size: .69rem;
   }
   .scene-comparison { right: auto; left: 5px; top: 21%; bottom: auto; font-size: .68rem; }
+}
+@media (max-width: 760px), (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  .scene-live .scene-title, .scene-live .scene-cards { display: none; }
+  .scene-mobile-controls { position: absolute; left: 6px; bottom: 50px; z-index: 5; display: block; }
+  .scene-mobile-controls button {
+    display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 5px 10px;
+    color: #edf7eb; background: #182630f5; border: 1px solid #95b79680; border-radius: 6px; font-weight: 750; font-size: .74rem;
+  }
+  .scene-live .field-studio-bottom { bottom: 97px; }
+  .scene-live .field-studio-drawer { z-index: 7; bottom: 95px; }
+  .scene-live[data-tools="true"] .field-studio-drawer { bottom: 292px; }
+  .scene-live .field-studio-camera, .scene-live[data-wide="true"] .field-studio-camera { top: auto; bottom: 50px; right: 5px; gap: 4px; }
+  .scene-live .field-studio-camera button { min-width: 40px; min-height: 40px; }
+  .scene-live .field-studio-camera button:is([data-camera="north"], [data-camera="slope"], [data-camera="in"]) { display: none; }
+  .scene-live[data-tools="true"] .field-studio-camera button:not(:last-child) { display: none; }
+  .scene-live[data-inspecting="true"] .field-studio-camera { top: auto; bottom: 50px; display: grid; }
+}
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  .scene-live[data-wide="true"]:not(:fullscreen), .scene-live { min-height: max(290px, calc(100svh - 65px)); aspect-ratio: auto; }
+  .scene-live:fullscreen { min-height: 100%; }
+  .scene-live .field-studio-weather { top: 5px; width: min(58%, 460px); }
+  .scene-live .scene-view-actions { top: 62px; }
+  .scene-live .field-studio-camera, .scene-live[data-inspecting="true"] .field-studio-camera,
+  .scene-live[data-wide="true"] .field-studio-camera { display: flex; bottom: 49px; }
+  .scene-live .field-studio-drawer, .scene-live[data-tools="true"] .field-studio-drawer { top: 55px; bottom: 50px; left: auto; right: 49px; max-height: none; }
 }
 @media (min-width: 761px) {
   .scene-reference { height: auto; min-height: 0; aspect-ratio: 16 / 9; }

@@ -186,8 +186,21 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const weather = useFieldResource("weather?fieldId=" + encodeURIComponent(field.id));
   const geometryVersion = bundle.value?.context.geometryHash || recorded.value?.geometryHash;
   const dataMatches = !!geometryVersion && (!recorded.value || recorded.value.geometryHash === geometryVersion);
-  const [command, setCommand] = useState(null);
-  const [wide, setWide] = useState(false);
+  const [command, setCommand] = useState(undefined);
+  const [wide, setWide] = useState(true);
+  const [pitch, setPitch] = useState(null);
+  const [mobileTools, setMobileTools] = useState(false);
+  const touchLayout = useMedia("(max-width: 760px), (orientation: landscape) and (max-height: 520px) and (pointer: coarse)");
+  const portrait = useMedia("(orientation: portrait)");
+  const openingCamera = useMemo(() => {
+    const sw = frame.coordinate(-frame.width * 0.65, frame.depth * 0.65);
+    const ne = frame.coordinate(frame.width * 0.65, -frame.depth * 0.65);
+    const bounds = [...sw, ...ne];
+    for (const { item } of nearby) geometryBounds(item.geometry).forEach((value, index) => {
+      bounds[index] = index < 2 ? Math.min(bounds[index], value) : Math.max(bounds[index], value);
+    });
+    return { type: "landscape", bounds, maxZoom: mapboxEnabled ? 16.8 : 15.6, instant: true, portrait };
+  }, [frame, nearby, portrait]);
   const [inspecting, setInspecting] = useState(false);
   const [compareParcels, setCompareParcels] = useState(false);
   const [panel, setPanel] = useState("");
@@ -394,21 +407,14 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     setInspecting(false);
     setRates(null);
     setRateMessage("");
-    if (!keepView) setWide(false);
-    setCommand(keepView ? null : { type: "fit" });
+    if (!keepView) setWide(true);
+    setCommand(keepView ? null : undefined);
     onField(id);
   }
   function showLandscape() {
-    const [sw, ne] = [frame.coordinate(-frame.width * 0.8, frame.depth * 0.8), frame.coordinate(frame.width * 0.8, -frame.depth * 0.8)];
-    const bounds = [...sw, ...ne];
-    for (const { item } of nearby) {
-      geometryBounds(item.geometry).forEach((value, index) => {
-        bounds[index] = index < 2 ? Math.min(bounds[index], value) : Math.max(bounds[index], value);
-      });
-    }
     setWide(true);
     setInspecting(false);
-    setCommand({ type: "landscape", bounds, maxZoom: drone.imagery || mapboxEnabled ? 16.5 : 15.6 });
+    setCommand({ ...openingCamera, instant: false });
   }
   function toggleComparison() {
     if (showComparison) { setCompareParcels(false); return; }
@@ -421,7 +427,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     if (!wide) showLandscape();
   }
   function toggleInspection() {
-    if (inspecting) { setInspecting(false); setCommand({ type: "fit" }); return; }
+    if (inspecting) { showLandscape(); return; }
     choose("natural");
     setPanel("");
     setWide(false);
@@ -431,12 +437,14 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
 
   return <>
     <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide}
-      data-inspecting={inspecting} data-mapbox={basemapStatus === "mapbox" && !drone.imagery}>
+      data-inspecting={inspecting} data-mapbox={basemapStatus === "mapbox" && !drone.imagery} data-camera-pitch={pitch ?? undefined}
+      data-tools={mobileTools}>
       <div className="field-studio-map">
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
-            <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
-              studio onBasemap={setBasemapStatus} onAnchorPoints={setScenePoints} neighbors={drawn} summaryColors={comparison?.colors}
+            <GeospatialMap {...{ field, frame, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
+              command={command === undefined ? openingCamera : command}
+              studio onCamera={setPitch} onBasemap={setBasemapStatus} onAnchorPoints={setScenePoints} neighbors={drawn} summaryColors={comparison?.colors}
               onParcel={id => selectParcel(id, true)} mode={mode === "columns" ? "columns" : "surface"}
               droneImagery={drone.imagery} imagery={landscape.image || naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
@@ -445,7 +453,10 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
           </Suspense>
         </SpatialBoundary>}
       </div>
-      <h1 className="sr-only">3D Saha Stüdyosu</h1>
+      <div className="scene-title">
+        <h1>3D Saha Stüdyosu</h1>
+        <span>{inspecting ? "Yakın inceleme" : wide ? "Panoramik görünüm" : "Parsel görünümü"}</span>
+      </div>
       <div className="scene-view-actions">
         <label><span className="sr-only">Saha stüdyosu parseli</span>
           <select aria-label="Saha stüdyosu parseli" value={field.id} disabled={ratePending}
@@ -456,7 +467,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
           aria-label={beforeDate ? "Sonra görünümüne geç" : "Önce görünümüne geç"}>{beforeDate ? "Önce" : "Sonra"}</button>}
       </div>
       <WeatherStrip forecast={weather.value} loading={weather.loading} error={weather.error} />
-      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel && !wide && !inspecting} onSelect={openPanel} />
+      <SceneLeaders points={scenePoints} selected={panel} visible={!touchLayout && !panel && !inspecting} onSelect={openPanel} />
       {!lost && nearby.length > 0 && <div className="scene-neighbors" role="group" aria-label="Yakın parseller" hidden={!!panel || inspecting}>
         {nearby.filter(({ item }) => scenePoints[item.id]).map(({ item }) => <button key={item.id} type="button"
           disabled={ratePending} title={item.name} aria-label={item.name + " parselini aç"}
@@ -505,16 +516,21 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
         <button type="button" className="scene-inspect-button" aria-label="Yakın inceleme" aria-pressed={inspecting}
           title="Yakın inceleme" disabled={lost} onClick={toggleInspection}><Telescope size={17} /></button>
-        <button type="button" title="Parsel çevresini göster" aria-label="Parsel çevresini göster" disabled={lost} onClick={showLandscape}>
+        <button type="button" className="scene-inspect-button" title="Parsel çevresini göster" aria-label="Parsel çevresini göster" aria-pressed={wide} disabled={lost} onClick={showLandscape}>
           <MapPinned size={17} /></button>
         {[[Compass, "north", "Kuzeye dön"], [Crosshair, "fit", "Parsele odaklan"], [Mountain, "slope", "Ufuk görünümü"],
           [ScanLine, "top", "Üstten görünüm"], [Plus, "in", "Yakınlaştır"], [Minus, "out", "Uzaklaştır"]].map(([Icon, type, label]) =>
           <button key={type} type="button" title={label} aria-label={label} data-camera={type} disabled={lost}
-            onClick={() => { if (type === "fit") { setWide(false); setInspecting(false); } setCommand({ type }); }}><Icon size={17} /></button>)}
+            onClick={() => { if (type === "fit" || type === "top") { setWide(false); setInspecting(false); } setCommand({ type }); }}><Icon size={17} /></button>)}
         {compact && <button type="button" aria-label="Kamera hareketi" aria-pressed={interactive} onClick={() => setInteractive(!interactive)}><Compass size={17} /></button>}
         <button type="button" title="Tam ekran" aria-label="Tam ekran" onClick={fullscreen}><Maximize size={17} /></button>
       </div>
-      <div className="field-studio-bottom">
+      <div className="scene-mobile-controls">
+        <button type="button" aria-expanded={mobileTools} aria-controls="studio-tools" onClick={() => setMobileTools(!mobileTools)}>
+          <Layers3 size={15} /> {mobileTools ? "Araçları kapat" : "Katmanlar ve saha verisi"}
+        </button>
+      </div>
+      <div id="studio-tools" className="field-studio-bottom" hidden={touchLayout && !mobileTools}>
         <div className="field-studio-modes" role="group" aria-label="3D katman görünümü">
           {[["natural", "Doğal renk"], ["surface", "İndeks yüzeyi"], ["columns", "3D sütun"], ["change", "Tarih farkı"], ["zones", "Bölgeler"]].map(([id, label]) =>
             <button type="button" key={id} aria-pressed={!showComparison && mode === id} onClick={() => choose(id)}>{label}</button>)}

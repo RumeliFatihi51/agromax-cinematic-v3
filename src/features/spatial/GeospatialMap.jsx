@@ -15,6 +15,10 @@ const imagery = defaultBasemap;
 const archive = basemaps.archive;
 const collection = features => ({ type: "FeatureCollection", features });
 const noItems = [];
+const studioSky = {
+  "sky-color": "#7191a5", "horizon-color": "#d8e3dc", "fog-color": "#bdc9c1",
+  "sky-horizon-blend": 0.58, "horizon-fog-blend": 0.35, "fog-ground-blend": 0.18,
+};
 const style = {
   version: 8,
   sky: {
@@ -119,10 +123,10 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   opacity = 0.85, blend = 0.5, mode = "surface", terrain = true, flat, exaggeration = 1, basemap = true, reduced,
   highlight, markers = noItems, reviewGeometry, imagery, droneImagery, selection, onPoint, onError,
   neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror, summaryColors, onBasemap,
-  interaction = true, terrainDefinition, compact = false, studio = false, atlas = false }) {
+  interaction = true, terrainDefinition, compact = false, studio = false, atlas = false, onCamera }) {
   const element = useRef(null);
   const handlers = useRef(null);
-  handlers.current = { onPoint, onError, onParcel, onHeading, onAnchorPoints };
+  handlers.current = { onPoint, onError, onParcel, onHeading, onAnchorPoints, onCamera };
   const current = useRef(null);
   current.current = { field, raster, mode, markers, anchors, mirror, flat };
   const [map, setMap] = useState(null);
@@ -149,7 +153,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     let instance;
     try {
       instance = new Map({
-        container: element.current, style: structuredClone(style),
+        container: element.current, style: { ...structuredClone(style), ...(studio && { sky: studioSky }) },
         bounds: [[west, south], [east, north]], fitBoundsOptions: { padding, maxZoom: 18, bearing: -24 },
         attributionControl: false, maxPitch: 78, maxZoom: 20,
         pitch: openingFlat ? 0 : 53, bearing: -24,
@@ -161,7 +165,6 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
       return;
     }
     const fit = () => {
-      if (studio && !openingFlat) instance.jumpTo({ pitch: compact ? 53 : 63, bearing: -24, zoom: Math.max(0, instance.getZoom() - (compact ? 0.3 : 0.88)) });
       setReady(true);
     };
     instance.on("style.load", fit);
@@ -193,6 +196,12 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     });
     instance.on("webglcontextlost", () => handlers.current.onError?.());
     instance.on("rotate", () => handlers.current.onHeading?.(instance.getBearing()));
+    instance.on("moveend", () => {
+      const pitch = Math.round(instance.getPitch());
+      if (studio && instance.getLayer("ground"))
+        instance.setPaintProperty("ground", "background-opacity", pitch >= 68 ? 0 : 1);
+      handlers.current.onCamera?.(pitch);
+    });
     instance.on("render", () => {
       const { anchors, mirror } = current.current;
       if (handlers.current.onAnchorPoints && element.current) {
@@ -276,19 +285,29 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
       map.fitBounds([[west, south], [east, north]], { padding: compact ? 32 : 76, maxZoom: 18, bearing: -24, pitch: flat ? 0 : 53, duration });
     } else if (command.type === "inspect") {
       const [west, south, east, north] = geometryBounds(field.geometry);
+      if (studio) map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
       map.fitBounds([[west, south], [east, north]], {
         padding: compact ? { top: 145, bottom: 215, left: 24, right: 56 } : { top: 105, bottom: 145, left: 68, right: 85 },
         maxZoom: command.maxZoom, bearing: -18, pitch: compact ? 35 : 47, duration,
       });
     } else if (command.type === "landscape") {
       const [west, south, east, north] = command.bounds;
-      const pitch = flat ? 0 : compact ? 48 : 61;
-      map.fitBounds([[west, south], [east, north]], {
-        padding: compact ? { top: 92, bottom: 154, left: 35, right: 52 } : { top: 115, bottom: 118, left: 135, right: 110 },
-        maxZoom: command.maxZoom, bearing: -24, pitch, duration,
+      const { clientWidth: width, clientHeight: height } = element.current;
+      const portrait = height > width;
+      const bearing = -24;
+      const framing = map.cameraForBounds([[west, south], [east, north]], {
+        bearing, maxZoom: command.maxZoom,
+        padding: compact ? { top: 24, bottom: 24, left: 38, right: 52 } : 72,
+        absolutePadding: true,
+      });
+      if (framing) map.easeTo({ center: framing.center, bearing, pitch: portrait ? 69 : 76,
+        zoom: Math.max(0, framing.zoom - (portrait ? 0.22 : 0.45)),
+        padding: { top: Math.round(height * (portrait ? 0.06 : 0.19)), bottom: 0, left: 0, right: 0 },
+        duration: command.instant ? 0 : reduced ? 0 : 560,
       });
     } else if (command.type === "north") map.easeTo({ bearing: 0, duration });
-    else if (command.type === "top") map.easeTo({ pitch: 0, bearing: 0, duration });
+    else if (command.type === "top") map.easeTo({ pitch: 0, bearing: 0,
+      ...(studio && { padding: { top: 0, right: 0, bottom: 0, left: 0 } }), duration });
     else if (command.type === "tilt") map.easeTo({ pitch: 50, bearing: -22, duration });
     else if (command.type === "slope") map.easeTo({ pitch: 70, bearing: map.getBearing(), duration });
     else if (command.type === "focus") map.easeTo({ center: command.coordinate, duration });

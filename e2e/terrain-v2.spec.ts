@@ -216,6 +216,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await page.goto("/#field-studio?field=" + fieldId);
     const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
     await expect(studio.locator(".maplibregl-canvas")).toBeVisible();
+    if (mobile) await studio.getByRole("button", { name: "Katmanlar ve saha verisi" }).click();
     await studio.getByRole("button", { name: "Kaynaklar", exact: true }).click();
     const imagery = studio.getByLabel("Arazi görüntüsü");
     await expect(imagery).toHaveValue("satellite");
@@ -224,6 +225,7 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await expect(studio.getByText(/Drone ortomozaik ·/)).toBeVisible({ timeout: 15_000 });
     await expect(studio.locator('[data-terrain="drone"]')).toBeVisible({ timeout: 15_000 });
     await studio.screenshot({ path: info.outputPath("saha-studyosu-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
+    if (mobile) await studio.getByRole("button", { name: "Araçları kapat" }).click();
     const inspect = studio.getByRole("button", { name: "Yakın inceleme", exact: true });
     await inspect.click();
     await expect(inspect).toHaveAttribute("aria-pressed", "true");
@@ -231,8 +233,11 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await expect(studio.getByText("Drone ortomozaik · Drone yükseklik modeli")).toBeVisible();
     await expect(studio.locator(".scene-card").first()).toBeHidden();
     const cameraBounds = await studio.getByRole("group", { name: "Harita kamerası" }).boundingBox();
-    const toolbarBounds = await studio.getByRole("group", { name: "3D katman görünümü" }).boundingBox();
-    expect(cameraBounds && toolbarBounds && cameraBounds.y + cameraBounds.height <= toolbarBounds.y).toBe(true);
+    if (mobile) await expect(studio.getByRole("group", { name: "3D katman görünümü" })).toBeHidden();
+    else {
+      const toolbarBounds = await studio.getByRole("group", { name: "3D katman görünümü" }).boundingBox();
+      expect(cameraBounds && toolbarBounds && cameraBounds.y + cameraBounds.height <= toolbarBounds.y).toBe(true);
+    }
     await studio.screenshot({ path: info.outputPath("drone-inceleme-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
     await inspect.click();
     await expect(inspect).toHaveAttribute("aria-pressed", "false");

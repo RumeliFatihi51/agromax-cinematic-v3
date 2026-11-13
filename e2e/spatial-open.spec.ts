@@ -64,6 +64,7 @@ test("open Sentinel COGs render for an authorized parcel without creating saved 
   if (!process.env.VITE_MAPBOX_ACCESS_TOKEN) {
     await page.goto("/#field-studio?field=" + id);
     const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
+    if (info.project.name === "mobile") await studio.getByRole("button", { name: "Katmanlar ve saha verisi" }).click();
     await studio.getByRole("button", { name: "Kaynaklar", exact: true }).click();
     await studio.getByLabel("Analiz kaynağı").selectOption("archive");
     await studio.getByLabel("Arşiv ayı", { exact: true }).fill("2025-06");
