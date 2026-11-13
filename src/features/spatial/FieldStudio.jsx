@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, MapPinned, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
 import { api, apiBinaryResponse, fetchAnalysisImage } from "../../api";
 import { availableMetrics, indices } from "../../../shared/metrics";
 import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
-import { compareRasters, containsPoint, metricFrame, pixelIndex } from "../../../shared/spatial";
+import { compareRasters, containsPoint, geometryBounds, metricFrame, pixelIndex } from "../../../shared/spatial";
 import { useAreaFormat } from "../../components/PreferenceProvider";
 import ParcelMap from "../fields/ParcelMap";
 import { mapboxEnabled } from "../fields/basemaps";
@@ -32,6 +32,19 @@ function rasterMean(data) {
     if (Number.isFinite(value)) { sum += value; count++; }
   }
   return count ? sum / count : null;
+}
+
+function landscapeParcels(field, frame, fields) {
+  const reach = Math.max(900, Math.min(frame.span * 3, 3500));
+  return fields.filter(item => item.id !== field.id).map(item => {
+    const local = metricFrame(item.geometry);
+    const [east, south] = frame.local(local.center);
+    const coordinate = containsPoint(item.geometry, local.center) ? local.center : (
+      item.geometry.type === "Polygon" ? item.geometry.coordinates : item.geometry.coordinates[0]
+    )[0][0];
+    return { item, coordinate, distance: Math.hypot(east, south), span: local.span };
+  }).filter(({ distance, span }) => distance <= reach && span <= reach * 2)
+    .sort((a, b) => a.distance - b.distance).slice(0, 4);
 }
 
 function useFieldResource(path, fallback) {
@@ -80,7 +93,7 @@ function useNaturalImage(fieldId, observation, enabled) {
       }).catch(() => {});
     return () => { controller.abort(); bitmap?.close(); };
   }, [fieldId, id, date]);
-  return id && result?.id === id && result?.date === date && result?.fieldId === fieldId ? result : null;
+  return id && result?.id === id && result?.date === date && result?.fieldId === fieldId && result.bitmap.width ? result : null;
 }
 
 function useLandscape(fieldId, geometryVersion, observation, enabled) {
@@ -110,7 +123,7 @@ function useLandscape(fieldId, geometryVersion, observation, enabled) {
     return () => { controller.abort(); bitmap?.close(); };
   }, [path, attempt]);
   const fresh = path && result?.path === path && result.attempt === attempt;
-  return { image: fresh ? result.image : null, error: fresh ? result.error : null,
+  return { image: fresh && result.image?.bitmap.width ? result.image : null, error: fresh ? result.error : null,
     loading: !!path && !fresh, retry: () => setAttempt(value => value + 1) };
 }
 
@@ -131,7 +144,7 @@ export default function FieldStudio({ fields, tasks, initialFieldId, initialMetr
   return <section className="field-studio" aria-label="3D Saha Stüdyosu">
     {view === "reference" || !field ? <StudioReference empty={!field}
       onLive={() => field ? setView("live") : onCreateField()} /> :
-      <StudioScene key={field.id + ":" + (initialMetric || "")} {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
+      <StudioScene {...{ field, drawn, tasks, initialMetric, commercial, canWrite, onNavigate, onCreateTask, onToggleTask }}
         onField={setFieldId} onReference={() => setView("reference")} />}
   </section>;
 }
@@ -141,12 +154,14 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const compact = useMedia("(max-width: 760px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const frame = useMemo(() => metricFrame(field.geometry), [field.geometry]);
+  const nearby = useMemo(() => landscapeParcels(field, frame, drawn), [field, frame, drawn]);
   const bundle = useFieldResource("platform/fields/" + field.id);
   const recorded = useFieldResource("platform/fields/" + field.id + "/spatial");
   const weather = useFieldResource("weather?fieldId=" + encodeURIComponent(field.id));
   const geometryVersion = bundle.value?.context.geometryHash || recorded.value?.geometryHash;
   const dataMatches = !!geometryVersion && (!recorded.value || recorded.value.geometryHash === geometryVersion);
   const [command, setCommand] = useState(null);
+  const [wide, setWide] = useState(false);
   const [panel, setPanel] = useState("");
   const water = useFieldResource(commercial && panel === "water" ? "v1/fields/" + field.id + "/water-balance" : null);
   const [editor, setEditor] = useState(null);
@@ -255,14 +270,14 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     ? Array.from({ length: 9 }, (_, i) => rgb(colorFor(
       measurementScale.min + i * (measurementScale.max - measurementScale.min) / 8, measurementScale)))
     : null, [measurementScale]);
-  const anchors = useMemo(() => sceneSlots.flatMap((slot, index) => {
+  const anchors = useMemo(() => [...sceneSlots.flatMap((slot, index) => {
     const [x, z] = anchorOffsets[index];
     for (const weight of [1, 0.75, 0.5, 0.25]) {
       const coordinate = frame.coordinate(x * frame.width * weight, z * frame.depth * weight);
       if (containsPoint(field.geometry, coordinate)) return [{ id: slot.id, coordinate }];
     }
     return [];
-  }), [frame, field.geometry]);
+  }), ...nearby.map(({ item, coordinate }) => ({ id: item.id, coordinate }))], [frame, field.geometry, nearby]);
   const seasonRecord = seasonResource.value?.records?.find(item => item.fieldId === field.id)?.data;
   const recordedDates = [seasonRecord?.sowingDate || field.sowingDate, seasonRecord?.harvestDate];
   const season = {
@@ -302,7 +317,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   }
   const fallback = <div className="field-studio-fallback">
     <p role="status">3D görünüm açılamadı. Parsel sınırı yol haritasında açık.</p>
-    <ParcelMap geometry={field.geometry} fields={drawn} height="100%" compact />
+    <ParcelMap geometry={field.geometry} fields={drawn} activeFieldId={field.id} height="100%" compact
+      onSelect={item => selectParcel(item.id, true)} />
   </div>;
   const title = { index: "İndeks ve nokta okuması", tasks: "Saha faaliyetleri", season: "Ürün ve sezon",
     change: "Tarihler arası değişim", zones: "Yönetim bölgeleri", observations: "Saha gözlemleri", water: "Kök bölgesi su dengesi", layers: "Görünüm ve veri kaynakları" }[panel];
@@ -321,14 +337,39 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     setPoint(null);
     if (value === "change" || value === "zones") setPanel(value);
   };
+  function selectParcel(id, keepView = false) {
+    if (ratePending || id === field.id) return;
+    setPanel("");
+    setEditor(null);
+    setDate("");
+    setEarlier("");
+    setBeforeDate("");
+    setPoint(null);
+    setRates(null);
+    setRateMessage("");
+    if (!keepView) setWide(false);
+    setCommand(keepView ? null : { type: "fit" });
+    onField(id);
+  }
+  function showLandscape() {
+    const [sw, ne] = [frame.coordinate(-frame.width * 0.8, frame.depth * 0.8), frame.coordinate(frame.width * 0.8, -frame.depth * 0.8)];
+    const bounds = [...sw, ...ne];
+    for (const { item } of nearby) {
+      geometryBounds(item.geometry).forEach((value, index) => {
+        bounds[index] = index < 2 ? Math.min(bounds[index], value) : Math.max(bounds[index], value);
+      });
+    }
+    setWide(true);
+    setCommand({ type: "landscape", bounds, maxZoom: drone.imagery || mapboxEnabled ? 16.5 : 15.6 });
+  }
 
   return <>
-    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel}>
+    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide}>
       <div className="field-studio-map">
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
             <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
-              studio onAnchorPoints={setScenePoints} neighbors={drawn} onParcel={onField} mode={mode === "columns" ? "columns" : "surface"}
+              studio onAnchorPoints={setScenePoints} neighbors={drawn} onParcel={id => selectParcel(id, true)} mode={mode === "columns" ? "columns" : "surface"}
               droneImagery={drone.imagery} imagery={landscape.image || naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
                 setPoint(item); setPanel(item.marker ? "observations" : "index");
@@ -339,7 +380,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       <h1 className="sr-only">3D Saha Stüdyosu</h1>
       <div className="scene-view-actions">
         <label><span className="sr-only">Saha stüdyosu parseli</span>
-          <select aria-label="Saha stüdyosu parseli" value={field.id} onChange={event => onField(event.target.value)}>{drawn.map(item =>
+          <select aria-label="Saha stüdyosu parseli" value={field.id} disabled={ratePending}
+            onChange={event => selectParcel(event.target.value)}>{drawn.map(item =>
             <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         </label>
         {(previous || beforeDate) && <button type="button" onClick={compareView}
@@ -347,7 +389,13 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         <button type="button" onClick={onReference}>Örnek panorama</button>
       </div>
       <WeatherStrip forecast={weather.value} loading={weather.loading} error={weather.error} />
-      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel} onSelect={openPanel} />
+      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel && !wide} onSelect={openPanel} />
+      {!lost && nearby.length > 0 && <div className="scene-neighbors" role="group" aria-label="Yakın parseller" hidden={!!panel}>
+        {nearby.filter(({ item }) => scenePoints[item.id]).map(({ item }) => <button key={item.id} type="button"
+          disabled={ratePending} title={item.name} aria-label={item.name + " parselini aç"}
+          style={{ left: scenePoints[item.id][0] + "%", top: scenePoints[item.id][1] + "%" }}
+          onClick={() => selectParcel(item.id, true)}><MapPinned size={14} /><span>{item.name}</span></button>)}
+      </div>}
       <SceneCards {...cards} selected={panel} onOpen={openPanel}
         onRate={canWrite && zonePlan ? editRate : undefined} onRateSave={canWrite && draftRates ? saveRates : undefined}
         {...{ ratePending, rateMessage }} />
@@ -356,9 +404,12 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       </p>}
       {drone.imagery && <p className="field-studio-orthophoto">Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
+        <button type="button" title="Parsel çevresini göster" aria-label="Parsel çevresini göster" disabled={lost} onClick={showLandscape}>
+          <MapPinned size={17} /></button>
         {[[Compass, "north", "Kuzeye dön"], [Crosshair, "fit", "Parsele odaklan"], [Mountain, "slope", "Ufuk görünümü"],
           [ScanLine, "top", "Üstten görünüm"], [Plus, "in", "Yakınlaştır"], [Minus, "out", "Uzaklaştır"]].map(([Icon, type, label]) =>
-          <button key={type} type="button" title={label} aria-label={label} disabled={lost} onClick={() => setCommand({ type })}><Icon size={17} /></button>)}
+          <button key={type} type="button" title={label} aria-label={label} disabled={lost}
+            onClick={() => { if (type === "fit") setWide(false); setCommand({ type }); }}><Icon size={17} /></button>)}
         {compact && <button type="button" aria-label="Kamera hareketi" aria-pressed={interactive} onClick={() => setInteractive(!interactive)}><Compass size={17} /></button>}
         <button type="button" title="Tam ekran" aria-label="Tam ekran" onClick={fullscreen}><Maximize size={17} /></button>
       </div>

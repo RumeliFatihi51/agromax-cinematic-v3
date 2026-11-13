@@ -18,7 +18,17 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await expect(page.locator(".fw-overview-section")).toBeVisible();
 
   const id = "e".repeat(32);
+  const neighboringName = "Kuzey tarlası " + info.project.name;
+  const neighborResponse = await page.request.post("/api/records", { data: {
+    kind: "field", name: neighboringName, crop: "Buğday",
+    geometry: { type: "Polygon", coordinates: [[
+      [27.504, 38.501], [27.505, 38.501], [27.505, 38.502], [27.504, 38.502], [27.504, 38.501],
+    ]] },
+  } });
+  expect(neighborResponse.status()).toBe(201);
+  const { id: neighborId } = await neighborResponse.json();
   await page.goto("/#field-studio");
+  await page.reload();
   const preview = page.getByRole("region", { name: "3D Saha Stüdyosu" });
   await expect(preview.getByText("Örnek panorama · Gösterim verisi")).toBeVisible();
   await expect(preview.locator(".scene-card")).toHaveCount(5);
@@ -35,7 +45,18 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await preview.getByRole("button", { name: "Canlı parsellerim" }).click();
   const studio = page.getByRole("region", { name: "3D Saha Stüdyosu" });
   await expect(studio.locator(".maplibregl-canvas")).toBeVisible({ timeout: 18000 });
-  await expect(studio.getByLabel("Saha stüdyosu parseli")).toHaveValue(id);
+  const parcels = studio.getByLabel("Saha stüdyosu parseli");
+  await parcels.selectOption(id);
+  await expect(parcels).toHaveValue(id);
+  const canvas = await studio.locator(".maplibregl-canvas").elementHandle();
+  await studio.getByRole("button", { name: "Parsel çevresini göster" }).click();
+  const neighbor = studio.getByRole("button", { name: neighboringName + " parselini aç" });
+  await expect(neighbor).toBeVisible();
+  await studio.screenshot({ path: info.outputPath("studio-landscape.png"), animations: "disabled" });
+  await neighbor.click();
+  await expect(parcels).toHaveValue(neighborId);
+  expect(await studio.locator(".maplibregl-canvas").evaluate((element, original) => element === original, canvas)).toBe(true);
+  await parcels.selectOption(id);
   await studio.getByRole("button", { name: "İndeks yüzeyi", exact: true }).click();
   const indices = studio.getByLabel("İndeks", { exact: true });
   await expect(indices).toHaveValue("NDVI");

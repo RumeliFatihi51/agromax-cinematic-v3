@@ -50,15 +50,16 @@ function openArchivePath(fieldId, geometryHash, path, params) {
 
 export function useOpenCatalog(fieldId, geometryHash, month) {
   const [result, setResult] = useState(null);
+  const key = month ? openArchivePath(fieldId, geometryHash, "", { month }) : "";
   useEffect(() => {
-    if (!month) return;
+    if (!key) return;
     const controller = new AbortController();
-    api(openArchivePath(fieldId, geometryHash, "", { month }), undefined, "GET", { signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) setResult({ month, ...data }); })
-      .catch(error => { if (!controller.signal.aborted) setResult({ month, error: error.message }); });
+    api(key, undefined, "GET", { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setResult({ key, ...data }); })
+      .catch(error => { if (!controller.signal.aborted) setResult({ key, error: error.message }); });
     return () => controller.abort();
-  }, [fieldId, geometryHash, month]);
-  return month && result?.month === month ? result : null;
+  }, [key]);
+  return key && result?.key === key ? result : null;
 }
 
 export function useRaster(fieldId, geometryHash, observation, layer, enabled) {

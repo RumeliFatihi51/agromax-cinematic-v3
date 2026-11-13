@@ -81,18 +81,20 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
   const [error, setError] = useState("");
   const upload = useRef(null);
   const [attempt, setAttempt] = useState(0);
+  const catalogKey = enabled ? path + ":" + geometryVersion : "";
 
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
     api(path, undefined, "GET", { signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) setCatalog(data); })
+      .then(data => { if (!controller.signal.aborted) setCatalog({ ...data, catalogKey }); })
       .catch(err => {
-        if (!controller.signal.aborted) setCatalog({ available: false, datasets: [], error: err.message });
+        if (!controller.signal.aborted) setCatalog({ catalogKey, available: false, datasets: [], error: err.message });
       });
     return () => { controller.abort(); upload.current?.abort(); };
-  }, [path, enabled, geometryVersion, attempt]);
-  const ready = (catalog?.datasets || []).filter(dataset => dataset.state === "ready");
+  }, [path, enabled, catalogKey, attempt]);
+  const currentCatalog = catalogKey && catalog?.catalogKey === catalogKey ? catalog : null;
+  const ready = (currentCatalog?.datasets || []).filter(dataset => dataset.state === "ready");
   const selected = selection === "satellite" ? null : ready.find(item => item.id === selection) || ready[0];
   const datasetId = enabled && active ? selected?.id : null;
   const layers = selected?.layers;
@@ -124,7 +126,8 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
   }, [datasetId, frame, layers, path]);
 
   function saveDataset(dataset) {
-    setCatalog(previous => ({ ...previous, datasets: [dataset, ...(previous?.datasets || []).filter(item => item.id !== dataset.id)] }));
+    setCatalog(previous => ({ ...previous, catalogKey, datasets: [dataset, ...(previous?.catalogKey === catalogKey
+      ? previous.datasets || [] : []).filter(item => item.id !== dataset.id)] }));
   }
 
   async function finish(id, signal) {
@@ -190,7 +193,7 @@ export function useDroneTerrain(fieldId, geometryVersion, frame, enabled, active
       await finish(dataset.id, signal);
     });
   }
-  return { catalog, ready, selected, choose: value => { setError(""); setSelection(value); }, submit, progress, error,
+  return { catalog: currentCatalog, ready, selected, choose: value => { setError(""); setSelection(value); }, submit, progress, error,
     refresh: () => setAttempt(value => value + 1),
     retry: id => run(signal => finish(id, signal)),
     imagery: datasetId && loaded?.datasetId === datasetId ? loaded.ortho : null,

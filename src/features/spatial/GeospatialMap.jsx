@@ -124,17 +124,19 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   const handlers = useRef(null);
   handlers.current = { onPoint, onError, onParcel, onHeading, onAnchorPoints };
   const current = useRef(null);
-  current.current = { raster, mode, markers, anchors, mirror };
+  current.current = { field, raster, mode, markers, anchors, mirror, flat };
   const [map, setMap] = useState(null);
   const [ready, setReady] = useState(false);
   const [tileMessage, setTileMessage] = useState("");
   const [activeImagery, setActiveImagery] = useState("imagery");
+  const mapGeometry = studio ? null : field.geometry;
 
   useEffect(() => {
     setReady(false);
     setActiveImagery("imagery");
     setTileMessage("");
-    const [west, south, east, north] = geometryBounds(field.geometry);
+    const { field: openingField, flat: openingFlat } = current.current;
+    const [west, south, east, north] = geometryBounds(openingField.geometry);
     const padding = atlas && !compact ? {
       top: 52, right: 52, bottom: 52, left: Math.round(element.current.clientWidth * 0.47),
     } : compact ? 32 : 78;
@@ -144,7 +146,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
         container: element.current, style: structuredClone(style),
         bounds: [[west, south], [east, north]], fitBoundsOptions: { padding, maxZoom: 18, bearing: -24 },
         attributionControl: false, maxPitch: 78, maxZoom: 20,
-        pitch: flat ? 0 : 53, bearing: -24,
+        pitch: openingFlat ? 0 : 53, bearing: -24,
         maxTileCacheSize: compact ? 48 : 96, cooperativeGestures: true, renderWorldCopies: false,
       });
     } catch {
@@ -152,8 +154,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
       return;
     }
     const fit = () => {
-      instance.getSource("parcel").setData({ type: "Feature", geometry: field.geometry, properties: {} });
-      if (studio && !flat) instance.jumpTo({ pitch: compact ? 53 : 63, bearing: -24, zoom: Math.max(0, instance.getZoom() - (compact ? 0.3 : 0.88)) });
+      if (studio && !openingFlat) instance.jumpTo({ pitch: compact ? 53 : 63, bearing: -24, zoom: Math.max(0, instance.getZoom() - (compact ? 0.3 : 0.88)) });
       setReady(true);
     };
     instance.on("style.load", fit);
@@ -222,7 +223,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
         }
       }
       const coordinate = lngLat.toArray();
-      if (!containsPoint(field.geometry, coordinate)) {
+      if (!containsPoint(current.current.field.geometry, coordinate)) {
         const neighbor = instance.getLayer("neighbor-fill") && instance.queryRenderedFeatures(point, { layers: ["neighbor-fill"] })[0];
         if (neighbor) handlers.current.onParcel?.(neighbor.properties.id);
         return;
@@ -237,7 +238,11 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     return () => {
       instance.remove();
     };
-  }, [field.geometry, compact, studio, atlas]);
+  }, [mapGeometry, compact, studio, atlas]);
+
+  useEffect(() => {
+    if (ready) map.getSource("parcel").setData({ type: "Feature", geometry: field.geometry, properties: {} });
+  }, [map, ready, field.geometry]);
 
   useEffect(() => { if (ready) map.triggerRepaint(); }, [map, ready, anchors, mirror]);
   useEffect(() => {
@@ -256,6 +261,13 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     if (command.type === "fit") {
       const [west, south, east, north] = geometryBounds(field.geometry);
       map.fitBounds([[west, south], [east, north]], { padding: compact ? 32 : 76, maxZoom: 18, bearing: -24, pitch: flat ? 0 : 53, duration });
+    } else if (command.type === "landscape") {
+      const [west, south, east, north] = command.bounds;
+      const pitch = flat ? 0 : compact ? 48 : 61;
+      map.fitBounds([[west, south], [east, north]], {
+        padding: compact ? { top: 92, bottom: 154, left: 35, right: 52 } : { top: 115, bottom: 118, left: 135, right: 110 },
+        maxZoom: command.maxZoom, bearing: -24, pitch, duration,
+      });
     } else if (command.type === "north") map.easeTo({ bearing: 0, duration });
     else if (command.type === "top") map.easeTo({ pitch: 0, bearing: 0, duration });
     else if (command.type === "tilt") map.easeTo({ pitch: 50, bearing: -22, duration });
@@ -321,7 +333,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   }, [map, ready, terrain, exaggeration, terrainDefinition]);
 
   useEffect(() => {
-    if (!ready || !imagery) return;
+    if (!ready || !imagery?.bitmap.width) return;
     const canvas = document.createElement("canvas");
     canvas.width = imagery.bitmap.width;
     canvas.height = imagery.bitmap.height;
@@ -338,7 +350,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     };
   }, [map, ready, imagery]);
   useEffect(() => {
-    if (!ready || !droneImagery) return;
+    if (!ready || !droneImagery?.bitmap.width) return;
     const canvas = document.createElement("canvas");
     canvas.width = droneImagery.bitmap.width;
     canvas.height = droneImagery.bitmap.height;

@@ -125,6 +125,21 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-live[data-panel-open="true"] .scene-card:not([data-selected="true"]) { opacity: .72; }
 .scene-live .field-studio-camera { top: 27%; right: 8px; }
 .scene-live .field-studio-camera button { background: #182630eb; }
+.scene-neighbors { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
+.scene-neighbors[hidden] { display: none; }
+.scene-neighbors button {
+  position: absolute; display: inline-flex; align-items: center; gap: 6px; max-width: 170px; min-height: 34px;
+  padding: 3px 8px; transform: translate(-50%, -115%); pointer-events: auto;
+  color: #f2f7ed; background: #182630ed; border: 1px solid #c3e08bb5; border-radius: 5px;
+  font-size: .73rem; font-weight: 750; box-shadow: 0 4px 11px #1522235e;
+}
+.scene-neighbors button:hover, .scene-neighbors button:focus-visible { background: #354b34; }
+.scene-neighbors button svg { flex: none; color: #cbe792; }
+.scene-neighbors button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 761px) {
+  .scene-live[data-wide="true"] .scene-card[data-slot="change"] { top: 29%; }
+  .scene-live[data-wide="true"] .scene-card[data-slot="index"] { top: 26%; }
+}
 .scene-live .field-studio-drawer { background: #182630fb; border-color: #75899995; }
 @media (min-width: 761px) and (max-width: 1150px) {
   .scene-live .scene-view-actions { max-width: 47%; }
@@ -147,6 +162,7 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
   .scene-live .field-studio-status { top: 19%; }
   .studio-shell .scene-live .field-studio-orthophoto { left: 6px; bottom: 34px; }
   .scene-live .field-studio-camera { top: 26%; }
+  .scene-neighbors button { max-width: 115px; min-height: 38px; font-size: .69rem; }
 }
 @media (min-width: 761px) {
   .scene-reference { height: auto; min-height: 0; aspect-ratio: 16 / 9; }
