@@ -219,6 +219,18 @@ test("paired scenarios share the terrain and select the same date; drone layers 
     await expect(studio.getByText(/Drone ortomozaik ·/)).toBeVisible({ timeout: 15_000 });
     await expect(studio.locator('[data-terrain="drone"]')).toBeVisible({ timeout: 15_000 });
     await studio.screenshot({ path: info.outputPath("saha-studyosu-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
+    const inspect = studio.getByRole("button", { name: "Yakın inceleme", exact: true });
+    await inspect.click();
+    await expect(inspect).toHaveAttribute("aria-pressed", "true");
+    await expect(studio.getByText(/^[\d,]+ m örnekleme$/)).toBeVisible();
+    await expect(studio.getByText("Drone ortomozaik · Drone yükseklik modeli")).toBeVisible();
+    await expect(studio.locator(".scene-card").first()).toBeHidden();
+    const cameraBounds = await studio.getByRole("group", { name: "Harita kamerası" }).boundingBox();
+    const toolbarBounds = await studio.getByRole("group", { name: "3D katman görünümü" }).boundingBox();
+    expect(cameraBounds && toolbarBounds && cameraBounds.y + cameraBounds.height <= toolbarBounds.y).toBe(true);
+    await studio.screenshot({ path: info.outputPath("drone-inceleme-" + (mobile ? "390" : "1440") + ".png"), animations: "disabled" });
+    await inspect.click();
+    await expect(inspect).toHaveAttribute("aria-pressed", "false");
     await page.goto("/#platform?field=" + fieldId);
     const atlas = page.getByRole("region", { name: "Üç boyutlu arazi atlası" });
     await expect(atlas).toContainText("Drone ortomozaik");

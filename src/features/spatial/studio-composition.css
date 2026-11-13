@@ -121,10 +121,23 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-live .field-studio-bottom { left: 9px; bottom: 48px; }
 .scene-live .field-studio-status { top: 11%; }
 .studio-shell .scene-live .field-studio-orthophoto { left: 9px; bottom: 29px; }
+.studio-shell .scene-live[data-inspecting="true"] .field-studio-orthophoto { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .scene-live .field-studio-map .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale { margin-bottom: 4px; }
 .scene-live[data-panel-open="true"] .scene-card:not([data-selected="true"]) { opacity: .72; }
 .scene-live .field-studio-camera { top: 27%; right: 8px; }
 .scene-live .field-studio-camera button { background: #182630eb; }
+.scene-live .field-studio-camera .scene-inspect-button[aria-pressed="true"] { background: #b9e88b; color: #172e26; }
+.scene-live[data-inspecting="true"] .scene-cards { display: none; }
+.scene-live[data-inspecting="true"] .field-studio-map::after {
+  background: linear-gradient(180deg, #101f22a3, transparent 29%, transparent 70%, #101f2294);
+}
+.scene-inspection {
+  position: absolute; z-index: 3; top: 14%; left: 14px; display: grid; gap: 4px; max-width: min(45%, 330px);
+  padding: 8px 13px; background: #182630ed; border: 1px solid #c3e08b65; border-radius: 7px;
+}
+.scene-inspection span { color: #cae69d; font-size: .63rem; font-weight: 800; letter-spacing: .12em; }
+.scene-inspection strong { color: #f3f9f2; font-size: 1.05rem; overflow-wrap: anywhere; }
+.scene-inspection small { color: #c8d7d4; font-size: .73rem; }
 .scene-neighbors { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
 .scene-neighbors[hidden] { display: none; }
 .scene-neighbors button {
@@ -183,6 +196,12 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
   .scene-live .field-studio-status { top: 19%; }
   .studio-shell .scene-live .field-studio-orthophoto { left: 6px; bottom: 34px; }
   .scene-live .field-studio-camera { top: 26%; }
+  .scene-live[data-inspecting="true"] .field-studio-camera {
+    top: auto; bottom: 257px; right: 5px; display: flex; flex-wrap: wrap; justify-content: flex-end;
+    max-width: calc(100% - 10px);
+  }
+  .scene-live[data-inspecting="true"] .field-studio-camera button:is([data-camera="north"], [data-camera="slope"]) { display: none; }
+  .scene-inspection { top: 20%; left: 5px; max-width: calc(100% - 55px); }
   .scene-neighbors button {
     left: clamp(58px, var(--parcel-x), calc(100% - 110px)); max-width: 115px; min-height: 38px; font-size: .69rem;
   }

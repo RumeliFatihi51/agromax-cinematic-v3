@@ -96,11 +96,17 @@ export async function prepareTerrainLayer(tiff: GeoTIFF, kind: TerrainLayerKind,
     maskImage?.readRasters({ window, signal, samples: [0], interleave: true }),
   ]);
   const noData = base.getGDALNoData();
-  const limit = kind === "ortho" ? 1024 : 256;
-  const width = Math.max(32, Math.round(limit * (east - west) / Math.max(east - west, north - south)));
-  const height = Math.max(32, Math.round(limit * (north - south) / Math.max(east - west, north - south)));
-  const png = terrainPng(width, height);
   const sourceWidth = selected.getWidth(), sourceHeight = selected.getHeight();
+  const [cx, cy] = transform.forward(frame.center as [number, number]);
+  const dx = (maxX! - minX!) / base.getWidth(), dy = (maxY! - minY!) / base.getHeight();
+  const nativeM = epsg === 4326 ? Math.max(Math.abs(project([cx + dx, cy])[0] - project([cx, cy])[0]),
+    Math.abs(project([cx, cy + dy])[1] - project([cx, cy])[1])) * frame.ground : Math.max(dx, dy);
+  const sourceM = nativeM * Math.max(base.getWidth() / sourceWidth, base.getHeight() / sourceHeight);
+  const longerAxis = Math.max(east - west, north - south);
+  const limit = kind === "ortho" ? Math.min(1536, Math.floor(longerAxis * frame.ground / sourceM)) : 256;
+  const width = Math.max(32, Math.round(limit * (east - west) / longerAxis));
+  const height = Math.max(32, Math.round(limit * (north - south) / longerAxis));
+  const png = terrainPng(width, height);
   const valuesAt = (coordinate: number[]) => {
     const [x, y] = transform.forward(coordinate);
     const col = Math.floor((x - minX!) / (maxX! - minX!) * sourceWidth);
@@ -138,17 +144,12 @@ export async function prepareTerrainLayer(tiff: GeoTIFF, kind: TerrainLayerKind,
       }
     }
   }
-  const [cx, cy] = transform.forward(frame.center as [number, number]);
-  const dx = (maxX! - minX!) / base.getWidth(), dy = (maxY! - minY!) / base.getHeight();
-  const nativeM = epsg === 4326 ? Math.max(Math.abs(project([cx + dx, cy])[0] - project([cx, cy])[0]),
-    Math.abs(project([cx, cy + dy])[1] - project([cx, cy])[1])) * frame.ground : Math.max(dx, dy);
   return {
     bytes: png.encode(),
     metadata: {
       bounds, width, height, epsg, coverage: valid / inside,
       nativeResolutionM: nativeM,
-      displayResolutionM: Math.max(nativeM, frame.ground * Math.max((east - west) / width, (north - south) / height),
-        nativeM * Math.max(base.getWidth() / sourceWidth, base.getHeight() / sourceHeight)),
+      displayResolutionM: Math.max(sourceM, frame.ground * Math.max((east - west) / width, (north - south) / height)),
       ...(kind === "dtm" ? { offsetM: terrainEncodingOffset } : {}),
     },
   };

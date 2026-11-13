@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, MapPinned, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, X } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Compass, Droplets, Crosshair, Layers3, MapPinned, Maximize, Mountain, Plus, Minus, ScanLine, Sprout, Telescope, X } from "lucide-react";
 import { api, apiBinaryResponse, fetchAnalysisImage } from "../../api";
 import { availableMetrics, indices } from "../../../shared/metrics";
 import { openSentinelMetrics, openSentinelProvider } from "../../../shared/open-sentinel";
@@ -182,6 +182,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const dataMatches = !!geometryVersion && (!recorded.value || recorded.value.geometryHash === geometryVersion);
   const [command, setCommand] = useState(null);
   const [wide, setWide] = useState(false);
+  const [inspecting, setInspecting] = useState(false);
   const [compareParcels, setCompareParcels] = useState(false);
   const [panel, setPanel] = useState("");
   const water = useFieldResource(commercial && panel === "water" ? "v1/fields/" + field.id + "/water-balance" : null);
@@ -383,6 +384,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     setEarlier("");
     setBeforeDate("");
     setPoint(null);
+    setInspecting(false);
     setRates(null);
     setRateMessage("");
     if (!keepView) setWide(false);
@@ -398,6 +400,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       });
     }
     setWide(true);
+    setInspecting(false);
     setCommand({ type: "landscape", bounds, maxZoom: drone.imagery || mapboxEnabled ? 16.5 : 15.6 });
   }
   function toggleComparison() {
@@ -410,9 +413,17 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     setCompareParcels(true);
     if (!wide) showLandscape();
   }
+  function toggleInspection() {
+    if (inspecting) { setInspecting(false); setCommand({ type: "fit" }); return; }
+    choose("natural");
+    setPanel("");
+    setWide(false);
+    setInspecting(true);
+    setCommand({ type: "inspect", maxZoom: drone.imagery ? 20 : 18.5 });
+  }
 
   return <>
-    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide}>
+    <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide} data-inspecting={inspecting}>
       <div className="field-studio-map">
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
@@ -438,8 +449,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         <button type="button" onClick={onReference}>Örnek panorama</button>
       </div>
       <WeatherStrip forecast={weather.value} loading={weather.loading} error={weather.error} />
-      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel && !wide} onSelect={openPanel} />
-      {!lost && nearby.length > 0 && <div className="scene-neighbors" role="group" aria-label="Yakın parseller" hidden={!!panel}>
+      <SceneLeaders points={scenePoints} selected={panel} visible={!compact && !panel && !wide && !inspecting} onSelect={openPanel} />
+      {!lost && nearby.length > 0 && <div className="scene-neighbors" role="group" aria-label="Yakın parseller" hidden={!!panel || inspecting}>
         {nearby.filter(({ item }) => scenePoints[item.id]).map(({ item }) => <button key={item.id} type="button"
           disabled={ratePending} title={item.name} aria-label={item.name + " parselini aç"}
           style={{ "--parcel-x": scenePoints[item.id][0] + "%", top: scenePoints[item.id][1] + "%" }}
@@ -475,14 +486,22 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       {!drone.imagery && (landscape.image || naturalImage) && <p className="field-studio-orthophoto">
         {landscape.image ? "Sentinel-2 çevre görüntüsü · " + shortDate(landscape.image.date) : "Sentinel-2 doğal renk · " + shortDate(naturalImage.date)}
       </p>}
-      {drone.imagery && <p className="field-studio-orthophoto">Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
+      {drone.imagery && <p className="field-studio-orthophoto" title={drone.selected.source}>
+        Drone ortomozaik · {shortDate(drone.selected.capturedOn)} · {drone.selected.source}</p>}
+      {inspecting && <div className="scene-inspection" role="status">
+        <span>YAKIN İNCELEME</span><strong>{field.name}</strong>
+        <small>{drone.imagery ? "Drone ortomozaik" : "Uydu görüntüsü"} · {terrainDefinition ? "Drone yükseklik modeli" : "Mapzen yükseklik kaynağı"}</small>
+        {drone.imagery && <small>{format(drone.selected.layers.ortho.displayResolutionM)} m örnekleme</small>}
+      </div>}
       <div className="field-studio-camera" role="group" aria-label="Harita kamerası">
+        <button type="button" className="scene-inspect-button" aria-label="Yakın inceleme" aria-pressed={inspecting}
+          title="Yakın inceleme" disabled={lost} onClick={toggleInspection}><Telescope size={17} /></button>
         <button type="button" title="Parsel çevresini göster" aria-label="Parsel çevresini göster" disabled={lost} onClick={showLandscape}>
           <MapPinned size={17} /></button>
         {[[Compass, "north", "Kuzeye dön"], [Crosshair, "fit", "Parsele odaklan"], [Mountain, "slope", "Ufuk görünümü"],
           [ScanLine, "top", "Üstten görünüm"], [Plus, "in", "Yakınlaştır"], [Minus, "out", "Uzaklaştır"]].map(([Icon, type, label]) =>
-          <button key={type} type="button" title={label} aria-label={label} disabled={lost}
-            onClick={() => { if (type === "fit") setWide(false); setCommand({ type }); }}><Icon size={17} /></button>)}
+          <button key={type} type="button" title={label} aria-label={label} data-camera={type} disabled={lost}
+            onClick={() => { if (type === "fit") { setWide(false); setInspecting(false); } setCommand({ type }); }}><Icon size={17} /></button>)}
         {compact && <button type="button" aria-label="Kamera hareketi" aria-pressed={interactive} onClick={() => setInteractive(!interactive)}><Compass size={17} /></button>}
         <button type="button" title="Tam ekran" aria-label="Tam ekran" onClick={fullscreen}><Maximize size={17} /></button>
       </div>

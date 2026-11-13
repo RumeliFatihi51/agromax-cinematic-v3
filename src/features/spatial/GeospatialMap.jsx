@@ -148,6 +148,7 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
         attributionControl: false, maxPitch: 78, maxZoom: 20,
         pitch: openingFlat ? 0 : 53, bearing: -24,
         maxTileCacheSize: compact ? 48 : 96, cooperativeGestures: true, renderWorldCopies: false,
+        ...(studio && !compact && { anisotropicFilterPitch: 35 }),
       });
     } catch {
       handlers.current.onError?.();
@@ -265,6 +266,12 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     if (command.type === "fit") {
       const [west, south, east, north] = geometryBounds(field.geometry);
       map.fitBounds([[west, south], [east, north]], { padding: compact ? 32 : 76, maxZoom: 18, bearing: -24, pitch: flat ? 0 : 53, duration });
+    } else if (command.type === "inspect") {
+      const [west, south, east, north] = geometryBounds(field.geometry);
+      map.fitBounds([[west, south], [east, north]], {
+        padding: compact ? { top: 145, bottom: 215, left: 24, right: 56 } : { top: 105, bottom: 145, left: 68, right: 85 },
+        maxZoom: command.maxZoom, bearing: -18, pitch: compact ? 35 : 47, duration,
+      });
     } else if (command.type === "landscape") {
       const [west, south, east, north] = command.bounds;
       const pitch = flat ? 0 : compact ? 48 : 61;
@@ -351,8 +358,8 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     canvas.getContext("2d").drawImage(imagery.bitmap, 0, 0);
     const [west, south, east, north] = imagery.bounds;
     const id = "dated-sentinel";
-    map.addSource(id, { type: "image", url: canvas.toDataURL("image/png"),
-      coordinates: [[west, north], [east, north], [east, south], [west, south]] });
+    map.addSource(id, { type: "image", coordinates: [[west, north], [east, north], [east, south], [west, south]] });
+    map.getSource(id).updateImage({ image: canvas });
     const firstOverlay = ["drone-imagery", "primary-raster", "parcel-fill"].find(layer => map.getLayer(layer));
     map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 0 } }, firstOverlay);
     return () => {
@@ -372,12 +379,12 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
     mask.height = Math.ceil(canvas.height / 4);
     mask.getContext("2d").drawImage(droneImagery.bitmap, 0, 0, mask.width, mask.height);
     context.globalCompositeOperation = "destination-in";
-    context.filter = "blur(4px)";
+    context.filter = "blur(" + Math.max(3, Math.min(9, Math.round(Math.min(canvas.width, canvas.height) / 96))) + "px)";
     context.drawImage(mask, 0, 0, canvas.width, canvas.height);
     const [west, south, east, north] = droneImagery.bounds;
     const id = "drone-imagery";
-    map.addSource(id, { type: "image", url: canvas.toDataURL("image/png"),
-      coordinates: [[west, north], [east, north], [east, south], [west, south]].map(unproject) });
+    map.addSource(id, { type: "image", coordinates: [[west, north], [east, north], [east, south], [west, south]].map(unproject) });
+    map.getSource(id).updateImage({ image: canvas });
     const firstOverlay = ["primary-raster", "parcel-fill"].find(layer => map.getLayer(layer));
     map.addLayer({ id, source: id, type: "raster", paint: { "raster-fade-duration": 140 } }, firstOverlay);
     return () => {

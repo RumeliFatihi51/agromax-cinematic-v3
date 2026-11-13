@@ -163,7 +163,7 @@
   .field-studio-weather small { font-size: .63rem; }
   .field-studio-camera { right: 6px; top: 135px; }
   .field-studio-camera button { min-height: 40px; min-width: 40px; }
-  .field-studio-camera button:nth-child(3), .field-studio-camera button:nth-child(7) { display: none; }
+  .field-studio-camera button:is([data-camera="fit"], [data-camera="out"]) { display: none; }
   .field-studio-bottom { left: 6px; right: 6px; bottom: 27px; }
   .field-studio-modes, .field-studio-trays { flex-wrap: nowrap; max-width: 100%; overflow: auto; }
   .field-studio-modes button, .field-studio-trays button { flex: none; min-height: 42px; padding-inline: 7px; font-size: .73rem; }
