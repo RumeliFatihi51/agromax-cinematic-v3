@@ -36,6 +36,7 @@ import { reportRoutes } from "./reports/api";
 import { recordRoutes } from "./records/api";
 import { simulationRoutes } from "./simulation/api";
 import { terrainRoutes } from "./terrain/api";
+import { plantRoutes } from "./plants/api";
 import { terrainUpload } from "../shared/terrain-upload.js";
 import { intelligenceRoutes } from "./intelligence/api";
 import { offlineRoutes } from "./records/offline";
@@ -327,7 +328,7 @@ export async function createCommercialApplication(options: RuntimeOptions) {
           path,
           method,
         };
-        for (const handler of [assistantRoutes, reportRoutes, recordRoutes, simulationRoutes, intelligenceRoutes, offlineRoutes, terrainRoutes]) {
+        for (const handler of [assistantRoutes, reportRoutes, recordRoutes, simulationRoutes, intelligenceRoutes, offlineRoutes, terrainRoutes, plantRoutes]) {
           const response = await handler(input);
           if (response) return response;
         }

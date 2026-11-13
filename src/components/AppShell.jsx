@@ -185,7 +185,7 @@ export default function AppShell({
         </div>
         <div className="canopy-mobile-workspace">{organizationControl}</div>
         <nav aria-label="Ana gezinme">
-          {group(["overview", "field-studio"])}
+          {group(["overview", "field-studio", "plant-studio"])}
           {navigationGroups.map((section, index) => {
             const Icon = sectionIcons[index];
             return <details className="platform-nav-group" key={section.id} open={section.pages.includes(page) || undefined}>

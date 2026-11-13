@@ -30,7 +30,7 @@ export type ModelAdapter = (input: {
   inputTokens?: number;
   outputTokens?: number;
 }>;
-function configuredLanguageModel() {
+export function configuredLanguageModel() {
   const model = process.env.AGROMAX_FILIZ_MODEL?.trim();
   if (process.env.AGROMAX_FILIZ_ENABLED !== "true" || !model) return;
   if (process.env.AGROMAX_FILIZ_PROVIDER === "gemini") {

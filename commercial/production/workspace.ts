@@ -25,6 +25,7 @@ import { extendedEvidenceBundle } from "../intelligence/mrv";
 import { publishProjectedClaims } from "../intelligence/claims";
 import { simulationRoutes } from "../simulation/api";
 import { terrainRoutes } from "../terrain/api";
+import { plantRoutes } from "../plants/api";
 import { terrainUpload } from "../../shared/terrain-upload.js";
 
 export async function createProductionWorkspace(config: {
@@ -211,7 +212,7 @@ export async function createProductionWorkspace(config: {
           path,
           method,
         };
-        for (const handler of [recordRoutes, reportRoutes, assistantRoutes, intelligenceRoutes, simulationRoutes, terrainRoutes]) {
+        for (const handler of [recordRoutes, reportRoutes, assistantRoutes, intelligenceRoutes, simulationRoutes, terrainRoutes, plantRoutes]) {
           const response = await handler(input);
           if (response) {
             if (path.endsWith("/confirm") && response.ok) {

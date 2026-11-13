@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import PreferenceProvider from "./components/PreferenceProvider";
 import useWorkspacePage from "./components/useWorkspacePage";
 import { platformPages } from "../shared/platform";
+const PlantStudio = lazy(() => import("./features/plants/PlantStudio"));
 const FieldStudio = lazy(() => import("./features/spatial/FieldStudio"));
 const PlatformWorkspace = lazy(() => import("./features/platform/PlatformWorkspace"));
 const Dashboard = lazy(() => import("./features/overview/Dashboard"));
@@ -352,6 +353,8 @@ export default function App() {
         }
       />
     );
+  else if (page === "plant-studio")
+    content = <PlantStudio key={activeWorkspace?.id || user.id} connected={!!activeWorkspace} />;
   else if (page === "field-studio")
     content = <FieldStudio key={`${activeWorkspace?.id || user.id}:${destinationField}:${location.metric || ""}`}
       fields={fields} tasks={tasks} initialFieldId={destinationField} initialMetric={location.metric}
