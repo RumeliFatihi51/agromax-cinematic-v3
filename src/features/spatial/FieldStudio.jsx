@@ -63,6 +63,26 @@ function useFieldResource(path, fallback) {
     refresh: () => setRevision(value => value + 1) };
 }
 
+function useNearbyCatalog(ids) {
+  const [result, setResult] = useState(null);
+  const key = ids.join(",");
+  useEffect(() => {
+    if (!key) return;
+    const controller = new AbortController();
+    Promise.all(key.split(",").map(async id => {
+      try {
+        return [id, await api("platform/fields/" + id + "/spatial", undefined, "GET", { signal: controller.signal })];
+      } catch {
+        return [id, null];
+      }
+    })).then(entries => {
+      if (!controller.signal.aborted) setResult({ key, values: Object.fromEntries(entries) });
+    });
+    return () => controller.abort();
+  }, [key]);
+  return result?.key === key ? result.values : null;
+}
+
 function WeatherStrip({ forecast, loading, error }) {
   const point = forecast?.points.find(item => Date.parse(item.time) >= Date.now() - 3600000);
   const period = point?.periods.find(item => item.hours === 1) || point?.periods[0];
@@ -162,6 +182,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   const dataMatches = !!geometryVersion && (!recorded.value || recorded.value.geometryHash === geometryVersion);
   const [command, setCommand] = useState(null);
   const [wide, setWide] = useState(false);
+  const [compareParcels, setCompareParcels] = useState(false);
   const [panel, setPanel] = useState("");
   const water = useFieldResource(commercial && panel === "water" ? "v1/fields/" + field.id + "/water-balance" : null);
   const [editor, setEditor] = useState(null);
@@ -270,6 +291,22 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     ? Array.from({ length: 9 }, (_, i) => rgb(colorFor(
       measurementScale.min + i * (measurementScale.max - measurementScale.min) / 8, measurementScale)))
     : null, [measurementScale]);
+  const showComparison = compareParcels && wide && source === "recorded" && mode === "natural" && nearby.length > 0;
+  const nearbyCatalog = useNearbyCatalog(showComparison ? nearby.map(({ item }) => item.id) : noItems);
+  const comparison = useMemo(() => {
+    if (!showComparison || !active || !metric) return null;
+    const selected = active.metrics?.[metric.id];
+    const values = Object.fromEntries(nearby.map(({ item }) => {
+      const matched = nearbyCatalog?.[item.id]?.observations?.find(observation =>
+        observation.date === active.date && observation.provider === active.provider && observation.method === active.method &&
+        (active.sceneId === undefined || observation.sceneId === active.sceneId));
+      return [item.id, matched?.metrics?.[metric.id]];
+    }));
+    const scale = colorScale({ metric: metric.id, values: [selected, ...Object.values(values)] });
+    const colors = Object.fromEntries(Object.entries({ ...values, [field.id]: selected })
+      .filter(([, value]) => Number.isFinite(value)).map(([id, value]) => [id, rgb(colorFor(value, scale))]));
+    return { scale, values, colors };
+  }, [showComparison, active, metric, nearby, nearbyCatalog, field.id]);
   const anchors = useMemo(() => [...sceneSlots.flatMap((slot, index) => {
     const [x, z] = anchorOffsets[index];
     for (const weight of [1, 0.75, 0.5, 0.25]) {
@@ -312,7 +349,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       setBeforeDate(active.date);
       setDate(previous.date);
     }
-    if (!rasterMode) setMode("surface");
+    if (!rasterMode && !showComparison) setMode("surface");
     setPoint(null);
   }
   const fallback = <div className="field-studio-fallback">
@@ -334,6 +371,7 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
   }
   const choose = value => {
     setMode(value);
+    setCompareParcels(false);
     setPoint(null);
     if (value === "change" || value === "zones") setPanel(value);
   };
@@ -362,6 +400,16 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
     setWide(true);
     setCommand({ type: "landscape", bounds, maxZoom: drone.imagery || mapboxEnabled ? 16.5 : 15.6 });
   }
+  function toggleComparison() {
+    if (showComparison) { setCompareParcels(false); return; }
+    if (source !== "recorded") { setDate(""); setEarlier(""); setBeforeDate(""); }
+    setSource("recorded");
+    setMode("natural");
+    setPanel("");
+    setPoint(null);
+    setCompareParcels(true);
+    if (!wide) showLandscape();
+  }
 
   return <>
     <div ref={stage} className="field-studio-scene scene-live" data-panel-open={!!panel} data-wide={wide}>
@@ -369,7 +417,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
         {lost ? fallback : <SpatialBoundary fallback={fallback}>
           <Suspense fallback={<p className="spatial-loading" role="status">Arazi hazırlanıyor…</p>}>
             <GeospatialMap {...{ field, frame, command, raster, scale, opacity, reduced, compact, anchors, markers, zones, terrainDefinition }}
-              studio onAnchorPoints={setScenePoints} neighbors={drawn} onParcel={id => selectParcel(id, true)} mode={mode === "columns" ? "columns" : "surface"}
+              studio onAnchorPoints={setScenePoints} neighbors={drawn} summaryColors={comparison?.colors}
+              onParcel={id => selectParcel(id, true)} mode={mode === "columns" ? "columns" : "surface"}
               droneImagery={drone.imagery} imagery={landscape.image || naturalImage} selection={point?.coordinate} interaction={!compact || interactive}
               onError={() => setLost(true)} onPoint={item => {
                 setPoint(item); setPanel(item.marker ? "observations" : "index");
@@ -393,8 +442,32 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       {!lost && nearby.length > 0 && <div className="scene-neighbors" role="group" aria-label="Yakın parseller" hidden={!!panel}>
         {nearby.filter(({ item }) => scenePoints[item.id]).map(({ item }) => <button key={item.id} type="button"
           disabled={ratePending} title={item.name} aria-label={item.name + " parselini aç"}
-          style={{ left: scenePoints[item.id][0] + "%", top: scenePoints[item.id][1] + "%" }}
-          onClick={() => selectParcel(item.id, true)}><MapPinned size={14} /><span>{item.name}</span></button>)}
+          style={{ "--parcel-x": scenePoints[item.id][0] + "%", top: scenePoints[item.id][1] + "%" }}
+          data-offset={scenePoints[item.id][0] > (compact ? 72 : 90)}
+          onClick={() => selectParcel(item.id, true)}><MapPinned size={14} />
+          <span><b>{item.name}</b>{showComparison && <small>{!nearbyCatalog ? "Yükleniyor…" : nearbyCatalog[item.id] === null
+            ? "Kayıt alınamadı" : Number.isFinite(comparison?.values[item.id])
+            ? metric.id + " " + format(comparison.values[item.id]) : "Eşleşen ölçüm yok"}</small>}</span></button>)}
+      </div>}
+      {showComparison && !panel && <div className="scene-comparison" aria-label="Parsel karşılaştırması">
+        {comparison && Object.keys(comparison.colors).length ? <>
+          <div className="scene-comparison-controls">
+            <select aria-label="Karşılaştırma indeksi" value={metric.id} onChange={event => setLayer(event.target.value)}>
+              {metrics.map(item => <option key={item.id} value={item.id}>{item.id}</option>)}
+            </select>
+            <select aria-label="Parsel karşılaştırma tarihi" value={active.date} onChange={event => {
+              setDate(event.target.value); setBeforeDate("");
+            }}>
+              {observations.map(item => <option key={item.date} value={item.date}>{shortDate(item.date)}</option>)}
+            </select>
+          </div>
+          <span title={active.source}>Parsel ortalaması</span>
+          <div className="scene-comparison-scale">
+            <span>{format(comparison.scale.min)}</span>
+            <i style={{ background: "linear-gradient(90deg," + comparison.scale.palette.map(rgb).join(",") + ")" }} />
+            <span>{format(comparison.scale.max)}</span>
+          </div>
+        </> : <span role="status">{recorded.loading ? "Parsel kayıtları yükleniyor…" : "Karşılaştırılabilir indeks kaydı yok."}</span>}
       </div>}
       <SceneCards {...cards} selected={panel} onOpen={openPanel}
         onRate={canWrite && zonePlan ? editRate : undefined} onRateSave={canWrite && draftRates ? saveRates : undefined}
@@ -416,7 +489,8 @@ function StudioScene({ field, drawn, tasks, initialMetric, commercial, canWrite,
       <div className="field-studio-bottom">
         <div className="field-studio-modes" role="group" aria-label="3D katman görünümü">
           {[["natural", "Doğal renk"], ["surface", "İndeks yüzeyi"], ["columns", "3D sütun"], ["change", "Tarih farkı"], ["zones", "Bölgeler"]].map(([id, label]) =>
-            <button type="button" key={id} aria-pressed={mode === id} onClick={() => choose(id)}>{label}</button>)}
+            <button type="button" key={id} aria-pressed={!showComparison && mode === id} onClick={() => choose(id)}>{label}</button>)}
+          {nearby.length > 0 && <button type="button" aria-pressed={showComparison} onClick={toggleComparison}>Parselleri kıyasla</button>}
         </div>
         {rasterMode && <div className="field-studio-data-controls">
           <label><span className="sr-only">İndeks</span><select aria-label="İndeks" value={metric?.id || ""} onChange={event => { setLayer(event.target.value); setPoint(null); }}>

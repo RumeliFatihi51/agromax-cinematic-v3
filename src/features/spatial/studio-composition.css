@@ -129,6 +129,7 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-neighbors[hidden] { display: none; }
 .scene-neighbors button {
   position: absolute; display: inline-flex; align-items: center; gap: 6px; max-width: 170px; min-height: 34px;
+  left: clamp(54px, var(--parcel-x), calc(100% - 115px));
   padding: 3px 8px; transform: translate(-50%, -115%); pointer-events: auto;
   color: #f2f7ed; background: #182630ed; border: 1px solid #c3e08bb5; border-radius: 5px;
   font-size: .73rem; font-weight: 750; box-shadow: 0 4px 11px #1522235e;
@@ -136,6 +137,26 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
 .scene-neighbors button:hover, .scene-neighbors button:focus-visible { background: #354b34; }
 .scene-neighbors button svg { flex: none; color: #cbe792; }
 .scene-neighbors button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-neighbors button b { display: block; overflow: hidden; text-overflow: ellipsis; }
+.scene-neighbors button small { display: block; color: #c3deb9; font-size: .82em; text-align: start; }
+.scene-comparison {
+  position: absolute; right: 14px; bottom: 65px; z-index: 4; display: grid; gap: 4px; min-width: 135px;
+  padding: 7px 11px; color: #f4f7f5; background: #182630ed; border: 1px solid #d7e8d761; border-radius: 6px;
+  font-size: .75rem; font-variant-numeric: tabular-nums;
+}
+.scene-comparison > span { color: #c6d3ce; }
+.scene-comparison-controls { display: grid; grid-template-columns: minmax(54px, .8fr) minmax(82px, 1.2fr); gap: 4px; }
+.studio-shell .field-studio .scene-comparison-controls select { min-height: 32px; font: inherit; padding-inline: 4px; }
+.scene-comparison-scale { display: flex; align-items: center; gap: 7px; }
+.scene-comparison-scale i { flex: 1; height: 5px; border-radius: 2px; }
+.scene-neighbors button::after {
+  content: ""; position: absolute; left: 50%; top: 100%; height: 6px; border-left: 1px dotted #e4eed4;
+}
+.scene-neighbors button::before {
+  content: ""; position: absolute; left: calc(50% - 3px); top: calc(100% + 4px);
+  width: 6px; height: 6px; border-radius: 50%; background: #e4eed4;
+}
+.scene-neighbors button[data-offset="true"]::before, .scene-neighbors button[data-offset="true"]::after { left: 83%; }
 @media (min-width: 761px) {
   .scene-live[data-wide="true"] .scene-card[data-slot="change"] { top: 29%; }
   .scene-live[data-wide="true"] .scene-card[data-slot="index"] { top: 26%; }
@@ -162,7 +183,10 @@ html.agromax-ui .studio-page-field-studio .studio-page-footer { display: none; }
   .scene-live .field-studio-status { top: 19%; }
   .studio-shell .scene-live .field-studio-orthophoto { left: 6px; bottom: 34px; }
   .scene-live .field-studio-camera { top: 26%; }
-  .scene-neighbors button { max-width: 115px; min-height: 38px; font-size: .69rem; }
+  .scene-neighbors button {
+    left: clamp(58px, var(--parcel-x), calc(100% - 110px)); max-width: 115px; min-height: 38px; font-size: .69rem;
+  }
+  .scene-comparison { right: auto; left: 5px; top: 21%; bottom: auto; font-size: .68rem; }
 }
 @media (min-width: 761px) {
   .scene-reference { height: auto; min-height: 0; aspect-ratio: 16 / 9; }

@@ -27,6 +27,14 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   } });
   expect(neighborResponse.status()).toBe(201);
   const { id: neighborId } = await neighborResponse.json();
+  await page.route("**/api/platform/fields/" + neighborId + "/spatial", async route => {
+    const response = await route.fetch();
+    const data = await response.json();
+    await route.fulfill({ response, json: { ...data, observations: [
+      { date: "2026-10-31", provider: "cdse", method: "s2-l2a-v3", metrics: { NDVI: 0.51, NDMI: 0.13 }, source: "EXPLICIT SYNTHETIC COMPARISON FIXTURE" },
+      { date: "2026-10-28", provider: "sentinelhub", method: "s2-l2a-v3", metrics: { NDVI: 0.7 }, source: "EXPLICIT SYNTHETIC COMPARISON FIXTURE" },
+    ] } });
+  });
   await page.goto("/#field-studio");
   await page.reload();
   const preview = page.getByRole("region", { name: "3D Saha Stüdyosu" });
@@ -52,6 +60,15 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   await studio.getByRole("button", { name: "Parsel çevresini göster" }).click();
   const neighbor = studio.getByRole("button", { name: neighboringName + " parselini aç" });
   await expect(neighbor).toBeVisible();
+  await studio.getByRole("button", { name: "Parselleri kıyasla" }).click();
+  await expect(neighbor).toContainText("NDVI 0,51");
+  await studio.getByRole("combobox", { name: "Karşılaştırma indeksi" }).selectOption("NDMI");
+  await expect(neighbor).toContainText("NDMI 0,13");
+  await studio.getByRole("combobox", { name: "Parsel karşılaştırma tarihi" }).selectOption("2026-10-28");
+  await expect(neighbor).toContainText("Eşleşen ölçüm yok");
+  await studio.getByRole("combobox", { name: "Parsel karşılaştırma tarihi" }).selectOption("2026-10-31");
+  await studio.getByRole("combobox", { name: "Karşılaştırma indeksi" }).selectOption("NDVI");
+  await expect(neighbor).toContainText("NDVI 0,51");
   await studio.screenshot({ path: info.outputPath("studio-landscape.png"), animations: "disabled" });
   await neighbor.click();
   await expect(parcels).toHaveValue(neighborId);

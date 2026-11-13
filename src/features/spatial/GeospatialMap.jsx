@@ -118,7 +118,7 @@ function useRasterImage(map, ready, id, raster, scale, geometry, opacity) {
 export default function GeospatialMap({ field, frame, command, boundary = true, raster, comparison, scale,
   opacity = 0.85, blend = 0.5, mode = "surface", terrain = true, flat, exaggeration = 1, basemap = true, reduced,
   highlight, markers = noItems, reviewGeometry, imagery, droneImagery, selection, onPoint, onError,
-  neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror,
+  neighbors = noItems, zones = noItems, anchors = noItems, onAnchorPoints, onParcel, onHeading, mirror, summaryColors,
   interaction = true, terrainDefinition, compact = false, studio = false, atlas = false }) {
   const element = useRef(null);
   const handlers = useRef(null);
@@ -241,8 +241,12 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   }, [mapGeometry, compact, studio, atlas]);
 
   useEffect(() => {
-    if (ready) map.getSource("parcel").setData({ type: "Feature", geometry: field.geometry, properties: {} });
-  }, [map, ready, field.geometry]);
+    if (!ready) return;
+    const color = summaryColors?.[field.id];
+    map.getSource("parcel").setData({ type: "Feature", geometry: field.geometry, properties: { summaryColor: color || "" } });
+    map.setPaintProperty("parcel-fill", "fill-color", color || "#cbd99a");
+    map.setPaintProperty("parcel-fill", "fill-opacity", color ? 0.63 : 0.12);
+  }, [map, ready, field.geometry, field.id, summaryColors]);
 
   useEffect(() => { if (ready) map.triggerRepaint(); }, [map, ready, anchors, mirror]);
   useEffect(() => {
@@ -308,13 +312,20 @@ export default function GeospatialMap({ field, frame, command, boundary = true, 
   useEffect(() => {
     if (!ready) return;
     map.getSource("neighbors").setData(collection(neighbors.filter(item => item.geometry && item.id !== field.id).map(item => ({
-      type: "Feature", geometry: item.geometry, properties: { id: item.id },
+      type: "Feature", geometry: item.geometry, properties: { id: item.id, summaryColor: summaryColors?.[item.id] || "" },
     }))));
+    map.setPaintProperty("neighbor-fill", "fill-color",
+      ["case", ["!=", ["get", "summaryColor"], ""], ["to-color", ["get", "summaryColor"], "#b6db85"], "#b6db85"]);
+    map.setPaintProperty("neighbor-fill", "fill-opacity",
+      ["case", ["!=", ["get", "summaryColor"], ""], 0.63, summaryColors ? 0.06 : 0.23]);
+  }, [ready, map, neighbors, field.id, summaryColors]);
+  useEffect(() => {
+    if (!ready) return;
     map.getSource("zones").setData(collection(zones.map((zone, index) => ({
       type: "Feature", geometry: zone.geometry,
       properties: { color: ["#abc66b", "#e8b77b", "#64a8aa", "#b0a1cd"][index % 4] },
     }))));
-  }, [ready, map, neighbors, zones, field.id]);
+  }, [ready, map, zones]);
 
   useEffect(() => {
     if (!ready) return;
