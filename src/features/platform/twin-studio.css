@@ -1,0 +1,33 @@
+.twin-deck {
+  display:grid; gap:22px; padding:clamp(20px,4vw,52px); color:#fffbea;
+  background:linear-gradient(90deg,#132d24 10%,#132d24e8 44%,#132d244f),url("/visuals/spatial-field-study.webp") center 53%/cover;
+  border-radius:10px; margin-bottom:18px;
+}
+.twin-deck span,.twin-example-cover small,.twin-lab small,.twin-next small {font-size:.74rem;font-weight:800;letter-spacing:.12em}
+.twin-deck span,.twin-example-cover small {color:#dbe8aa}
+.px-workspace .twin-deck h1,.px-workspace .twin-example-cover h3 {color:#fffbea;margin:.35em 0;font-size:clamp(1.9rem,4vw,3.85rem);letter-spacing:-.06em;line-height:1.05;overflow-wrap:anywhere}
+.twin-deck p,.twin-example-cover p {color:#edf1dc;max-width:46ch}
+.twin-deck-actions,.twin-example-switch,.twin-copy,.twin-lab-controls {display:flex;flex-wrap:wrap;gap:8px}
+.twin-deck-actions button,.twin-example-switch button {display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:8px 13px;border:1px solid #8da78c;border-radius:5px;background:#172f26;color:#f6f5e6;font:inherit;font-weight:700;cursor:pointer}
+.twin-deck-actions button[aria-pressed=true],.twin-example-switch button[aria-pressed=true] {background:#dbe8aa;color:#172f26}
+.twin-next {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:14px;padding:18px 22px;margin:16px 0;background:#e6ebd8;border-left:3px solid #627848;color:#233b2b}
+.twin-next :is(h3,p) {margin:.3em 0}.twin-source {font-size:.84rem}
+.twin-gallery {display:grid;gap:14px;min-width:0}
+.twin-example-cover {position:relative;isolation:isolate;display:grid;align-items:end;min-height:clamp(325px,44vw,560px);overflow:hidden;border-radius:10px;background:#132d24}
+.twin-example-cover::after {content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#102519f5 4%,#14261a9e 43%,transparent 83%)}
+.twin-example-poster {display:block;width:100%;max-height:560px;object-fit:cover}
+.twin-example-cover .twin-example-poster {position:absolute;inset:0;height:100%;max-height:none;z-index:-2}
+.twin-example-cover>div {padding:clamp(18px,4vw,48px)}
+.twin-example-cover button {margin-top:12px}
+.twin-lab {min-width:0;padding:clamp(15px,3vw,34px);background:#f6f4e8;border:1px solid #d5d9c5;border-radius:8px;color:#233b2b}
+.twin-lab h3 {font-size:clamp(1.5rem,3vw,2.5rem);margin:.25em 0;letter-spacing:-.04em}
+.twin-lab header p {max-width:60ch}
+.twin-lab-controls label,.twin-chart label {display:grid;gap:5px}
+.twin-lab-controls :is(input,select) {min-height:44px;padding:6px 10px;border:1px solid #98a688;border-radius:4px;background:#fffdf4;color:#233b2b}
+.twin-chart {margin:20px 0;padding:14px;background:#eef0df;border-radius:6px}
+.twin-chart figcaption {font-weight:800}.twin-chart figcaption small {display:block;letter-spacing:normal}
+.twin-chart svg {display:block;width:100%;max-height:245px}
+.twin-chart input {width:100%;accent-color:#316347}
+.twin-copy {margin-top:12px;align-items:center}.twin-copy p {flex-basis:100%;margin:0}
+.twin-lab table caption {text-align:left;padding:.5em;font-weight:750}
+@media(max-width:600px){.twin-deck-actions button{flex:1 1 130px}.twin-next{padding:14px}.twin-lab-controls label{min-width:0}}

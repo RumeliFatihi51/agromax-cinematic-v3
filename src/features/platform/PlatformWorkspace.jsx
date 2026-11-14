@@ -14,6 +14,7 @@ import TemporalStudio from './TemporalStudio';
 import ClaimsPanel from './ClaimsPanel';
 import OfflineTools from './OfflineTools';
 import TwinInputs from './TwinInputs';
+import { TwinExamples, TwinNavigation, TwinRecommendations } from './TwinStudio';
 import './platform.css';
 const SpatialWorkbench = lazy(() => import('../spatial/SpatialWorkbench'));
 const SpatialAtlas = lazy(() => import('../spatial/SpatialAtlas'));
@@ -31,6 +32,8 @@ function download(name,value) {const url=URL.createObjectURL(new Blob([JSON.stri
 function Notice({children}) {return <div className="px-notice"><Info size={17} aria-hidden="true" /><p>{children}</p></div>;}
 export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,canEditTerrain=false,waterBalance,claimsEnabled,canCalculate,offline,spatialSelection,onSpatialSelection}) {
   const area=useAreaFormat();
+  const [examples,setExamples]=useState(false);
+  const decisionPage=['twin','scenarios','economics'].includes(page);
   const [bootstrap,setBootstrap]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[exportNotice,setExportNotice]=useState(''),[editor,setEditor]=useState(null),[revisions,setRevisions]=useState(null),[query,setQuery]=useState('');
   const [fieldId,setFieldId]=useState(()=>{if(initialFieldId)return initialFieldId;try{return localStorage.getItem('agromax.platform.field')||'';}catch{return '';}});
   const activeId=fields.some(field=>field.id===fieldId)?fieldId:fields[0]?.id||'';
@@ -81,9 +84,10 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
       record.payload.zones?.length) : null,
     onSelection: value=>onSpatialSelection?.(activeId,value), onNavigate, onField:()=>onSelect(field) };
   return <div className="px-workspace" data-page={page}>
-    <PageHeading eyebrow={page==='platform'?'AGROMAX PLATFORMU':`${feature?.group==='assure'?'DOĞRULAMA VE RAPOR':feature?.group==='decide'?'KARAR VE UYGULAMA':'GÖZLEM VE ARAZİ'} / ${String(feature?.number||0).padStart(2,'0')}`} title={page==='platform'?'Araziden karara, tek çalışma alanı.':feature?.title} description={page==='platform'?'14 temel yeteneğin araçları, kaynakları ve hazırlık durumu.':feature?.summary}>
+    {decisionPage && <TwinNavigation page={page} field={field} onNavigate={onNavigate} examples={examples} onExamples={setExamples}/>}
+    {!decisionPage && <PageHeading eyebrow={page==='platform'?'AGROMAX PLATFORMU':`${feature?.group==='assure'?'DOĞRULAMA VE RAPOR':feature?.group==='decide'?'KARAR VE UYGULAMA':'GÖZLEM VE ARAZİ'} / ${String(feature?.number||0).padStart(2,'0')}`} title={page==='platform'?'Araziden karara, tek çalışma alanı.':feature?.title} description={page==='platform'?'14 temel yeteneğin araçları, kaynakları ve hazırlık durumu.':feature?.summary}>
       {page==='temporal'&&fields.length?null:workspaceActions}
-    </PageHeading>
+    </PageHeading>}
     {error&&<div className="error" role="alert">{error}<button className="text-button" onClick={()=>setReload(n=>n+1)}>Yeniden dene</button></div>}
     {page==='platform'?<>
       <Suspense fallback={spatialLoading}><SpatialAtlas field={field} fields={fields} onField={setFieldId} onNavigate={onNavigate}/></Suspense>
@@ -105,8 +109,10 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         </details>}
         <span className={`px-stage stage-${feature?.stage}`}>{platformStages[feature?.stage]}</span>
         <span className="workspace-context-note">{feature?.available}</span>
+        {decisionPage && <button className="secondary" onClick={()=>setReload(n=>n+1)} disabled={busy}><RefreshCw size={16}/> Yenile</button>}
       </div>
-      {page==='access'?<><section className="px-surface px-access"><I.MonitorSmartphone size={44}/><h2>Aynı arazi. Her ekranda.</h2><p>Bilgisayar ve mobil tarayıcıda aynı hesabını, parsellerini ve kayıtlarını kullan. Telefonda alt gezinme çubuğu ve menüden tüm araçlara ulaşabilirsin.</p><code>{window.location.origin}</code><button className="primary" onClick={()=>onNavigate('fields')}>Parsellerimi aç <ArrowRight size={17}/></button></section>{offline&&<OfflineTools fields={fields} {...offline}/>}</>:<>
+      {decisionPage&&examples&&<TwinExamples field={field} canCopy={canWrite} onCopy={setEditor}/>}
+      {decisionPage&&examples?null:page==='access'?<><section className="px-surface px-access"><I.MonitorSmartphone size={44}/><h2>Aynı arazi. Her ekranda.</h2><p>Bilgisayar ve mobil tarayıcıda aynı hesabını, parsellerini ve kayıtlarını kullan. Telefonda alt gezinme çubuğu ve menüden tüm araçlara ulaşabilirsin.</p><code>{window.location.origin}</code><button className="primary" onClick={()=>onNavigate('fields')}>Parsellerimi aç <ArrowRight size={17}/></button></section>{offline&&<OfflineTools fields={fields} {...offline}/>}</>:<>
         {!fields.length&&page==='satellite'&&<SatelliteSources sources={bootstrap?.sources||[]}/>}
         {!fields.length&&page==='drones'&&<SourceCards sources={bootstrap?.drones||[]}/>}
         {!fields.length?<EmptyState icon={MapPinned} title="Önce bir parsel ekleyelim." description="Yeni araçların tamamı kayıtlı bir tarla üzerinden çalışır."><button className="primary" onClick={()=>onNavigate('fields')}>Parsellere git <ArrowRight size={17}/></button></EmptyState>:!currentData&&!error?<div className="studio-module-loading" role="status">Parsel kaynakları yükleniyor…</div>:currentData&&<>
@@ -116,6 +122,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
                 page==='intelligence' ? <IntelligenceViewer key={activeId+context.geometryHash} {...spatialProps} claimsEnabled={claimsEnabled}/> :
                   <SpatialWorkbench key={activeId+context.geometryHash} {...spatialProps}/>}
             </Suspense>}
+          {page==='twin'&&<TwinRecommendations context={context} onNavigate={onNavigate} onField={()=>onSelect(field)}/>}
           <div className="px-main-grid" data-workspace={page}><section className="px-content">
             {page==='satellite'&&<>
               <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
@@ -161,7 +168,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         </>}
       </>}
     </>}
-    {editor&&field&&<DraftEditor kind={kind} field={field} record={editor} latestAnalysis={context?.latestAnalysis} onClose={()=>setEditor(null)} onSaved={()=>{setEditor(null);setReload(n=>n+1);}}/>}
+    {editor&&field&&<DraftEditor kind={kind || (page==='twin' ? 'scenario' : undefined)} field={field} record={editor} latestAnalysis={context?.latestAnalysis} onClose={()=>setEditor(null)} onSaved={()=>{setEditor(null);setReload(n=>n+1);}}/>}
     {revisions&&<RevisionDialog value={revisions} onClose={()=>setRevisions(null)}/>}
   </div>;
 }
@@ -278,12 +285,12 @@ function ScenarioComparison({records, chart, hectares}) {
       </figure>;
     })}</div>}
     {active.length ? <div className="px-table-wrap"><table>
-      <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Toplam</th>{chart && <><th>Hektar başına</th><th>Varsayımsal net etki</th></>}</tr></thead>
+      <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Su maliyeti</th><th>Enerji</th><th>İşçilik maliyeti</th><th>Toplam</th>{chart && <><th>Hektar başına</th><th>Varsayımsal net etki</th></>}</tr></thead>
       <tbody>{active.map((record) => {
         const {currency, revenue, totalMinor} = record.calculation;
         return <tr key={record.id}>
         <th scope="row">{record.name}</th><td>{num(record.payload.waterM3)}</td>
-        <td>{num(record.payload.fertilizerKg)}</td><td>{num(record.payload.laborHours)}</td><td>{money(record.calculation)}</td>
+        <td>{num(record.payload.fertilizerKg)}</td><td>{num(record.payload.laborHours)}</td>{['water','energy','labor'].map(key=><td key={key}>{Number.isFinite(record.calculation.lines?.[key]) ? money({currency,totalMinor:record.calculation.lines[key]}) : '—'}</td>)}<td>{money(record.calculation)}</td>
         {chart && <><td>{hectares > 0 ? money({currency, totalMinor:totalMinor / hectares}) : '—'}</td>
         <td>{revenue ? <details><summary>{money({currency,totalMinor:revenue.netMinor})}</summary>
           <p>Brüt gelir {money({currency,totalMinor:revenue.grossMinor})}</p>

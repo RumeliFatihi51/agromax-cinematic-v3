@@ -27,6 +27,7 @@ function ComparisonChart({ rows, date, selectDate, result, stacked }) {
   const waterMaximum = Math.max(1, ...rows.flatMap(row => [row.rain, ...row.days.map(day => day.grossIrrigationMm)]).filter(Number.isFinite));
   const index = Math.max(0, rows.findIndex(row => row.date === date));
   const selected = rows[index];
+  const firstDifference = rows.find(row => row.days.every(day => Number.isFinite(day.depletionMm)) && Math.abs(row.days[1].depletionMm - row.days[0].depletionMm) > .001);
   const pick = event => {
     const svg = event.currentTarget;
     const position = svg.createSVGPoint();
@@ -81,6 +82,7 @@ function ComparisonChart({ rows, date, selectDate, result, stacked }) {
       <input type="range" min="0" max={Math.max(0, count - 1)} value={index} disabled={count < 2}
         aria-valuetext={dateLabel(date)} onChange={event => selectDate(rows[Number(event.target.value)].date)} />
     </label>
+    <p>{firstDifference ? "Su açığının ilk ayrıştığı gün · " + dateLabel(firstDifference.date) : "Ortak günlerde hesaplanan su açığı farkı bulunmadı."}</p>
     <p>Seçili gün · Etkin yağış {format(selected.rain)} mm · Sulama A {format(selected.days[0].grossIrrigationMm)} mm · Sulama B {format(selected.days[1].grossIrrigationMm)} mm</p>
     {selected.days.every(day => Number.isFinite(day.depletionMm)) &&
       <p>Günlük su açığı farkı B − A · {format(selected.days[1].depletionMm - selected.days[0].depletionMm, true)} mm</p>}

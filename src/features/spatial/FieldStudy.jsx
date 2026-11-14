@@ -96,7 +96,7 @@ function StudyCamera({ command, compact }) {
   return null;
 }
 
-export default function FieldStudy({ compact, onBack }) {
+export default function FieldStudy({ compact, onBack, backLabel = "Parsel modeline dön" }) {
   const [command, setCommand] = useState(null);
   const [software, setSoftware] = useState(false);
   const shadows = !compact && !software;
@@ -105,7 +105,7 @@ export default function FieldStudy({ compact, onBack }) {
       <div><small className="spatial-eyebrow">TEMSİLİ SAHNE</small>
         <h2>Buğday sıraları ve toprak yüzeyi</h2>
         <p>Blender etüdü. Bitkiler, eğim ve konumlar örnektir.</p></div>
-      <button type="button" className="secondary" onClick={onBack}><ArrowLeft size={17}/> Parsel modeline dön</button>
+      <button type="button" className="secondary" onClick={onBack}><ArrowLeft size={17}/> {backLabel}</button>
     </header>
     <div className="spatial-stage">
       <Canvas className="spatial-three" frameloop="demand" dpr={software ? 0.8 : [1, compact ? 1.05 : 1.45]}
