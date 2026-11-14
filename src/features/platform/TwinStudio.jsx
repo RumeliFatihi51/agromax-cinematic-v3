@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { ArrowDown, ArrowUpRight, Box, Compass, Droplets, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Box, Compass, Droplets, MonitorSmartphone, Wallet } from "lucide-react";
 import { balanceInput, runWaterBalance } from "../../../commercial/simulation/water-balance";
 import { scenarioTotals } from "../../../shared/platform-contracts";
 import { SpatialBoundary, useMedia } from "../spatial/SpatialWorkbench";
@@ -57,6 +57,7 @@ export function TwinExamples({ field, canCopy, onCopy }) {
   const [timing, setTiming] = useState(7);
   const [energyPrice, setEnergyPrice] = useState(4);
   const compact = useMedia("(max-width: 700px)");
+  const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const preset = exercises[exercise];
   const input = balanceInput.parse({
     scope: "trakya-winter-wheat", weatherSource: "Örnek hava girdisi", soilSource: "Örnek toprak girdisi",
@@ -89,7 +90,7 @@ export function TwinExamples({ field, canCopy, onCopy }) {
     <div className="twin-example-switch">{Object.entries(exercises).map(([id, item]) =>
       <button type="button" key={id} aria-pressed={id === exercise} onClick={() => { setExercise(id); setSelectedDay(0); }}>{item.name}</button>)}</div>
     {closeup ? <SpatialBoundary fallback={<>{image}<button className="secondary" onClick={() => setCloseup(false)}>Galeriye dön</button></>}>
-      <Suspense fallback={image}><FieldStudy compact={compact} onBack={() => setCloseup(false)} backLabel="Galeriye dön" /></Suspense>
+      <Suspense fallback={image}><FieldStudy compact={compact} onBack={() => setCloseup(false)} backLabel="Galeriye dön" reduced={reduced} modelDay={{ day: selectedDay + 1, capacity: result.capacityMm, values: [a.days[selectedDay].depletionMm, b.days[selectedDay].depletionMm] }} /></Suspense>
     </SpatialBoundary> : <div className="twin-example-cover">
       {image}<div><small>TEMSİLİ BUĞDAY ETÜDÜ</small><h3>{preset.name}</h3><p>{preset.description}</p>
         <button type="button" className="primary" onClick={() => setCloseup(true)}><Box size={18} /> 3D sahneyi aç</button></div>
@@ -103,11 +104,20 @@ export function TwinExamples({ field, canCopy, onCopy }) {
         <label>Elektrik fiyatı · ₺/kWh <input type="number" min="0" max="100" step=".1" value={energyPrice}
           onChange={event => setEnergyPrice(Math.min(100, Math.max(0, Number(event.target.value) || 0)))} /></label>
       </div>
+      <div className="twin-metrics">
+        <div><small>SU BÜTÇESİ / PLAN</small><strong>{number(a.volumeM3)} <small>m³</small></strong></div>
+        <div><small>STRES GÜNÜ FARKI</small><strong>{number(b.stressDays - a.stressDays)} <small>gün</small></strong></div>
+        <div><small>MALİYET FARKI · B − A</small><strong>{price(rows[1].cost.totalMinor - rows[0].cost.totalMinor)}</strong></div>
+      </div>
       <figure className="twin-chart"><figcaption>Kök bölgesi su açığı · mm <small>Yeşil A · Bakır B</small></figcaption>
-        <svg viewBox="0 0 560 165" role="img" aria-label="Örnek iki planın 14 günlük su açığı çizgileri">
+        <svg viewBox="0 0 580 178" role="img" aria-label="Örnek iki planın 14 günlük su açığı çizgileri">
+          <defs><linearGradient id="twin-water-fill" x2="0" y2="1"><stop stopColor="#79cbaa" stopOpacity=".42"/><stop offset="1" stopColor="#79cbaa" stopOpacity="0"/></linearGradient></defs>
+          {[0,.5,1].map(level => <g key={level}><line x1="20" x2="540" y1={150 - level * 125} y2={150 - level * 125} stroke="#557066" strokeDasharray="3 5"/><text x="548" y={154 - level * 125}>{number(level * result.capacityMm)}</text></g>)}
+          <polygon points={`20,150 ${chartPath(a)} 540,150`} fill="url(#twin-water-fill)" />
           <line x1="20" x2="540" y1="150" y2="150" stroke="#b9c3ab" />
           <line x1={20 + 40 * selectedDay} x2={20 + 40 * selectedDay} y1="18" y2="150" stroke="#aeb8a0" />
-          {[a,b].map((plan, i) => <polyline key={plan.name} points={chartPath(plan)} fill="none" stroke={i ? "#ab5330" : "#316347"} strokeWidth="3" strokeDasharray={i ? "7 4" : undefined} />)}
+          {[a,b].map((plan, i) => <polyline key={plan.name} points={chartPath(plan)} fill="none" stroke={i ? "#ffbf86" : "#9de3ba"} strokeWidth="3" strokeDasharray={i ? "7 4" : undefined} />)}
+          <text x="20" y="172">1. gün</text><text x="540" y="172" textAnchor="end">14. gün</text>
         </svg>
         <label>Model günü <input type="range" min="0" max="13" value={selectedDay} onChange={event => setSelectedDay(Number(event.target.value))} aria-valuetext={`${selectedDay + 1}. gün`} /></label>
         <p>{selectedDay + 1}. gün · A {number(a.days[selectedDay].depletionMm)} mm · B {number(b.days[selectedDay].depletionMm)} mm · B − A {number(b.days[selectedDay].depletionMm - a.days[selectedDay].depletionMm)} mm</p>
@@ -122,5 +132,32 @@ export function TwinExamples({ field, canCopy, onCopy }) {
       {canCopy && field?.geometry && <div className="twin-copy"><p>{field.name} için maliyet taslağı aç. Örnek değerleri kaydetmeden önce düzenleyebilirsin.</p>
         {rows.map(({ plan, payload }) => <button type="button" className="secondary" key={plan.name} onClick={() => onCopy({ name: `${preset.name} · ${plan.name}`, payload })}>{plan.name} taslağını aç <ArrowDown size={15} /></button>)}</div>}
     </div>
+  </section>;
+}
+
+export function AccessPortal({ onNavigate, offline }) {
+  const [copyState, setCopyState] = useState("");
+  const address = window.location.origin;
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopyState("Adres kopyalandı.");
+    } catch {
+      setCopyState("Adresi aşağıdaki bağlantıdan kopyalayabilirsin.");
+    }
+  }
+  return <section className="access-portal">
+    <div>
+      <MonitorSmartphone size={30} aria-hidden="true" />
+      <h1>AgroMax her ekranda.</h1>
+      <p>Bilgisayarda ve telefonda aynı adresi ve hesabı kullan.</p>
+      <div className="twin-deck-actions">
+        <button type="button" onClick={copyAddress}>Adresi kopyala</button>
+        <button type="button" onClick={() => onNavigate("fields")}>Parsellerimi aç <ArrowUpRight size={16} /></button>
+      </div>
+      <a href={address}>{address}</a>
+      <p role="status">{copyState}</p>
+    </div>
+    <aside><h2>Sahada çevrimdışı</h2><p>{offline ? "Bağlantı kesilmeden önce parselini bu cihaza kaydet. Aşağıdan kayıtlarını yönetebilirsin." : "Bu çalışma alanında çevrimdışı parsel kaydı etkin değil."}</p></aside>
   </section>;
 }

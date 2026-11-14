@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("sample twin changes water timing and energy costs and opens a parcel draft", async ({ page }) => {
+test("sample twin changes water timing and energy costs and opens a parcel draft", async ({ page }, info) => {
+  await page.setViewportSize(info.project.name === "mobile" ? { width: 390, height: 844 } : { width: 1440, height: 960 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await page.getByLabel("E-posta adresiniz").fill("upgrade@example.invalid");
@@ -8,6 +9,9 @@ test("sample twin changes water timing and energy costs and opens a parcel draft
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
   await expect(page.locator(".fw-overview-section")).toBeVisible();
   await page.goto("/#twin");
+  await expect(page.getByRole("heading", { name: "Tarlanı üç boyutta oku." })).toBeVisible();
+  await expect(page.locator(".spatial-stage")).toBeVisible();
+  await page.screenshot({ path: info.outputPath("dijital-ikiz.png"), animations: "disabled" });
   await page.getByRole("button", { name: "Örnek ikizler", exact: true }).click();
   const gallery = page.getByRole("region", { name: "Örnek dijital ikizler" });
   await expect(gallery.getByText("Su açığı ilk kez 3. günde ayrışıyor.")).toBeVisible();
@@ -21,7 +25,24 @@ test("sample twin changes water timing and energy costs and opens a parcel draft
   await gallery.getByRole("button", { name: "3D sahneyi aç" }).click();
   await expect(gallery.getByRole("region", { name: "Temsili tarla etüdü" })).toBeVisible();
   await expect(gallery.getByRole("button", { name: "Bitki sıralarına yaklaş" })).toBeVisible();
+  await gallery.getByRole("button", { name: "Bitki sıralarına yaklaş" }).click();
+  await expect(gallery.locator(".twin-scene-readout")).toContainText("1. GÜN");
+  await gallery.getByRole("slider", { name: "Model günü" }).press("End");
+  await expect(gallery.locator(".twin-scene-readout")).toContainText("14. GÜN");
+  await gallery.getByRole("button", { name: "Sulama zamanlaması" }).click();
+  await gallery.getByLabel("Plan B sulama günü").selectOption("7");
+  const slider = gallery.getByRole("slider", { name: "Model günü" });
+  await slider.focus();
+  for (let day = 1; day < 5; day++) await slider.press("ArrowRight");
+  await expect(gallery.locator(".twin-scene-readout")).toContainText("5. GÜN");
+  await gallery.locator(".spatial-study").screenshot({ path: info.outputPath("ornek-3d.png"), animations: "disabled" });
+  await gallery.locator(".twin-lab").screenshot({ path: info.outputPath("senaryo-maliyet.png"), animations: "disabled" });
+  await gallery.getByRole("button", { name: "Pompa ve bütçe" }).click();
   await gallery.getByRole("button", { name: "Plan B taslağını aç" }).click();
   await expect(page.getByRole("dialog").getByLabel("Dosya adı")).toHaveValue("Pompa ve bütçe · Plan B");
   await expect(page.getByRole("dialog").getByLabel("Enerji birim fiyatı / kWh")).toHaveValue("8");
+  await page.goto("/#access");
+  await expect(page.getByRole("heading", { name: "AgroMax her ekranda." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Adresi kopyala" })).toBeVisible();
+  await page.locator(".access-portal").screenshot({ path: info.outputPath("dijital-erisim.png"), animations: "disabled" });
 });

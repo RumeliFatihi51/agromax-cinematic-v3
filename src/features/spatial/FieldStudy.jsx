@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useLoader, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { ArrowLeft } from "lucide-react";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -65,9 +65,10 @@ function StudyModel({ compact, near }) {
   return <primitive object={model} scale={0.044} />;
 }
 
-function StudyCamera({ command, compact }) {
+function StudyCamera({ command, compact, reduced }) {
   const { camera, gl, invalidate } = useThree();
   const orbit = useRef(null);
+  const transition = useRef(null);
   useLayoutEffect(() => {
     const controls = new OrbitControls(camera, gl.domElement);
     controls.enablePan = false;
@@ -78,25 +79,60 @@ function StudyCamera({ command, compact }) {
     controls.target.set(0, 0.04, 0);
     controls.update();
     controls.addEventListener("change", invalidate);
+    controls.addEventListener("start", () => { transition.current = null; });
     orbit.current = controls;
     return () => { controls.dispose(); orbit.current = null; };
   }, [camera, gl, invalidate]);
   useLayoutEffect(() => {
     if (!command || !orbit.current) return;
-    if (command.view === "rows") {
-      camera.position.set(compact ? 0.66 : 0.48, 0.27, 0.74);
-      orbit.current.target.set(-0.18, 0.05, 0.12);
+    const rows = command.view === "rows";
+    const position = new Vector3(...(rows ? [compact ? 0.66 : 0.48, 0.27, 0.74] :
+      compact ? [1.24, 1.2, 1.73] : [0.98, 0.81, 1.34]));
+    const target = rows ? new Vector3(-0.18, 0.05, 0.12) : new Vector3(0, 0.04, 0);
+    if (reduced) {
+      transition.current = null;
+      camera.position.copy(position);
+      orbit.current.target.copy(target);
+      orbit.current.update();
     } else {
-      camera.position.set(...(compact ? [1.24, 1.2, 1.73] : [0.98, 0.81, 1.34]));
-      orbit.current.target.set(0, 0.04, 0);
+      transition.current = { position, target, origin: camera.position.clone(), focus: orbit.current.target.clone(), elapsed: 0 };
     }
-    orbit.current.update();
     invalidate();
-  }, [camera, command, compact, invalidate]);
+  }, [camera, command, compact, invalidate, reduced]);
+  useFrame((_, delta) => {
+    const move = transition.current;
+    if (!move || !orbit.current) return;
+    move.elapsed += Math.min(delta, .05);
+    const progress = Math.min(1, move.elapsed / .65);
+    const eased = 1 - (1 - progress) ** 3;
+    camera.position.lerpVectors(move.origin, move.position, eased);
+    orbit.current.target.lerpVectors(move.focus, move.target, eased);
+    orbit.current.update();
+    if (progress === 1) transition.current = null;
+    else invalidate();
+  });
   return null;
 }
 
-export default function FieldStudy({ compact, onBack, backLabel = "Parsel modeline dön" }) {
+function ModelGauges({ values, capacity }) {
+  return <group position={[-.37, .035, .08]}>
+    {values.map((value, index) => {
+      const height = Math.max(.008, value / capacity * .18);
+      return <group key={index} position={[index * .17, 0, 0]}>
+        <mesh position={[0, .09, 0]}>
+          <boxGeometry args={[.065, .18, .065]} />
+          <meshBasicMaterial color="#e7eee5" transparent opacity={.14} depthWrite={false} />
+        </mesh>
+        <mesh position={[0, height / 2, 0]}>
+          <boxGeometry args={[.052, height, .052]} />
+          <meshStandardMaterial color={index ? "#ffc083" : "#bdf4ae"} emissive={index ? "#c46f2b" : "#397e46"} emissiveIntensity={.45} />
+        </mesh>
+      </group>;
+    })}
+  </group>;
+}
+
+export default function FieldStudy({ compact, onBack, backLabel = "Parsel modeline dön", modelDay, reduced }) {
   const [command, setCommand] = useState(null);
   const [software, setSoftware] = useState(false);
   const shadows = !compact && !software;
@@ -125,8 +161,13 @@ export default function FieldStudy({ compact, onBack, backLabel = "Parsel modeli
           shadow-mapSize={[1024, 1024]} shadow-normalBias={0.012} shadow-camera-left={-1.25}
           shadow-camera-right={1.25} shadow-camera-top={1.25} shadow-camera-bottom={-1.25} />
         <Suspense fallback={null}><StudyModel compact={compact || software} near={command?.view === "rows"} /></Suspense>
-        <StudyCamera command={command} compact={compact} />
+        {modelDay && <ModelGauges values={modelDay.values} capacity={modelDay.capacity} />}
+        <StudyCamera command={command} compact={compact} reduced={reduced ?? window.matchMedia("(prefers-reduced-motion: reduce)").matches} />
       </Canvas>
+      {modelDay && <div className="twin-scene-readout">
+        <small>{modelDay.day}. GÜN · PARSEL GENELİ SU AÇIĞI</small>
+        {modelDay.values.map((value, index) => <span key={index} data-plan={index}>{"AB"[index]} <strong>{value.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} mm</strong></span>)}
+      </div>}
     </div>
     <footer className="spatial-footer">
       <button type="button" className="secondary" onClick={() => setCommand({ view: "wide" })}>Tarla geneli</button>

@@ -14,7 +14,7 @@ import TemporalStudio from './TemporalStudio';
 import ClaimsPanel from './ClaimsPanel';
 import OfflineTools from './OfflineTools';
 import TwinInputs from './TwinInputs';
-import { TwinExamples, TwinNavigation, TwinRecommendations } from './TwinStudio';
+import { AccessPortal, TwinExamples, TwinNavigation, TwinRecommendations } from './TwinStudio';
 import './platform.css';
 const SpatialWorkbench = lazy(() => import('../spatial/SpatialWorkbench'));
 const SpatialAtlas = lazy(() => import('../spatial/SpatialAtlas'));
@@ -85,7 +85,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
     onSelection: value=>onSpatialSelection?.(activeId,value), onNavigate, onField:()=>onSelect(field) };
   return <div className="px-workspace" data-page={page}>
     {decisionPage && <TwinNavigation page={page} field={field} onNavigate={onNavigate} examples={examples} onExamples={setExamples}/>}
-    {!decisionPage && <PageHeading eyebrow={page==='platform'?'AGROMAX PLATFORMU':`${feature?.group==='assure'?'DOĞRULAMA VE RAPOR':feature?.group==='decide'?'KARAR VE UYGULAMA':'GÖZLEM VE ARAZİ'} / ${String(feature?.number||0).padStart(2,'0')}`} title={page==='platform'?'Araziden karara, tek çalışma alanı.':feature?.title} description={page==='platform'?'14 temel yeteneğin araçları, kaynakları ve hazırlık durumu.':feature?.summary}>
+    {!decisionPage && page!=='access' && <PageHeading eyebrow={page==='platform'?'AGROMAX PLATFORMU':`${feature?.group==='assure'?'DOĞRULAMA VE RAPOR':feature?.group==='decide'?'KARAR VE UYGULAMA':'GÖZLEM VE ARAZİ'} / ${String(feature?.number||0).padStart(2,'0')}`} title={page==='platform'?'Araziden karara, tek çalışma alanı.':feature?.title} description={page==='platform'?'14 temel yeteneğin araçları, kaynakları ve hazırlık durumu.':feature?.summary}>
       {page==='temporal'&&fields.length?null:workspaceActions}
     </PageHeading>}
     {error&&<div className="error" role="alert">{error}<button className="text-button" onClick={()=>setReload(n=>n+1)}>Yeniden dene</button></div>}
@@ -96,7 +96,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
       {bootstrap&&!bootstrap.features.some(item=>`${item.title} ${item.summary}`.toLocaleLowerCase('tr-TR').includes(query.toLocaleLowerCase('tr-TR')))&&<p role="status">Aramana uygun yetenek bulunamadı.</p>}
       <Notice>Altyapı ve taslak aşamasındaki araçların kapsamı hazırlık ve incelemeyle sınırlıdır.</Notice>
     </>:<>
-      <div className="px-context-bar workspace-context">
+      {page!=='access' && <div className="px-context-bar workspace-context">
         {page!=='access'&&<label>Parsel<select aria-label="Platform parseli" value={activeId} onChange={e=>setFieldId(e.target.value)} disabled={!fields.length}>{fields.length?fields.map(item=><option key={item.id} value={item.id}>{item.name}</option>):<option value="">Henüz parsel yok</option>}</select></label>}
         {context && page !== 'temporal' && <details className="px-field-strip workspace-parcel-details">
           <summary>Parsel özeti</summary>
@@ -110,9 +110,9 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         <span className={`px-stage stage-${feature?.stage}`}>{platformStages[feature?.stage]}</span>
         <span className="workspace-context-note">{feature?.available}</span>
         {decisionPage && <button className="secondary" onClick={()=>setReload(n=>n+1)} disabled={busy}><RefreshCw size={16}/> Yenile</button>}
-      </div>
+      </div>}
       {decisionPage&&examples&&<TwinExamples field={field} canCopy={canWrite} onCopy={setEditor}/>}
-      {decisionPage&&examples?null:page==='access'?<><section className="px-surface px-access"><I.MonitorSmartphone size={44}/><h2>Aynı arazi. Her ekranda.</h2><p>Bilgisayar ve mobil tarayıcıda aynı hesabını, parsellerini ve kayıtlarını kullan. Telefonda alt gezinme çubuğu ve menüden tüm araçlara ulaşabilirsin.</p><code>{window.location.origin}</code><button className="primary" onClick={()=>onNavigate('fields')}>Parsellerimi aç <ArrowRight size={17}/></button></section>{offline&&<OfflineTools fields={fields} {...offline}/>}</>:<>
+      {decisionPage&&examples?null:page==='access'?<><AccessPortal onNavigate={onNavigate} offline={!!offline}/>{offline&&<OfflineTools fields={fields} {...offline}/>}</>:<>
         {!fields.length&&page==='satellite'&&<SatelliteSources sources={bootstrap?.sources||[]}/>}
         {!fields.length&&page==='drones'&&<SourceCards sources={bootstrap?.drones||[]}/>}
         {!fields.length?<EmptyState icon={MapPinned} title="Önce bir parsel ekleyelim." description="Yeni araçların tamamı kayıtlı bir tarla üzerinden çalışır."><button className="primary" onClick={()=>onNavigate('fields')}>Parsellere git <ArrowRight size={17}/></button></EmptyState>:!currentData&&!error?<div className="studio-module-loading" role="status">Parsel kaynakları yükleniyor…</div>:currentData&&<>
@@ -127,8 +127,8 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
             {page==='satellite'&&<>
               <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
             {page==='twin'&&<>
-              <TwinInputs key={activeId+context.geometryHash} context={context} records={currentData.records} onNavigate={onNavigate} onField={()=>onSelect(field)}/>
-              <Checks context={context} onNavigate={onNavigate}/>
+              <details className="px-surface px-section twin-details"><summary>Parsel kayıtları ve model girdileri</summary><TwinInputs key={activeId+context.geometryHash} context={context} records={currentData.records} onNavigate={onNavigate} onField={()=>onSelect(field)}/>
+              <Checks context={context} onNavigate={onNavigate}/></details>
             </>}
             {page==='evidence'&&<Evidence context={context}/>}
             {['evidence','contradictions','investigation'].includes(page)&&<section className="px-surface observation-context" aria-label="Parsel ve gözlem bağlamı">
