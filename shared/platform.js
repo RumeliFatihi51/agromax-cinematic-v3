@@ -1,3 +1,4 @@
+import { nasaProducts } from "./nasa-products.js";
 ﻿// Shared product contract. Runtime availability is added by the authenticated API.
 export const platformFeatures = [
   { id:'satellite', number:1, title:'Çok kaynaklı uydu', icon:'Satellite', group:'observe', stage:'partial', summary:'Uydu kaynaklarını, veri erişimini ve parsel analizlerini tek yerden takip et.', available:'Sentinel-2 analiz akışı ve kaynak durumları.', needs:['Sentinel-1 radar işleme adaptörü','Landsat işleme ve kalite kontrolü','Ticari görüntü lisansı ve sağlayıcı adaptörü'], action:'fields' },
@@ -22,6 +23,14 @@ export const sourceAdapters = [
   { id:'sentinel1', name:'Sentinel-1', state:'planned', detail:'Radar işleme ve doğrulama adaptörü hazırlanacak.', docs:'https://documentation.dataspace.copernicus.eu/APIs.html' },
   { id:'landsat', name:'Landsat', state:'planned', detail:'Ayrı işleme, kalite maskesi ve dönem uyumlama adaptörü gerekli.', docs:'https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products' },
   { id:'hls', name:'NASA HLS L30 / S30', state:'planned', detail:'NASA HLS v2.0 parsel istatistikleri mevcut hesap çalışma alanında uydu raporuna eklenir.', docs:'https://hls.gsfc.nasa.gov/data-products/' },
+  ...Object.entries(nasaProducts).map(([id, product]) => ({
+    id: "nasa-" + id, name: product.title, nasaProduct: id,
+    state: product.mode === "map" ? "open_layer" : "catalog",
+    detail: product.resolution + " · " + product.note,
+    docs: product.mode === "map"
+      ? "https://worldview.earthdata.nasa.gov/?l=" + product.layer
+      : "https://search.earthdata.nasa.gov/search/granules?p=" + product.collection,
+  })),
   { id:'commercial', name:'Ticari yüksek çözünürlük', state:'planned', detail:'Sağlayıcı seçimi, lisans ve erişim sözleşmesi gerekli.' },
 ];
 export const droneAdapters = [

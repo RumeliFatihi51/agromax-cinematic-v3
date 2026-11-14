@@ -43,8 +43,8 @@ function ObservationMap({ field, product, date, previous, footprints }) {
   </div>;
 }
 
-export default function NasaObservations({ field }) {
-  const [source, setSource] = useState("smap");
+export default function NasaObservations({ field, initialSource }) {
+  const [source, setSource] = useState(initialSource ?? "smap");
   const [dates, setDates] = useState(null);
   const [pinned, setPinned] = useState("");
   const [previous, setPrevious] = useState("");
@@ -73,12 +73,17 @@ export default function NasaObservations({ field }) {
       }
     }
     void refresh();
-    const timer = setInterval(refresh, 30 * 60000);
+    const timer = setInterval(() => { if (!document.hidden) void refresh(); }, 30 * 60000);
     return () => { clearInterval(timer); controller.abort(); };
   }, [field.id, field.geometry, product, source, end, reload]);
   const scene = scenes?.scenes.find(item => item.id === selected) ?? scenes?.scenes[0];
   const activeDate = compare && previous ? previous : pinned || dates?.latest[source];
-  return <section className="px-surface px-section nasa-observations" aria-labelledby="nasa-observations-title">
+  const panel = useRef(null);
+  useEffect(() => {
+    panel.current?.focus({ preventScroll: true });
+    panel.current?.scrollIntoView({ block: "start" });
+  }, []);
+  return <section ref={panel} tabIndex={-1} className="px-surface px-section nasa-observations" aria-labelledby="nasa-observations-title">
     <header><span className="px-kicker">NASA EARTHDATA</span><h2 id="nasa-observations-title">Ek uydu gözlemleri</h2>
       <p>Kaynağı seç ve parselinin çevresini incele. Bu ürünler mevcut parsel analizlerini destekleyen ayrı gözlemlerdir.</p></header>
     <div className="nasa-toolbar">

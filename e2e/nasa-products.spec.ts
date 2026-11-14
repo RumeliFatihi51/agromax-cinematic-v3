@@ -11,6 +11,11 @@ test("NASA layers and catalog are separate from existing parcel analysis", async
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
   await expect(page.locator(".fw-overview-section")).toBeVisible();
   await page.goto("/#satellite");
+  const sources = page.getByRole("table", { name: "Uydu kaynakları" });
+  await expect(sources.getByRole("rowheader", { name: /ECOSTRESS · Yüzey sıcaklığı/ })).toBeVisible();
+  await expect(sources.getByRole("rowheader", { name: /EMIT · Yüzey yansıtımı/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Ek uydu gözlemleri" })).toHaveCount(0);
+  await sources.getByRole("button", { name: /SMAP · Yüzey toprak nemi · İncele/ }).click();
   const nasa = page.getByRole("region", { name: "Ek uydu gözlemleri" });
   await expect(nasa.locator(".nasa-map")).toBeVisible();
   await expect(nasa.getByText("Bölgesel görsel katman.")).toBeVisible();

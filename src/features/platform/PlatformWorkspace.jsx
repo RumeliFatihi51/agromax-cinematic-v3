@@ -30,12 +30,13 @@ const money=calculation=>new Intl.NumberFormat('tr-TR',{style:'currency',currenc
 const recordKinds={scenarios:'scenario',economics:'scenario',investigation:'investigation',prescriptions:'prescription',drones:'drone',temporal:'observation'};
 const kindLabels={scenario:'Senaryo',investigation:'Saha incelemesi',prescription:'Reçete taslağı',drone:'Cihaz profili',observation:'Saha gözlemi'};
 const statuses={draft:'Taslak',review_requested:'İnceleme istendi',archived:'Arşivlendi'};
-const sourceStates={configured:'Yapılandırılmış',unconfigured:'Bağlantı gerekli',planned:'Adaptör hazırlığı',catalog:'Katalog erişimi'};
+const sourceStates={configured:'Yapılandırılmış',unconfigured:'Bağlantı gerekli',planned:'Adaptör hazırlığı',open_layer:'Açık harita katmanı',catalog:'Katalog erişimi'};
 function download(name,value) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function Notice({children}) {return <div className="px-notice"><Info size={17} aria-hidden="true" /><p>{children}</p></div>;}
 export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,canEditTerrain=false,waterBalance,claimsEnabled,canCalculate,offline,spatialSelection,onSpatialSelection}) {
   const area=useAreaFormat();
   const [examples,setExamples]=useState(false);
+  const [nasaProduct,setNasaProduct]=useState(null);
   const [modelRefresh, setModelRefresh]=useState(0);
   const decisionPage=['twin','scenarios','economics'].includes(page);
   const [bootstrap,setBootstrap]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[exportNotice,setExportNotice]=useState(''),[editor,setEditor]=useState(null),[revisions,setRevisions]=useState(null),[query,setQuery]=useState('');
@@ -136,8 +137,8 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
           {page==='twin'&&<TwinRecommendations context={context} onNavigate={onNavigate} onField={()=>onSelect(field)}/>}
           <div className="px-main-grid" data-workspace={page}><section className="px-content">
             {page==='satellite'&&<>
-              <Suspense fallback={spatialLoading}><NasaObservations key={activeId} field={field}/></Suspense>
-              <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
+              <SatelliteSources sources={bootstrap?.sources||[]} onOpen={setNasaProduct}/>
+              {nasaProduct && <Suspense fallback={spatialLoading}><NasaObservations key={activeId+nasaProduct} field={field} initialSource={nasaProduct}/></Suspense>}<Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
             {page==='twin'&&<>
               <details className="px-surface px-section twin-details"><summary>Parsel kayıtları ve model girdileri</summary><TwinInputs key={activeId+context.geometryHash} context={context} records={currentData.records} onNavigate={onNavigate} onField={()=>onSelect(field)}/>
               <Checks context={context} onNavigate={onNavigate}/></details>
@@ -189,7 +190,7 @@ function SourceState({ state }) {
   return <span className={`px-stage ${state === 'configured' ? 'stage-active' : 'stage-foundation'}`}>{sourceStates[state] || state}</span>;
 }
 
-function SatelliteSources({ sources }) {
+function SatelliteSources({ sources, onOpen }) {
   if (!sources.length) return <p className="px-empty-inline">Uydu kaynağı bilgisi alınamadı.</p>;
   return <section className="satellite-source-register" aria-labelledby="satellite-source-title">
     <div className="satellite-source-portrait">
@@ -202,9 +203,9 @@ function SatelliteSources({ sources }) {
     <div className="px-table-wrap">
       <table aria-labelledby="satellite-source-title">
         <thead><tr><th scope="col">Kaynak</th><th scope="col">Kapsam</th><th scope="col">Bağlantı</th></tr></thead>
-        <tbody>{sources.map(({ id, name, state, detail, docs }) => <tr key={id}>
+        <tbody>{sources.map(({ id, name, state, detail, docs, nasaProduct }) => <tr key={id}>
           <th scope="row">{name}{docs && <a href={docs} target="_blank" rel="noreferrer" aria-label={`${name} resmî kaynağı`}>Resmî kaynak <ArrowUpRight size={14} /></a>}</th>
-          <td>{detail}</td><td><SourceState state={state} /></td>
+          <td>{detail}</td><td><SourceState state={state} />{nasaProduct && onOpen && <button type="button" className="text-button" aria-label={name + ' · İncele'} onClick={()=>onOpen(nasaProduct)}>İncele <ArrowUpRight size={14}/></button>}</td>
         </tr>)}</tbody>
       </table>
     </div>
