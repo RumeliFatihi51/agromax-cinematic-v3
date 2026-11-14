@@ -245,11 +245,12 @@ export default function AppShell({
             </span>
             <div>
               <strong>{user.name}</strong>
-              <small>Çalışma alanım</small>
+              <small>{user.guest ? "Bu tarayıcıdaki çalışma alanı" : "Çalışma alanım"}</small>
+              {user.guest && <a href="?account=existing">Mevcut hesabı aç</a>}
             </div>
-            <button aria-label="Çıkış yap" title="Çıkış yap" onClick={onLogout}>
+            {!user.guest && <button aria-label="Çıkış yap" title="Çıkış yap" onClick={onLogout}>
               <LogOut size={17} />
-            </button>
+            </button>}
           </div>
         </div>
       </aside>

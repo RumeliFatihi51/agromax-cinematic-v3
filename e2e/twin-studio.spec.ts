@@ -3,14 +3,14 @@ import { expect, test } from "@playwright/test";
 test("sample twin changes water timing and energy costs and opens a parcel draft", async ({ page }, info) => {
   await page.setViewportSize(info.project.name === "mobile" ? { width: 390, height: 844 } : { width: 1440, height: 960 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill("upgrade@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
   await expect(page.locator(".fw-overview-section")).toBeVisible();
   await page.goto("/#twin");
-  await expect(page.getByRole("heading", { name: "Tarlanı üç boyutta oku." })).toBeVisible();
-  await expect(page.locator(".spatial-stage")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tarlan için iki plan dene." })).toBeVisible();
+  await expect(page.locator(".sim-map .leaflet-container")).toBeVisible();
   await page.screenshot({ path: info.outputPath("dijital-ikiz.png"), animations: "disabled" });
   await page.getByRole("button", { name: "Örnek ikizler", exact: true }).click();
   const gallery = page.getByRole("region", { name: "Örnek dijital ikizler" });
@@ -40,7 +40,7 @@ test("sample twin changes water timing and energy costs and opens a parcel draft
   await gallery.getByRole("button", { name: "Pompa ve bütçe" }).click();
   await gallery.getByRole("button", { name: "Plan B taslağını aç" }).click();
   await expect(page.getByRole("dialog").getByLabel("Dosya adı")).toHaveValue("Pompa ve bütçe · Plan B");
-  await expect(page.getByRole("dialog").getByLabel("Enerji birim fiyatı / kWh")).toHaveValue("8");
+  await expect(page.getByRole("dialog").getByLabel("Birim fiyat · TRY/kWh")).toHaveValue("8");
   await page.goto("/#access");
   await expect(page.getByRole("heading", { name: "AgroMax her ekranda." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Adresi kopyala" })).toBeVisible();

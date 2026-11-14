@@ -6,7 +6,7 @@ test("plant catalog, film and photo inspection are usable", async ({ page }, inf
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   expect((await page.request.get("/api/v1/plants/inspect")).status()).toBe(401);
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(`${info.project.name}@example.invalid`);
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();

@@ -1,0 +1,37 @@
+.decision-cost-layout {display:grid;gap:16px;min-width:0}
+.decision-cost-viz {display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:12px}
+.decision-columns,.decision-mix,.decision-ring {margin:0;min-width:0}
+.decision-columns,.decision-mix {background:#e9eee0;border:1px solid #d2dbca;border-radius:10px;padding:clamp(11px,2vw,20px)}
+.decision-columns figcaption,.decision-ring figcaption {display:flex;justify-content:space-between;gap:8px;font-weight:800}
+.decision-columns figcaption span {color:#527061;font-size:.8rem}
+.decision-columns-scroll {overflow:auto}
+.decision-columns ol {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(83px,1fr);padding:0;list-style:none;gap:8px;margin:12px 0 0}
+.decision-columns li {display:grid;justify-items:center;grid-template-rows:auto 140px auto;min-width:0;gap:5px;font-size:.8rem;text-align:center}
+.decision-columns li span {width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.decision-column-track {display:flex;align-items:flex-end;width:100%;justify-content:center;background:repeating-linear-gradient(0deg,#cbd8c9 0 1px,transparent 1px 35px)}
+.decision-column-bar {display:flex;flex-direction:column-reverse;width:45%;overflow:hidden;border-radius:4px 4px 0 0}
+.decision-column-bar i {display:block;min-height:0}
+.decision-mix label {display:grid;gap:4px;margin-bottom:10px;font-size:.82rem}
+.decision-mix select {width:100%;min-height:36px}
+.decision-ring-shape {display:grid;place-items:center;width:132px;aspect-ratio:1;border-radius:50%;background:#c7d2c2;margin:12px auto}
+.decision-ring-shape strong {display:grid;place-items:center;width:76%;aspect-ratio:1;border-radius:50%;background:#f7f8ed;color:#18392d;font-size:.86rem;text-align:center;font-variant-numeric:tabular-nums}
+.decision-ring ul {list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.decision-ring li {display:flex;justify-content:space-between;gap:8px;font-size:.8rem}
+.decision-ring li span {display:flex;align-items:center;gap:6px}
+.decision-ring li i {width:8px;height:8px;border-radius:50%;flex:none}
+.decision-cost-layout table {font-variant-numeric:tabular-nums}
+.decision-cost-layout tbody tr:nth-child(even) {background:#edf2e5}
+.decision-cost-layout td {white-space:nowrap}
+.decision-form {display:grid;gap:10px}
+.decision-form header {display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:8px}
+.decision-cost-input {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(85px,.6fr);align-items:end;gap:8px;border:1px solid #cbd7c5;border-radius:7px;margin:4px 0;padding:9px}
+.decision-cost-input legend {font-weight:800;padding:0 4px}
+.decision-cost-input output,.decision-form-total {font-variant-numeric:tabular-nums;background:#e3ecdc;color:#203e31;padding:8px;border-radius:5px;overflow-wrap:anywhere}
+.decision-form-total {display:flex;justify-content:space-between;font-weight:800;padding:12px}
+.sim-results .decision-ring {margin:10px 0 16px}
+.sim-results .decision-ring li {color:#e9f0e6}
+.sim-rain-bars rect:first-of-type {fill:#87b9da}
+.sim-rain-bars rect:nth-of-type(2) {fill:#a8ecbc}
+.sim-rain-bars rect:nth-of-type(3) {fill:#ffc38b}
+.sim-map-readout meter {grid-column:1/-1;width:100%;accent-color:#ffc38b}
+@media(max-width:650px){.decision-cost-viz{grid-template-columns:minmax(0,1fr)}.decision-cost-input{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.decision-cost-input output{grid-column:1/-1}}

@@ -14,6 +14,7 @@ import { openDatabase, initializeDatabase } from "./database.js";
 import { createPlatformService } from "./platform.js";
 import { enrichAnalysis } from "./analysis-report.js";
 import { Readable } from "node:stream";
+import { guestEmail, isGuestEmail } from "../shared/guest.js";
 import { terrainUpload } from "../shared/terrain-upload.js";
 
 /** @param {{db?:any, background?:(work:Promise<unknown>)=>void,workspace?:any}} [options] */
@@ -93,6 +94,25 @@ export async function createApplication({
             "SELECT users.id,users.name,users.email FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires>?",
           )
           .get(token || "", Date.now());
+        if (req.url === "/api/guest" && req.method === "POST") {
+          if (session) return reply(200, { ...session, guest: isGuestEmail(session.email), commercial: !!workspace });
+          const address = process.env.VERCEL ? req.headers["x-forwarded-for"]?.split(",")[0]?.trim() : req.socket.remoteAddress;
+          const key = createHash("sha256").update("guest:" + (address || "unknown")).digest("hex");
+          const id = randomBytes(16).toString("hex"), t = randomBytes(32).toString("hex");
+          const name = "Misafir", email = guestEmail(id), now = Date.now(), duration = 7 * 86400;
+          const created = await db.transaction(async tx => {
+            await tx.prepare("DELETE FROM auth_limits WHERE started_at<?").run(now - 600000);
+            const rate = await tx.prepare("INSERT INTO auth_limits(key,attempts,started_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=auth_limits.attempts+1 RETURNING attempts").get(key, now);
+            if (rate.attempts > 12) return false;
+            const unusablePassword = randomBytes(16).toString("hex") + ":" + randomBytes(64).toString("hex");
+            await tx.prepare("INSERT INTO users VALUES(?,?,?,?)").run(id, name, email, unusablePassword);
+            await tx.prepare("INSERT INTO sessions VALUES(?,?,?)").run(t, id, now + duration * 1000);
+            return true;
+          });
+          if (!created) return reply(429, { error: "Çok fazla yeni oturum açıldı. Birkaç dakika sonra tekrar dene." });
+          res.setHeader("Set-Cookie", `session=${t};${process.env.VERCEL ? " Secure;" : ""} HttpOnly; SameSite=Strict; Path=/; Max-Age=${duration}`);
+          return reply(201, { id, name, email, guest: true, commercial: !!workspace });
+        }
         if (
           ["/api/login", "/api/register"].includes(req.url) &&
           req.method === "POST"
@@ -131,6 +151,7 @@ export async function createApplication({
             });
           let user;
           if (req.url === "/api/register") {
+            if (email.endsWith("@guest.agromax.invalid")) return reply(400, { error: "Farklı bir e-posta adresi girin." });
             const name = String(body.name || "").trim();
             if (!name || name.length > 100)
               return reply(400, { error: "Adınızı girin." });
@@ -264,6 +285,7 @@ export async function createApplication({
         if (req.url === "/api/me")
           return reply(200, {
             ...session,
+            guest: isGuestEmail(session.email),
             ...(workspace ? { commercial: true } : {}),
           });
         if (req.url === "/api/logout" && req.method === "POST") {

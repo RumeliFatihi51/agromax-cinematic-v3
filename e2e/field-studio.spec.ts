@@ -11,7 +11,7 @@ test("signature studio keeps indices, tasks and atlas navigation on the real par
   const esri: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", request => { if (request.url().includes("arcgisonline.com")) esri.push(request.url()); });
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill("upgrade@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
@@ -130,7 +130,7 @@ test("Mapbox Satellite shows a real agricultural area in the Field Studio", asyn
   test.skip(process.env.AGROMAX_VERIFY_MAPBOX !== "true", "Live Mapbox token opt-in.");
   await page.setViewportSize(info.project.name === "mobile" ? { width: 390, height: 844 } : { width: 1440, height: 960 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();

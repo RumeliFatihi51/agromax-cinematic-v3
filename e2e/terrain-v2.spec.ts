@@ -13,7 +13,7 @@ test.use({
 });
 
 async function login(page: Page, account: string) {
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(account + "@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();

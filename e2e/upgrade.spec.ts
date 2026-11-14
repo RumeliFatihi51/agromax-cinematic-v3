@@ -18,6 +18,7 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   page.on("pageerror", (error) => failures.push(error.message));
   await page.goto("/#twin");
   const balance = page.locator(".water-balance");
+  await page.getByRole("button", { name: "Model girdilerini aç" }).click();
   await expect(balance).toBeVisible();
   await balance.getByText("Yeni su dengesi çalıştır", { exact: true }).click();
   const values = {
@@ -35,6 +36,7 @@ test("water-balance persistence, linked evidence, and reference screens", async 
     maxVolumeM3: "10000",
     maxCost: "10000",
     days: "2026-01-02,4,0,1,10\n2026-01-03,4,0,1,10",
+    baseline: "2026-01-03,100",
     alternative: "2026-01-02,100",
   };
   for (const [name, value] of Object.entries(values))
@@ -43,9 +45,22 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   await balance.getByRole("button", { name: "Senaryoları hesapla ve kaydet" }).click();
   await expect(balance.getByText("Girilen takvimler arasında en az stres ve suyla: Alternatif.")).toBeVisible();
   await page.reload();
+  await page.getByText("Toprak, hava ve temel plan girdileri", { exact: true }).click();
   await expect(balance.getByRole("rowheader", { name: "Alternatif" })).toBeVisible();
   await expect(balance.getByRole("img", { name: /günlük su açığı/ })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Parsel modeli ve kaynakları" })).toContainText("FAO-56");
+  const consolePanel = page.getByRole("region", { name: "Parsel simülasyon laboratuvarı" });
+  await expect(consolePanel).toContainText("FAO-56");
+  await consolePanel.getByRole("button", { name: /Bu parsel için öneriyi görmek/ }).click();
+  await expect(consolePanel).toContainText("takvimi 1 gün öne çek");
+  await consolePanel.getByRole("button", { name: "B planına yükle" }).click();
+  await consolePanel.getByLabel("Su · mm").fill("85");
+  await consolePanel.getByRole("button", { name: "Simülasyonu çalıştır" }).click();
+  await expect(consolePanel.getByRole("img", { name: /günlük su açığı grafiği/ })).toBeVisible();
+  await consolePanel.getByRole("slider", { name: "Simülasyon günü" }).press("End");
+  await expect(consolePanel.getByRole("slider", { name: "Simülasyon günü" })).toHaveAttribute("aria-valuetext", /3 Oca/);
+  await expect(consolePanel.getByRole("img", { name: "Günlük yağış ve sulama sütunları" })).toBeVisible();
+  await expect(consolePanel.getByText("Plan B · su bütçesi")).toBeVisible();
+  await expect(consolePanel.locator(".sim-map-readout")).toContainText("PARSEL GENELİ");
   await page.screenshot({ path: info.outputPath("twin-1440.png"), animations: "disabled" });
   await page.goto("/#scenarios");
   const comparison = balance.getByRole("region", { name: "Su dengesi senaryolarının 3D karşılaştırması" });
@@ -250,7 +265,7 @@ test("water-balance persistence, linked evidence, and reference screens", async 
   expect(evidence.reportFiles[0].sha256).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.stringify(evidence.measurementsAndInterventions)).toContain(note);
   await page.getByRole("button", { name: "Çıkış yap" }).click();
-  await expect(page.getByRole("button", { name: "Platforma giriş yap" })).toBeVisible();
+  await expect(page.locator(".fw-overview-section")).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("agromax-offline-v1"))).toBeNull();
   expect(failures).toEqual([]);
 });

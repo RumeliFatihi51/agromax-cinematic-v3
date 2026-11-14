@@ -10,6 +10,8 @@ import { PageHeading, EmptyState } from '../../components/ui/WorkspaceUI';
 import { useAreaFormat } from '../../components/PreferenceProvider';
 import useDialogFocus from '../../components/useDialogFocus';
 import WaterBalance from './WaterBalance';
+import { CostColumns, CostRing, ScenarioCostInputs } from './DecisionCharts';
+import SimulationConsole from './SimulationConsole';
 import TemporalStudio from './TemporalStudio';
 import ClaimsPanel from './ClaimsPanel';
 import OfflineTools from './OfflineTools';
@@ -33,6 +35,7 @@ function Notice({children}) {return <div className="px-notice"><Info size={17} a
 export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate,onSelect,commercial,canWrite=true,canEditTerrain=false,waterBalance,claimsEnabled,canCalculate,offline,spatialSelection,onSpatialSelection}) {
   const area=useAreaFormat();
   const [examples,setExamples]=useState(false);
+  const [modelRefresh, setModelRefresh]=useState(0);
   const decisionPage=['twin','scenarios','economics'].includes(page);
   const [bootstrap,setBootstrap]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[exportNotice,setExportNotice]=useState(''),[editor,setEditor]=useState(null),[revisions,setRevisions]=useState(null),[query,setQuery]=useState('');
   const [fieldId,setFieldId]=useState(()=>{if(initialFieldId)return initialFieldId;try{return localStorage.getItem('agromax.platform.field')||'';}catch{return '';}});
@@ -109,6 +112,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         </details>}
         <span className={`px-stage stage-${feature?.stage}`}>{platformStages[feature?.stage]}</span>
         <span className="workspace-context-note">{feature?.available}</span>
+        {page==='twin' && field?.geometry && <button className="secondary" onClick={()=>onNavigate('field-studio',activeId)}>3D saha görünümü <ArrowUpRight size={16}/></button>}
         {decisionPage && <button className="secondary" onClick={()=>setReload(n=>n+1)} disabled={busy}><RefreshCw size={16}/> Yenile</button>}
       </div>}
       {decisionPage&&examples&&<TwinExamples field={field} canCopy={canWrite} onCopy={setEditor}/>}
@@ -116,7 +120,13 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
         {!fields.length&&page==='satellite'&&<SatelliteSources sources={bootstrap?.sources||[]}/>}
         {!fields.length&&page==='drones'&&<SourceCards sources={bootstrap?.drones||[]}/>}
         {!fields.length?<EmptyState icon={MapPinned} title="Önce bir parsel ekleyelim." description="Yeni araçların tamamı kayıtlı bir tarla üzerinden çalışır."><button className="primary" onClick={()=>onNavigate('fields')}>Parsellere git <ArrowRight size={17}/></button></EmptyState>:!currentData&&!error?<div className="studio-module-loading" role="status">Parsel kaynakları yükleniyor…</div>:currentData&&<>
-          {field.geometry && ['twin','satellite','prescriptions','intelligence'].includes(page) &&
+          {page==='twin' && <SimulationConsole key={activeId+context.geometryHash} field={field}
+            enabled={!!waterBalance && !!field.geometry} canSetInputs={canCalculate} geometryVersion={context.geometryHash} refresh={modelRefresh}
+            onInputs={()=>{
+              const section=document.getElementById('twin-model-inputs');
+              if(section) { section.open=true; section.querySelector('summary')?.focus(); section.scrollIntoView({block:'start'}); }
+            }}/>}
+          {field.geometry && ['satellite','prescriptions','intelligence'].includes(page) &&
             <Suspense fallback={spatialLoading}>
               {page==='prescriptions' ? <PrescriptionViewer key={activeId+context.geometryHash} {...spatialProps} records={records}/> :
                 page==='intelligence' ? <IntelligenceViewer key={activeId+context.geometryHash} {...spatialProps} claimsEnabled={claimsEnabled}/> :
@@ -144,7 +154,8 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
                 <p>{context.latestAnalysis ? context.latestAnalysis.source + ' · ' + date(context.latestAnalysis.fetchedAt) : 'Bu sınıra bağlı tamamlanmış gözlem yok.'}</p>
               </div>
             </section>}
-            {waterBalance&&['twin','scenarios'].includes(page)&&<WaterBalance key={activeId} fieldId={activeId} sowingDate={field.sowingDate} canRun={canCalculate&&!!field.geometry} spatialField={page==='scenarios'&&field.geometry?field:null}/>}
+            {waterBalance&&page==='twin'&&<details className="px-surface px-section twin-details" id="twin-model-inputs"><summary>Toprak, hava ve temel plan girdileri</summary><WaterBalance key={activeId} fieldId={activeId} sowingDate={field.sowingDate} canRun={canCalculate&&!!field.geometry} onSaved={()=>setModelRefresh(value=>value+1)}/></details>}
+            {waterBalance&&page==='scenarios'&&<WaterBalance key={activeId} fieldId={activeId} sowingDate={field.sowingDate} canRun={canCalculate&&!!field.geometry} spatialField={field.geometry?field:null}/>}
             {!waterBalance&&page==='scenarios'&&<Notice>Üç boyutlu etki karşılaştırması FAO-56 su dengesi modelinin bağlı olduğu çalışma alanlarında açılır. Kaynak ve maliyet kayıtları aşağıda kullanılabilir.</Notice>}
             {claimsEnabled&&['evidence','contradictions','investigation','intelligence'].includes(page)&&<ClaimsPanel key={activeId} fieldId={activeId} page={page} canWrite={canWrite}/>}
             {['intelligence','contradictions'].includes(page)&&<><section className="px-surface px-section"><h2>{page==='intelligence'?'İncelemeye nereden başlamalı?':'Kayıt hazırlık kontrolleri'}</h2><p>Kontroller: parsel sınırı, ürün bilgisi, güncel geometriye ait sonuç, eski sınırdaki kayıtlar ve son işlem hatası.</p><Checks context={context} onNavigate={onNavigate}/></section><Notice>{page==='intelligence'?'Yapay zekâ anomali modeli bağlı değil. Aşağıdaki işaretler açıklanabilir kayıt kurallarından gelir; hastalık veya neden teşhisi değildir.':'Bu aşama tam uydu–sensör–saha çelişki çözümlemesi değildir. İşaretlerin bulunmaması tarımsal doğruluk veya risksizlik onayı sayılmaz.'}</Notice><div className="px-actions"><button className="primary" onClick={()=>onNavigate('investigation',field.id)}>Saha incelemesi oluştur <Plus size={17}/></button><button className="secondary" onClick={()=>onNavigate('assistant',field.id)}>Filiz’i aç <ArrowUpRight size={16}/></button></div></>}
@@ -270,20 +281,14 @@ function ScenarioComparison({records, chart, hectares}) {
   return <section className="px-surface px-section scenario-comparison">
     <h2>{chart ? 'Para birimine göre maliyet' : 'Senaryo karşılaştırma tablosu'}</h2>
     <p>Arşivlenmemiş kayıtlar. Miktarlar kullanıcı varsayımlarıdır; gerçekleşmiş tüketim değildir.</p>
-    <div className={chart && active.length ? 'scenario-comparison-layout' : undefined}>
-    {chart && active.length > 0 && <div className="scenario-chart-ledger">{currencies.map((currency) => {
-      const group = active.filter((record) => record.calculation.currency === currency);
-      const max = Math.max(0, ...group.map((record) => record.calculation.totalMinor));
-      return <figure className="scenario-bars" key={currency}>
-        <figcaption>{currency} · Toplam maliyet</figcaption>
-        <ul>{group.map((record) => <li key={record.id}>
-          <span>{record.name}</span>
-          <strong>{money(record.calculation)}</strong>
-          <meter aria-label={record.name + ' · ' + currency} value={record.calculation.totalMinor} min={0} max={max || 1}/>
-        </li>)}</ul>
-        <small>Ortak ölçek: {money({currency,totalMinor:0})} – {money({currency,totalMinor:max})}</small>
-      </figure>;
-    })}</div>}
+    <div className="decision-cost-layout">
+    {active.length > 0 && currencies.map(currency => {
+      const group = active.filter(record => record.calculation.currency === currency);
+      return <div className="decision-cost-viz" key={currency}>
+        <CostColumns records={group} currency={currency}/>
+        <ScenarioCostMix records={group} currency={currency}/>
+      </div>;
+    })}
     {active.length ? <div className="px-table-wrap"><table>
       <thead><tr><th>Senaryo</th><th>Su (m³)</th><th>Gübre (kg)</th><th>İşçilik (sa)</th><th>Su maliyeti</th><th>Enerji</th><th>İşçilik maliyeti</th><th>Toplam</th>{chart && <><th>Hektar başına</th><th>Varsayımsal net etki</th></>}</tr></thead>
       <tbody>{active.map((record) => {
@@ -301,6 +306,16 @@ function ScenarioComparison({records, chart, hectares}) {
     </table></div> : <div className="px-empty-inline">İlk senaryonu kaydettiğinde karşılaştırma burada oluşur.</div>}
     </div>
   </section>;
+}
+function ScenarioCostMix({ records, currency }) {
+  const [selected, setSelected] = useState("");
+  const record = records.find(item => item.id === selected) || records[0];
+  return <div className="decision-mix">
+    <label>Kalemlerini gör<select value={record.id} onChange={event=>setSelected(event.target.value)}>
+      {records.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
+    </select></label>
+    <CostRing title="Planın gider dağılımı" total={record.calculation.totalMinor} currency={currency} lines={record.calculation.lines || {}}/>
+  </div>;
 }
 const investigationStates = {open:'Açık',in_progress:'Sahada',closed:'Kapandı'};
 function RecordList({records,kind,busy,canWrite,onNew,onEdit,onCopy,onExport,onReview,onHistory}) {
@@ -445,11 +460,7 @@ export function DraftEditor({kind,field,record,latestAnalysis,onClose,onSaved}) 
         <option value="">Belirtilmedi</option><option value="irrigation">Sulama</option><option value="fertilization">Gübreleme</option>
         <option value="drought">Kuraklık</option><option value="weather">Hava koşulları</option><option value="management">Yönetim</option>
       </select></label>
-      <div className="px-form-grid">{amount('waterM3','Su miktarı (m³)')}{amount('waterUnitCost','Su birim fiyatı / m³')}{amount('fertilizerKg','Gübre miktarı (kg)')}{amount('fertilizerUnitCost','Gübre birim fiyatı / kg')}{amount('laborHours','İşçilik (saat)')}{amount('laborHourlyCost','İşçilik saat ücreti')}{amount('otherCost','Diğer maliyet')}<label>Para birimi<select name="currency" defaultValue={p.currency||'TRY'}><option>TRY</option><option>EUR</option><option>USD</option></select></label></div>
-      <details open={Boolean(p.energyKwh || p.equipmentHours)}><summary>Enerji ve ekipman</summary><div className="px-form-grid">
-        {amount('energyKwh','Enerji (kWh)')}{amount('energyUnitCost','Enerji birim fiyatı / kWh')}
-        {amount('equipmentHours','Ekipman (saat)')}{amount('equipmentHourlyCost','Ekipman saat ücreti')}
-      </div></details>
+      <ScenarioCostInputs payload={p}/>
       <details open={Boolean(p.revenue)}><summary>Gelir ve duyarlılık varsayımı</summary><div className="px-form-grid">
         <label>Varsayılan satış miktarı (kg)<input name="quantityKg" type="number" min="0" max="100000000" step="any" defaultValue={p.revenue?.quantityKg}/></label>
         <label>Varsayılan satış fiyatı / kg<input name="unitPrice" type="number" min="0" max="100000000" step="any" defaultValue={p.revenue?.unitPrice}/></label>

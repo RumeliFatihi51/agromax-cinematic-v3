@@ -399,7 +399,7 @@ test("Filiz source reveal and empty workspace are truthful", async ({ page }, in
 
 test("touch controls open the parcel map and the Filiz source drawer", async ({ page }, info) => {
   test.skip(info.project.name !== "mobile", "Uses the touch-enabled browser project.");
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await expect(page.locator(".observation-auth-scene img")).toBeVisible();
   const portalVideo = page.locator(".observation-auth-scene video");
   await expect.poll(() => portalVideo.evaluate((video: HTMLVideoElement) => video.loop && video.currentTime > 0)).toBe(true);
@@ -410,9 +410,7 @@ test("touch controls open the parcel map and the Filiz source drawer", async ({ 
   await page.getByRole("button", { name: "Videoyu oynat" }).tap();
   await expect(page.locator(".observation-auth-inscription h1")).toHaveCSS("color", "rgb(243, 244, 233)");
   await expect(page.locator(".observation-auth-form h2")).toHaveCSS("color", "rgb(243, 244, 233)");
-  await page.getByRole("button", { name: "Hesap oluştur", exact: true }).tap();
-  await expect(page.getByRole("heading", { name: "Yeni bir bakış aç." })).toBeVisible();
-  await page.getByRole("button", { name: "Giriş yap", exact: true }).tap();
+  await expect(page.getByRole("button", { name: "Hesap oluştur", exact: true })).toHaveCount(0);
   await page.getByLabel("E-posta adresiniz").fill("mobile@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).tap();

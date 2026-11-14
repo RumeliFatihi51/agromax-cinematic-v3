@@ -10,12 +10,13 @@ async function navigate(page: Page, name: string) {
 test('platform capabilities, persistent drafts, immutable versions and review-only exports are usable',async({page},info)=>{
   test.setTimeout(180000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('/');await page.getByLabel('E-posta adresiniz').fill(`${info.project.name}@example.invalid`);await page.getByLabel('Şifreniz',{exact:true}).fill('browser-fixture-password-123');await page.getByRole('button',{name:'Platforma giriş yap'}).click();
+  await page.goto('/?account=existing');await page.getByLabel('E-posta adresiniz').fill(`${info.project.name}@example.invalid`);await page.getByLabel('Şifreniz',{exact:true}).fill('browser-fixture-password-123');await page.getByRole('button',{name:'Platforma giriş yap'}).click();
   await expect(page.locator('.fw-overview-section')).toBeVisible();
   await navigate(page,'Platform merkezi');await expect(page.locator('.px-feature-card')).toHaveCount(14);
   await page.screenshot({path:`data/browser-results/${info.project.name}-platform-hub.png`,fullPage:true});
   for(const title of ['Çok kaynaklı uydu','Dijital ikiz','Arazi hafızası','Tarla zekâsı','Kanıt ve doğrulama','Tutarlılık kontrolü','Saha incelemeleri','Reçete planları','Dron bağlantıları','Ekonomik karşılaştırma','İzlenebilirlik ve MRV','Web ve mobil erişim']) {
-    await navigate(page,title);await expect(page.locator('.px-workspace h1')).toHaveText(title);await expect(page.locator('.px-context-bar')).toBeVisible();
+    await navigate(page,title);await expect(page.locator('.px-workspace h1')).toHaveText(({ 'Dijital ikiz':'Tarlan için iki plan dene.', 'Ekonomik karşılaştırma':'Her kararın bir maliyeti var.', 'Web ve mobil erişim':'AgroMax her ekranda.' } as Record<string,string>)[title] || title);
+    if(title!=='Web ve mobil erişim') await expect(page.locator('.px-context-bar')).toBeVisible();
     if(title==='Arazi hafızası')await expect(page.getByRole('region',{name:'Kaydedilmiş gözlem çizgisi'})).toBeVisible();
     else if(title!=='Web ve mobil erişim')await expect(page.locator('.px-field-strip')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),`overflow ${title}`).toBe(true);
@@ -24,10 +25,11 @@ test('platform capabilities, persistent drafts, immutable versions and review-on
   await navigate(page,'Senaryo laboratuvarı');await expect(page.locator('.px-records')).toBeVisible();
   await page.getByRole('button',{name:'Yeni senaryo',exact:true}).click();const dialog=page.getByRole('dialog');
   const name=`EXPLICIT PLATFORM SCENARIO ${info.project.name} ${info.retry}`;
-  await dialog.getByLabel('Dosya adı',{exact:true}).fill(name);await dialog.getByLabel('Su miktarı (m³)',{exact:true}).fill('10');await dialog.getByLabel('Su birim fiyatı / m³',{exact:true}).fill('2');await dialog.getByLabel('İşçilik (saat)',{exact:true}).fill('1');await dialog.getByLabel('İşçilik saat ücreti',{exact:true}).fill('100');
+  await dialog.getByLabel('Dosya adı',{exact:true}).fill(name);await dialog.getByLabel('Miktar · m³',{exact:true}).fill('10');await dialog.getByLabel('Birim fiyat · TRY/m³',{exact:true}).fill('2');await dialog.getByRole('group',{name:'İşçilik',exact:true}).getByLabel('Miktar · saat',{exact:true}).fill('1');await dialog.getByRole('group',{name:'İşçilik',exact:true}).getByLabel('Birim fiyat · TRY/saat',{exact:true}).fill('100');
+  await expect(dialog.getByLabel('Tahmini toplam')).toContainText('120,00');
   const saved=page.waitForResponse(response=>response.url().endsWith('/api/platform/records')&&response.request().method()==='POST');await dialog.getByRole('button',{name:'Dosyayı kaydet'}).click();const response=await saved;expect(response.status()).toBe(201);const body=await response.json();expect(body.record.calculation.totalMinor).toBe(12000);expect(body.record.review.machineExecution).toBe(false);
   await expect(dialog).toHaveCount(0);let card=page.locator('.px-record-list article').filter({has:page.getByRole('heading',{name,exact:true})});await expect(card).toBeVisible();
-  await page.reload();await expect(card).toBeVisible();await card.getByRole('button',{name:'Düzenle',exact:true}).click();await dialog.getByLabel('Diğer maliyet',{exact:true}).fill('5');await dialog.getByRole('button',{name:'Dosyayı kaydet'}).click();await expect(dialog).toHaveCount(0);await expect(card).toContainText('v2');
+  await page.reload();await expect(card).toBeVisible();await card.getByRole('button',{name:'Düzenle',exact:true}).click();await dialog.getByText('Gübre, ekipman ve diğer giderler',{exact:true}).click();await dialog.getByLabel('Diğer gider · TRY',{exact:true}).fill('5');await dialog.getByRole('button',{name:'Dosyayı kaydet'}).click();await expect(dialog).toHaveCount(0);await expect(card).toContainText('v2');
   await card.getByRole('button',{name:'İnceleme iste',exact:true}).click();await expect(card).toContainText('İnceleme istendi');await card.getByRole('button',{name:'Sürümler',exact:true}).click();await expect(page.locator('.px-revisions li')).toHaveCount(3);await page.getByRole('button',{name:'Sürümleri kapat'}).click();
   const downloaded=page.waitForEvent('download');await card.getByRole('button',{name:'İnceleme dosyası',exact:true}).click();const file=await downloaded;expect(file.suggestedFilename()).toContain('agromax-inceleme-');
   await file.saveAs(`data/browser-results/${info.project.name}-platform-review.json`);
@@ -35,7 +37,7 @@ test('platform capabilities, persistent drafts, immutable versions and review-on
   expect(exported.machineExecution).toBe(false);expect(exported.expertApproval).toBe('not_approved');expect(exported.record.calculation.totalMinor).toBe(12500);
   await card.getByRole('button',{name:'Kopyala',exact:true}).click();
   await expect(dialog.getByLabel('Dosya adı',{exact:true})).toHaveValue(name+' · Kopya');
-  await expect(dialog.getByLabel('Diğer maliyet',{exact:true})).toHaveValue('5');
+  await expect(dialog.getByLabel('Diğer gider · TRY',{exact:true})).toHaveValue('5');
   await dialog.getByText('Gelir ve duyarlılık varsayımı',{exact:true}).click();
   await dialog.getByLabel('Varsayılan satış miktarı (kg)').fill('20');
   await dialog.getByLabel('Varsayılan satış fiyatı / kg').fill('20');

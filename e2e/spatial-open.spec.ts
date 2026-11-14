@@ -6,7 +6,7 @@ test("open Sentinel COGs render for an authorized parcel without creating saved 
   test.skip(process.env.AGROMAX_VERIFY_OPEN_SENTINEL !== "true", "Live public Earth Search and S3 opt-in.");
   test.setTimeout(100_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();

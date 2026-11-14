@@ -26,6 +26,7 @@ import { publishProjectedClaims } from "../intelligence/claims";
 import { simulationRoutes } from "../simulation/api";
 import { terrainRoutes } from "../terrain/api";
 import { plantRoutes } from "../plants/api";
+import { isGuestEmail } from "../../shared/guest.js";
 import { terrainUpload } from "../../shared/terrain-upload.js";
 
 export async function createProductionWorkspace(config: {
@@ -100,6 +101,7 @@ export async function createProductionWorkspace(config: {
         const actor: Actor = {
           ...sourceActor,
           emailVerified: false,
+          guest: isGuestEmail(sourceActor.email),
           authentication: "legacy-session",
         };
         const ctx = await projectWorkspace(store, actor),

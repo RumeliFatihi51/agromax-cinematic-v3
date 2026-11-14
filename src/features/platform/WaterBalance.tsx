@@ -79,8 +79,8 @@ function DepletionChart({ result }: { result: ReturnType<typeof runWaterBalance>
   );
 }
 
-export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate }: {
-  fieldId: string; canRun: boolean; spatialField?: { id: string; geometry: unknown } | null; sowingDate?: string;
+export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate, onSaved }: {
+  fieldId: string; canRun: boolean; spatialField?: { id: string; geometry: unknown } | null; sowingDate?: string; onSaved?: () => void;
 }) {
   const path = `v1/fields/${fieldId}/water-balance`;
   const [saved, setSaved] = useState<SavedBalance | null>(null);
@@ -132,6 +132,7 @@ export default function WaterBalance({ fieldId, canRun, spatialField, sowingDate
       }) as SavedBalance;
       setSaved(previous => ({ ...calculated, history: previous?.history }));
       setActiveRun(calculated.run?.id ?? "");
+      onSaved?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Su dengesi hesaplanamadı.");
     } finally {

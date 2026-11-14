@@ -1,3 +1,4 @@
+import { DecisionRing } from "../platform/DecisionCharts";
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -601,22 +602,22 @@ export default function BusinessWorkspace({
           <h2>{t("Gider dağılımı", "Expense breakdown")}</h2>
           <p>{t("Kategori payları her para birimi için ayrı gösterilir.", "Category shares are shown separately for each currency.")}</p>
           <div className="cost-breakdown-groups">
-            {summary.map(({ currency, amountMinor }) => {
+            {summary.map(({ currency }) => {
               const categories = new Map<string, number>();
               for (const { data } of records) {
                 if (data.currency !== currency || typeof data.amountMinor !== "number") continue;
                 const category = String(data.category);
                 categories.set(category, (categories.get(category) || 0) + data.amountMinor);
               }
-              return <figure key={currency}>
-                <figcaption>{currency}</figcaption>
-                <ul>{[...categories].sort((a, b) => b[1] - a[1]).map(([category, amount]) =>
-                  <li key={category}><span>{option(category)}</span>
-                    <strong>{displayMoney(amount, currency, locale)}</strong>
-                    <meter min={0} max={amountMinor || 1} value={amount} aria-label={option(category) + " · " + currency} />
-                  </li>
-                )}</ul>
-              </figure>;
+              const colors = ["#398775", "#c47a45", "#6375a7", "#a6aa53", "#8a648c", "#868f83"];
+              const entries = [...categories].sort((a, b) => b[1] - a[1]);
+              const visibleTotal = entries.reduce((sum, [, amount]) => sum + amount, 0);
+              return <DecisionRing key={currency} title={t("Listelenen giderler", "Listed expenses") + " · " + currency}
+                total={displayMoney(visibleTotal, currency, locale)}
+                rows={entries.map(([category, amount], index) => ({
+                  label: option(category), value: amount, display: displayMoney(amount, currency, locale),
+                  color: colors[index % colors.length],
+                }))} />;
             })}
           </div>
         </section>
@@ -840,6 +841,7 @@ export default function BusinessWorkspace({
             </button>
           </header>
           <form onSubmit={save}>
+            {kind === "cost" && <p className="cost-form-help">{t("Fiş veya faturadaki toplam tutarı ve para birimini gir. Birim fiyat hesabı için Senaryo Laboratuvarı’nı kullan.", "Enter the total on the receipt or invoice and its currency. Use Scenario Lab for unit-price estimates.")}</p>}
             <label>
               {t("Parsel", "Parcel")}
               <select
@@ -899,6 +901,7 @@ export default function BusinessWorkspace({
                   ) : (
                     <input
                       name={f.key}
+                      placeholder={f.type === "money" ? t("Örn. 1250,50", "E.g. 1250.50") : undefined}
                       type={f.type === "money" ? "text" : f.type || "text"}
                       inputMode={f.type === "money" ? "decimal" : undefined}
                       step={f.type === "number" ? "any" : undefined}

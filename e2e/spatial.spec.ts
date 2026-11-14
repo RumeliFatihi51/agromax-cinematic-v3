@@ -12,7 +12,7 @@ test("existing-account owners can start standard parcel analysis without commerc
     await route.fulfill({ response, json: { ...json, user: { ...json.user, emailVerified: false },
       capabilities: { ...json.capabilities, workspaceMode: existingAccount ? "existing-account" : undefined } } });
   });
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
@@ -40,7 +40,7 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   const id = "e".repeat(32);
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill("upgrade@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();
@@ -155,7 +155,7 @@ test("3D geometry, numeric Sentinel layers and dated comparisons work through th
 });
 
 test("revision-bound prescription zones are saved, validated and selectable in 3D", async ({ page }, info) => {
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.getByLabel("E-posta adresiniz").fill(info.project.name + "@example.invalid");
   await page.getByLabel("Şifreniz", { exact: true }).fill("browser-fixture-password-123");
   await page.getByRole("button", { name: "Platforma giriş yap" }).click();

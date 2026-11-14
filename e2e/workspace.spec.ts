@@ -16,7 +16,7 @@ test("menus, operation CRUD, sourced guide, confirmed tasks and private PDF down
 }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page.screenshot({
     path: `data/browser-results/${info.project.name}-auth.png`,
     fullPage: true,
@@ -210,7 +210,7 @@ test("every workspace menu, responsive screen and record workflow is usable", as
   test.setTimeout(150000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/?account=existing");
   await page
     .getByLabel("E-posta adresiniz")
     .fill(`${info.project.name}@example.invalid`);

@@ -26,7 +26,7 @@ export function TwinNavigation({ page, field, onNavigate, examples, onExamples }
   return <section className="twin-deck" aria-label="Dijital İkiz çalışma alanı">
     <div className="twin-deck-copy">
       <span>AGROMAX · DİJİTAL İKİZ</span>
-      <h1>{examples ? "Örnek ikizler" : page === "scenarios" ? "Aynı tarla, iki farklı karar." : page === "economics" ? "Her kararın bir maliyeti var." : "Tarlanı üç boyutta oku."}</h1>
+      <h1>{examples ? "Örnek ikizler" : page === "scenarios" ? "Aynı tarla, iki farklı karar." : page === "economics" ? "Her kararın bir maliyeti var." : "Tarlan için iki plan dene."}</h1>
       <p>{examples ? "Buğday sıralarına in, sonra aynı sahne üzerinde iki planın sonucunu karşılaştır." : field?.name || "Örnek sahneyi açarak başlayabilirsin."}</p>
     </div>
     <div className="twin-deck-actions">{links.map(([id, label, Icon]) =>

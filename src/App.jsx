@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Sprout, ArrowRight, X, LoaderCircle } from "lucide-react";
 import AppShell from "./components/AppShell";
 import { CinematicLoader } from "./motion/entrance";
@@ -130,11 +130,30 @@ export default function App() {
       });
     return () => controller.abort();
   }, [user?.id, user?.commercial]);
+  const [entryError, setEntryError] = useState("");
+  const entry = new URLSearchParams(window.location.search);
+  const accountEntry = entry.get("account") === "existing" || entry.get("flow") === "reset";
+  async function enterWorkspace() {
+    setLoading(true);
+    setEntryError("");
+    try {
+      const current = await api("me").catch(error => {
+        if (error.status !== 401) throw error;
+        clearOffline();
+        return accountEntry ? null : api("guest", {});
+      });
+      setUser(current);
+    } catch (error) {
+      setEntryError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const initialEntry = useRef(false);
   useEffect(() => {
-    api("me")
-      .then(setUser)
-      .catch((error) => { if (error.status === 401) clearOffline(); })
-      .finally(() => setLoading(false));
+    if (initialEntry.current) return;
+    initialEntry.current = true;
+    void enterWorkspace();
   }, []);
   useEffect(() => {
     const local = readOffline();
@@ -258,6 +277,7 @@ export default function App() {
     setRecords([]);
     setReady(false);
     setPage("overview");
+    if (!accountEntry) await enterWorkspace();
   }
   function openTask(date, fieldId = "") {
     setTaskField(fieldId);
@@ -266,11 +286,19 @@ export default function App() {
     setModal(true);
   }
   if (loading) return <CinematicLoader />;
-  if (
-    !user ||
-    new URLSearchParams(window.location.search).get("flow") === "reset"
-  )
-    return <Auth onLogin={setUser} />;
+  if (entryError && !user) return <section className="studio-module-empty">
+    <h1>Çalışma alanı açılamadı.</h1><p role="alert">{entryError}</p>
+    <button className="primary" onClick={enterWorkspace}>Tekrar dene</button>
+  </section>;
+  if (accountEntry && (!user || user.guest || entry.get("flow") === "reset"))
+    return <Auth existingOnly onLogin={next => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("account");
+      url.searchParams.delete("flow");
+      window.history.replaceState(null, "", url);
+      setUser(next);
+    }}/>;
+  if (!user) return <CinematicLoader />;
   if (user.commercial && !commercial)
     return (
       <section className="studio-module-empty">
@@ -379,7 +407,7 @@ export default function App() {
       waterBalance={commercial?.capabilities?.waterBalance}
       claimsEnabled={commercial?.capabilities?.claims}
       canCalculate={activeWorkspace?.role !== "viewer" &&
-        (!!user.emailVerified || commercial?.capabilities?.workspaceMode === "existing-account")}
+        (!!user.emailVerified || !!user.guest || commercial?.capabilities?.workspaceMode === "existing-account")}
       offline={commercial?.capabilities?.offlineNotes && activeWorkspace && activeWorkspace.role !== "viewer"
         ? { userId: user.id, organizationId: activeWorkspace.id, tasks }
         : null}

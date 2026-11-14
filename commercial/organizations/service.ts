@@ -18,6 +18,7 @@ export interface Actor {
   name: string;
   email: string;
   emailVerified: boolean;
+  guest?: boolean;
   authentication?: "legacy-session";
 }
 export interface Context {
@@ -63,6 +64,7 @@ export function requirePermission(context: Context, permission: Permission) {
   if (
     ["calculate", "report.create", "billing.manage"].includes(permission) &&
     !context.actor.emailVerified &&
+    !(context.actor.guest && ["calculate", "report.create"].includes(permission)) &&
     !(
       permission === "report.create" &&
       context.actor.authentication === "legacy-session"

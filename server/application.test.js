@@ -43,6 +43,17 @@ test("HTTP accounts, owner boundaries, parser and durable sessions use the share
       body: "{",
     });
     assert.equal(malformed.status, 400);
+    const guest = await request("/api/guest", {});
+    const otherGuest = await request("/api/guest", {});
+    assert.equal(guest.status, 201);
+    assert.match(guest.cookie, /HttpOnly/);
+    assert.equal(guest.data.guest, true);
+    assert.notEqual(otherGuest.data.id, guest.data.id);
+    assert.equal((await request("/api/guest", {}, guest.cookie)).data.id, guest.data.id);
+    const guestParcel = await request("/api/records", { kind: "field", name: "Guest field", area: 10 }, guest.cookie);
+    assert.equal(guestParcel.status, 201);
+    assert.deepEqual((await request("/api/records", undefined, otherGuest.cookie)).data, []);
+    assert.equal((await request("/api/platform/fields/" + guestParcel.data.id, undefined, otherGuest.cookie)).status, 404);
     const credentials = {
       name: "Explicit test fixture",
       email: "fixture@example.invalid",

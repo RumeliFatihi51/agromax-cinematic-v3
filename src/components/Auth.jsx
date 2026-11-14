@@ -5,7 +5,7 @@ import { api } from "../api";
 import SceneFilm from "../features/cinema/SceneFilm";
 import { filmForScene } from "../features/cinema/sceneFilms";
 import RouteCurtain from "../features/cinema/RouteCurtain";
-export default function Auth({ onLogin }) {
+export default function Auth({ onLogin, existingOnly = false }) {
   const [register, setRegister] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -57,7 +57,7 @@ export default function Auth({ onLogin }) {
       </section>
       <section className="observation-auth-panel" aria-labelledby="observation-auth-title">
         <div className="observation-auth-form">
-          <div className="observation-auth-tabs" role="group" aria-label="Hesap işlemi">
+          {!existingOnly && <div className="observation-auth-tabs" role="group" aria-label="Hesap işlemi">
             <button
               className={!register ? "selected" : ""}
               aria-pressed={!register}
@@ -82,7 +82,8 @@ export default function Auth({ onLogin }) {
             >
               Hesap oluştur
             </button>
-          </div>
+          </div>}
+          {existingOnly && <a href="/">Misafir olarak devam et</a>}
           <h2 id="observation-auth-title">
             {recovery ? "Erişimini yenile." : register ? "Yeni bir bakış aç." : "Yeniden hoş geldin."}
           </h2>
