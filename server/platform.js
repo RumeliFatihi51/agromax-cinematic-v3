@@ -1,3 +1,5 @@
+import { nasaLayerStatus, searchNasaScenes } from './nasa-products.js';
+import { validateGeometry } from '../shared/geometry.js';
 import { randomBytes, createHash } from 'node:crypto';
 import { platformFeatures, sourceAdapters, droneAdapters } from '../shared/platform.js';
 import { parseDraft, scenarioTotals } from '../shared/platform-contracts.js';
@@ -141,6 +143,17 @@ export async function createPlatformService(db, { ownership = 'account_private' 
     const url=new URL(req.url,'http://localhost');
     if(!url.pathname.startsWith('/api/platform/')) return false;
     try {
+      if (url.pathname === "/api/platform/nasa/layers" && req.method === "GET") {
+        reply(200, await nasaLayerStatus());
+        return true;
+      }
+      const nasa = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/nasa-scenes$/);
+      if (nasa && req.method === "GET") {
+        const field = await ownField(db, session.id, nasa[1]);
+        if (!field.geometry) throw fail("Önce parsel sınırını kaydet.", 422);
+        reply(200, await searchNasaScenes(url.searchParams.get("source"), validateGeometry(field.geometry).bbox, url.searchParams.get("end")));
+        return true;
+      }
       const spatial = url.pathname.match(/^\/api\/platform\/fields\/([a-f0-9]{32})\/spatial$/);
       if (spatial && req.method === "GET") {
         reply(200, await spatialCatalog(session.id, spatial[1]));

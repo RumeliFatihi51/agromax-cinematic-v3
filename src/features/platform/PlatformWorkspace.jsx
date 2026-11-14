@@ -18,6 +18,7 @@ import OfflineTools from './OfflineTools';
 import TwinInputs from './TwinInputs';
 import { AccessPortal, TwinExamples, TwinNavigation, TwinRecommendations } from './TwinStudio';
 import './platform.css';
+const NasaObservations = lazy(() => import('./NasaObservations'));
 const SpatialWorkbench = lazy(() => import('../spatial/SpatialWorkbench'));
 const SpatialAtlas = lazy(() => import('../spatial/SpatialAtlas'));
 const PrescriptionViewer = lazy(() => import('../spatial/PrescriptionViewer'));
@@ -135,6 +136,7 @@ export default function PlatformWorkspace({page,fields,initialFieldId,onNavigate
           {page==='twin'&&<TwinRecommendations context={context} onNavigate={onNavigate} onField={()=>onSelect(field)}/>}
           <div className="px-main-grid" data-workspace={page}><section className="px-content">
             {page==='satellite'&&<>
+              <Suspense fallback={spatialLoading}><NasaObservations key={activeId} field={field}/></Suspense>
               <SatelliteSources sources={bootstrap?.sources||[]}/><Notice>Parsel Analizi ekranında her kaynağın ölçümü, tarihi ve yöntem bilgisi ayrı gösterilir.</Notice><div className="px-actions"><button className="primary" onClick={()=>onSelect(field)}>Parsel uydu analizini aç <ArrowUpRight size={17}/></button></div></>}
             {page==='twin'&&<>
               <details className="px-surface px-section twin-details"><summary>Parsel kayıtları ve model girdileri</summary><TwinInputs key={activeId+context.geometryHash} context={context} records={currentData.records} onNavigate={onNavigate} onField={()=>onSelect(field)}/>

@@ -1,0 +1,10 @@
+.nasa-observations{display:grid;gap:10px;min-width:0}
+.nasa-observations :is(h2,p){margin:.25em 0}
+.nasa-toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:10px}
+.nasa-observations label{display:grid;gap:5px;font-size:.83rem;min-width:0}
+.nasa-observations :is(select,input){max-width:100%;min-height:40px}
+.nasa-resolution,.nasa-limit{padding:8px 10px;background:#e7eee0;border-left:3px solid #62856a}
+.nasa-map{height:clamp(290px,44vh,520px);border-radius:7px;background:#233d30;isolation:isolate}
+.nasa-scene img{display:block;max-width:100%;max-height:280px;object-fit:contain}
+.nasa-scene ul{max-height:180px;overflow:auto;overflow-wrap:anywhere}
+.nasa-scene select{width:100%}
